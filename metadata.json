@@ -1,0 +1,8 @@
+
+{
+  "name": "EventHorizon EMS",
+  "description": "A comprehensive Event Management System featuring theater seating, ticket booking, real-time analytics, and role-based access control.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
