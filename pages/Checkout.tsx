@@ -4,12 +4,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Event, Seat, Coupon, ServiceCharge, PaymentMode, SeatingType } from '../types';
-import { validateCoupon, processPayment, fetchServiceCharges, createPaymentIntent, releaseSeats } from '../services/mockBackend';
+import { validateCoupon, processPayment, fetchServiceCharges, createPaymentIntent, releaseSeats, releaseSeatsKeepAlive } from '../services/mockBackend';
 import { useAuth } from '../context/AuthContext';
 import { TicketCheck, CreditCard, Tag, Info, AlertTriangle, Timer, ArrowLeft } from 'lucide-react';
 import clsx from 'clsx';
 
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || 'pk_test_51OEXAMPLEKEY');
+const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Npw4pKUXa8cL1IH4peMAyX0L2VQZfdd3geTwYivtTZUDtCE83NcGuP3vibkB8ndW6vhOzzDOLTtNTfGbzeJFC1600s4Jkldwa');
 
 const CheckoutForm: React.FC<{
     event: Event,
@@ -120,6 +120,7 @@ const Checkout: React.FC = () => {
   // Timer State
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const isPaidRef = useRef(false);
+    const releasedRef = useRef(false);
 
   useEffect(() => {
     if (!event || !selectedSeats) {
@@ -139,18 +140,59 @@ const Checkout: React.FC = () => {
         setTimeLeft(prev => {
             if (prev <= 1) {
                 clearInterval(timer);
-                handleTimeout();
+                // Explicitly release seats before navigating away on timeout
+                (async () => {
+                    try {
+                        releasedRef.current = true;
+                        await releaseSeats(event.id, selectedSeats.map(s => s.id));
+                    } catch (e) {
+                        console.error('Failed to release seats on timeout', e);
+                    }
+                    handleTimeout();
+                })();
                 return 0;
             }
             return prev - 1;
         });
     }, 1000);
 
-    // Release seats on unmount if not paid
+    // Release seats on unmount if not paid. Also register a beforeunload
+    // handler for browser/tab closes that uses keepalive.
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+        if (!isPaidRef.current) {
+            try {
+                // Best-effort synchronous/keepalive release
+                releasedRef.current = true;
+                releaseSeatsKeepAlive(event.id, selectedSeats.map(s => s.id));
+            } catch (err) {
+                // ignore
+            }
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    };
+
+    window.addEventListener('beforeunload', beforeUnload);
+    // Detect browser back/forward navigation (popstate) and attempt a release.
+    const onPopState = () => {
+        if (!isPaidRef.current && !releasedRef.current && event.seatingType === SeatingType.RESERVED) {
+            releasedRef.current = true;
+            // Best-effort: use keepalive so the request has a chance to be sent
+            releaseSeatsKeepAlive(event.id, selectedSeats.map(s => s.id));
+            // Also fire an async release attempt (non-blocking)
+            releaseSeats(event.id, selectedSeats.map(s => s.id)).catch(() => {});
+        }
+    };
+    window.addEventListener('popstate', onPopState);
+
     return () => {
         clearInterval(timer);
-        if (!isPaidRef.current && event.seatingType === SeatingType.RESERVED) {
-            releaseSeats(event.id, selectedSeats.map(s => s.id)).catch(console.error);
+        window.removeEventListener('beforeunload', beforeUnload);
+        window.removeEventListener('popstate', onPopState);
+        if (!isPaidRef.current && !releasedRef.current && event.seatingType === SeatingType.RESERVED) {
+            // Fire-and-forget release; UI is unmounting so we don't await
+            releasedRef.current = true;
+            releaseSeatsKeepAlive(event.id, selectedSeats.map(s => s.id));
         }
     };
   }, [event]);
@@ -162,7 +204,19 @@ const Checkout: React.FC = () => {
 
   const handleManualBack = () => {
       if (window.confirm("Navigating back will release your selected seats. Continue?")) {
-          navigate(`/event/${event.id}`);
+          (async () => {
+              try {
+                  if (!isPaidRef.current && event.seatingType === SeatingType.RESERVED) {
+                      releasedRef.current = true;
+                      await releaseSeats(event.id, selectedSeats.map(s => s.id));
+                  }
+              } catch (err) {
+                  console.error('Failed to release seats on manual back', err);
+              } finally {
+                  // Use replace so the checkout page isn't reachable via back button
+                  navigate(`/event/${event.id}`);
+              }
+          })();
       }
   };
 

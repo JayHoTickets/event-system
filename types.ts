@@ -14,6 +14,7 @@ export interface User {
 
 export enum SeatStatus {
   AVAILABLE = 'AVAILABLE',
+  BOOKING_IN_PROGRESS = 'BOOKING_IN_PROGRESS',
   HELD = 'HELD',
   SOLD = 'SOLD',
   SELECTED = 'SELECTED',

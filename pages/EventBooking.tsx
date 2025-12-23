@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Event, Seat, SeatingType, SeatStatus } from '../types';
-import { fetchEventById, holdSeat } from '../services/mockBackend';
+import { fetchEventById, holdSeat, lockSeats } from '../services/mockBackend';
 import SeatGrid, { CELL_SIZE } from '../components/SeatGrid';
 import { ArrowLeft, Clock, ShoppingCart, Tag, ZoomIn, ZoomOut, Maximize, Minus, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -98,7 +98,29 @@ const EventBooking: React.FC = () => {
             setError("Please select at least one seat.");
             return;
         }
-        navigate('/checkout', { state: { event, selectedSeats } });
+
+        // Try to atomically lock seats on the backend. Backend should
+        // respond with { success: true } or { success: false, conflicts: [seatIds] }
+        (async () => {
+            try {
+                const seatIds = selectedSeats.map(s => s.id);
+                const res: any = await lockSeats(event.id, seatIds);
+                if (res && res.success) {
+                    // Navigates to checkout only when lock succeeds
+                    navigate('/checkout', { state: { event, selectedSeats } });
+                } else {
+                    const conflicts = (res && res.conflicts) || [];
+                    // Refresh event to get latest seat states
+                    const refreshed = await fetchEventById(event.id);
+                    setEvent(refreshed || event);
+                    setSelectedSeats(prev => prev.filter(s => !conflicts.includes(s.id)));
+                    setError(conflicts.length > 0 ? `Some seats were taken: ${conflicts.join(', ')}.` : 'Failed to lock selected seats. Please try again.');
+                }
+            } catch (err: any) {
+                console.error('Lock seats error', err);
+                setError(err.message || 'Failed to lock seats.');
+            }
+        })();
       } else {
         // Build GA seats virtual objects
         const gaSeats: Seat[] = [];
@@ -200,6 +222,10 @@ const EventBooking: React.FC = () => {
                                </div>
                                <span>Blocked</span>
                           </div>
+                              <div className="flex items-center gap-1.5">
+                               <div className="w-3 h-3 rounded-sm bg-amber-200 border border-amber-300"></div>
+                               <span>Booking (In-progress)</span>
+                              </div>
                           {event.ticketTypes.map(tt => (
                               <div key={tt.id} className="flex items-center gap-1.5">
                                   <div className="w-3 h-3 rounded-sm" style={{backgroundColor: tt.color}}></div>

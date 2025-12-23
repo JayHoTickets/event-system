@@ -39,7 +39,14 @@ exports.createOrder = async (req, res) => {
         if (eventDoc) {
             if (event.seatingType === 'RESERVED') {
                 const soldIds = new Set(seats.map(s => s.id));
-                eventDoc.seats = eventDoc.seats.map(s => soldIds.has(s.id) ? { ...s, status: 'SOLD' } : s);
+                // Only transition seats that were temporarily held (BOOKING_IN_PROGRESS)
+                // or still AVAILABLE to SOLD. Do not accidentally overwrite other states.
+                eventDoc.seats = eventDoc.seats.map(s => {
+                    if (soldIds.has(s.id) && (s.status === 'BOOKING_IN_PROGRESS' || s.status === 'AVAILABLE')) {
+                        return { ...s, status: 'SOLD' };
+                    }
+                    return s;
+                });
             } else {
                 const counts = {};
                 seats.forEach(s => counts[s.ticketTypeId] = (counts[s.ticketTypeId] || 0) + 1);

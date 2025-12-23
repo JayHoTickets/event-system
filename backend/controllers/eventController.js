@@ -163,3 +163,117 @@ exports.holdSeat = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+// Atomically lock a set of seats for a short booking window. Expects body: { seatIds: [] }
+exports.lockSeats = async (req, res) => {
+    const { seatIds } = req.body;
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+        if (event.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
+
+        const conflicts = [];
+        const seatIdSet = new Set(seatIds);
+
+        // First pass: detect conflicts
+        event.seats.forEach(s => {
+            if (seatIdSet.has(s.id) && s.status !== 'AVAILABLE') {
+                conflicts.push(s.id);
+            }
+        });
+
+        if (conflicts.length > 0) {
+            return res.json({ success: false, conflicts });
+        }
+
+        // Second pass: update statuses to BOOKING_IN_PROGRESS
+        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s, status: 'BOOKING_IN_PROGRESS' } : s);
+        await event.save();
+
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Release seats previously placed in BOOKING_IN_PROGRESS back to AVAILABLE
+exports.releaseSeats = async (req, res) => {
+    const { seatIds } = req.body;
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+        const seatIdSet = new Set(seatIds);
+        event.seats = event.seats.map(s => {
+            if (seatIdSet.has(s.id) && s.status === 'BOOKING_IN_PROGRESS') {
+                return { ...s, status: 'AVAILABLE' };
+            }
+            return s;
+        });
+
+        await event.save();
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Lock seats atomically for a short booking window. Only seats that are
+// currently AVAILABLE will be moved to BOOKING_IN_PROGRESS. Returns
+// { success: true } on full success or { success: false, conflicts: [seatIds] }
+exports.lockSeats = async (req, res) => {
+    const seatIds = req.body.seatIds || [];
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+        if (event.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
+
+        const conflicts = [];
+        const seatIdSet = new Set(seatIds);
+
+        // Check availability
+        event.seats.forEach(s => {
+            if (seatIdSet.has(s.id)) {
+                if (s.status !== 'AVAILABLE') conflicts.push(s.id);
+            }
+        });
+
+        if (conflicts.length > 0) {
+            return res.json({ success: false, conflicts });
+        }
+
+        // Mark as BOOKING_IN_PROGRESS
+        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s.toObject ? s.toObject() : s, status: 'BOOKING_IN_PROGRESS' } : s);
+        await event.save();
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('lockSeats error', err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Release seats that are currently in BOOKING_IN_PROGRESS back to AVAILABLE.
+exports.releaseSeats = async (req, res) => {
+    const seatIds = req.body.seatIds || [];
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+        if (event.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
+
+        const seatIdSet = new Set(seatIds);
+        event.seats = event.seats.map(s => {
+            if (seatIdSet.has(s.id) && s.status === 'BOOKING_IN_PROGRESS') {
+                return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE' };
+            }
+            return s;
+        });
+        await event.save();
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('releaseSeats error', err);
+        res.status(500).json({ message: err.message });
+    }
+};

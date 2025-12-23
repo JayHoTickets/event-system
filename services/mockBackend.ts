@@ -149,6 +149,8 @@ export const holdSeat = (eventId: string, seatId: string): Promise<boolean> => {
 };
 
 export const lockSeats = (eventId: string, seatIds: string[]): Promise<void> => {
+    // Returns the parsed response from the API. Backend should return
+    // { success: boolean, conflicts?: string[] } when seats couldn't be locked.
     return fetchJson(`/events/${eventId}/lock-seats`, {
         method: 'POST',
         body: JSON.stringify({ seatIds })
@@ -160,6 +162,39 @@ export const releaseSeats = (eventId: string, seatIds: string[]): Promise<void> 
         method: 'POST',
         body: JSON.stringify({ seatIds })
     });
+};
+
+// Used for page unloads where we need a best-effort release that doesn't
+// rely on the app being alive to await a JSON response. Uses `keepalive`.
+export const releaseSeatsKeepAlive = (eventId: string, seatIds: string[]) => {
+    try {
+        const url = `${API_URL}/events/${eventId}/release-seats`;
+        const payload = JSON.stringify({ seatIds });
+
+        // Prefer navigator.sendBeacon when available (more reliable on unload)
+        if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
+            try {
+                const blob = new Blob([payload], { type: 'application/json' });
+                (navigator as any).sendBeacon(url, blob);
+                return;
+            } catch (beaconErr) {
+                console.warn('sendBeacon failed, falling back to fetch keepalive', beaconErr);
+            }
+        }
+
+        // Fallback to fetch with keepalive
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+            keepalive: true
+        }).catch(e => {
+            // Best-effort - ignore errors
+            console.error('Keepalive release failed', e);
+        });
+    } catch (e) {
+        console.error('Keepalive release failed', e);
+    }
 };
 
 export const updateSeatStatus = (eventId: string, seatIds: string[], status: SeatStatus): Promise<void> => {
