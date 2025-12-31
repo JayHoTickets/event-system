@@ -27,7 +27,7 @@ const Login: React.FC = () => {
       // Or better:
       // Note: In a real app, we'd check the decoded token or user object.
       // For this mock, we know the admin email.
-      if (email === 'admin@eventhorizon.com') {
+      if (email === 'admin@jayhoticket.com') {
           navigate('/admin');
       } else {
           navigate('/');
@@ -47,7 +47,7 @@ const Login: React.FC = () => {
                 <Lock className="w-8 h-8 text-indigo-600" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Sign In</h1>
-            <p className="text-slate-500 mt-2">Access the EventHorizon Portal</p>
+            <p className="text-slate-500 mt-2">Access the Jay-Ho Tickets Portal</p>
         </div>
 
         {error && (
@@ -97,13 +97,13 @@ const Login: React.FC = () => {
             </button>
         </form>
 
-        <div className="mt-8 text-center bg-slate-50 p-4 rounded-lg border border-slate-100">
+        {/* <div className="mt-8 text-center bg-slate-50 p-4 rounded-lg border border-slate-100">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Demo Credentials</p>
             <div className="text-sm text-slate-600 space-y-1">
                 <p><span className="font-medium text-slate-900">Admin:</span> admin@eventhorizon.com / admin123</p>
                 <p><span className="font-medium text-slate-900">User:</span> user@demo.com / user123</p>
             </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

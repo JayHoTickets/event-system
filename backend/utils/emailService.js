@@ -16,7 +16,7 @@ const sendEmail = async (to, subject, htmlContent) => {
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     sendSmtpEmail.subject = subject;
     sendSmtpEmail.htmlContent = htmlContent;
-    sendSmtpEmail.sender = { "name": "EventHorizon EMS", "email": "no-reply@eventhorizon.com" };
+    sendSmtpEmail.sender = { "name": "Jay-Ho! Tickets", "email": "noreply@jayhotickets.com" };
     sendSmtpEmail.to = [{ "email": to }];
 
     try {

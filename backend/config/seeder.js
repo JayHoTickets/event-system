@@ -6,11 +6,11 @@ const ServiceCharge = require('../models/ServiceCharge');
 const seedData = async () => {
     try {
         // Seed Users
-        const adminExists = await User.findOne({ email: 'admin@eventhorizon.com' });
+        const adminExists = await User.findOne({ email: 'admin@jayhoticket.com' });
         if (!adminExists) {
             await User.create({
                 name: 'System Admin',
-                email: 'admin@eventhorizon.com',
+                email: 'admin@jayhoticket.com',
                 password: 'admin123', // In prod, use bcrypt
                 role: 'ADMIN'
             });

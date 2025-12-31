@@ -20,18 +20,18 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
             <Ticket className="h-8 w-8 text-indigo-400" />
-            <span className="ml-2 text-xl font-bold tracking-tight">EventHorizon</span>
+            <span className="ml-2 text-xl font-bold tracking-tight">Jay-Ho Tickets</span>
           </div>
 
           <div className="flex items-center space-x-4">
             {!isAuthenticated ? (
               <div className="flex space-x-3">
-                <button
+                {/* <button
                   onClick={() => login(UserRole.USER)}
                   className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition hidden sm:block"
                 >
                   Demo User
-                </button>
+                </button> */}
                 <Link
                   to="/login"
                   className="px-4 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 rounded-md transition flex items-center"

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Event, Seat, Coupon, ServiceCharge, PaymentMode, SeatingType } from '../types';
@@ -120,7 +120,7 @@ const Checkout: React.FC = () => {
   // Timer State
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const isPaidRef = useRef(false);
-    const releasedRef = useRef(false);
+  const releasedRef = useRef(false);
 
   useEffect(() => {
     if (!event || !selectedSeats) {
@@ -131,6 +131,8 @@ const Checkout: React.FC = () => {
         setServiceCharges(charges.filter(c => c.active));
     });
   }, []);
+
+
 
   // Timer Lifecycle & Seat Release
   useEffect(() => {
@@ -173,22 +175,10 @@ const Checkout: React.FC = () => {
     };
 
     window.addEventListener('beforeunload', beforeUnload);
-    // Detect browser back/forward navigation (popstate) and attempt a release.
-    const onPopState = () => {
-        if (!isPaidRef.current && !releasedRef.current && event.seatingType === SeatingType.RESERVED) {
-            releasedRef.current = true;
-            // Best-effort: use keepalive so the request has a chance to be sent
-            releaseSeatsKeepAlive(event.id, selectedSeats.map(s => s.id));
-            // Also fire an async release attempt (non-blocking)
-            releaseSeats(event.id, selectedSeats.map(s => s.id)).catch(() => {});
-        }
-    };
-    window.addEventListener('popstate', onPopState);
 
     return () => {
         clearInterval(timer);
         window.removeEventListener('beforeunload', beforeUnload);
-        window.removeEventListener('popstate', onPopState);
         if (!isPaidRef.current && !releasedRef.current && event.seatingType === SeatingType.RESERVED) {
             // Fire-and-forget release; UI is unmounting so we don't await
             releasedRef.current = true;
@@ -219,6 +209,54 @@ const Checkout: React.FC = () => {
           })();
       }
   };
+useEffect(() => {
+  // Push a dummy state so back stays on this page
+  window.history.pushState(null, "", window.location.href);
+
+  const onPopState = () => {
+    window.history.pushState(null, "", window.location.href);
+    handleManualBack(); // optional: show confirm + release seats
+  };
+
+  window.addEventListener("popstate", onPopState);
+
+  return () => {
+    window.removeEventListener("popstate", onPopState);
+  };
+}, []);
+
+useEffect(() => {
+  // Lock back navigation on checkout
+  window.history.pushState(null, "", window.location.href);
+
+  const onPopState = () => {
+    const confirmed = window.confirm(
+      "Going back will release your selected seats. Continue?"
+    );
+
+    if (!confirmed) {
+      // Stay on checkout
+      window.history.pushState(null, "", window.location.href);
+      return;
+    }
+
+    // Allow navigation back
+    window.removeEventListener("popstate", onPopState);
+    window.location.href = `http://localhost:3000/#/event/${event.id}`;
+
+    // Force reload after navigation
+    // setTimeout(() => {
+    //   window.location.reload();
+    // }, 0);
+  };
+
+  window.addEventListener("popstate", onPopState);
+
+  return () => {
+    window.removeEventListener("popstate", onPopState);
+  };
+}, []);
+
 
   if (!event || !selectedSeats) return null;
 

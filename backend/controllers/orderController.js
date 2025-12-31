@@ -106,7 +106,7 @@ exports.createOrder = async (req, res) => {
                     customerName: customer.name,
                     customerEmail: customer.email,
                     organizerEmail: organizer ? organizer.email : null,
-                    adminEmail: admin ? admin.email : 'admin@eventhorizon.com'
+                    adminEmail: admin ? admin.email : 'admin@jayhoticket.com'
                 });
             }
         } catch (emailError) {
