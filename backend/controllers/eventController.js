@@ -39,13 +39,15 @@ exports.getEventById = async (req, res) => {
 // Helper to hydrate seats based on ticket types mapping
 const hydrateSeats = (theaterSeats, ticketTypes, seatMappings) => {
     return theaterSeats.map(seat => {
-        const typeId = seatMappings[seat.id];
+        const seatObj = seat.toObject ? seat.toObject() : seat;
+        const seatId = seat.id || (seatObj._id ? seatObj._id.toString() : seatObj.id);
+        const typeId = seatMappings[seatId];
         const type = ticketTypes.find(tt => tt.id === typeId);
         
         if (type) {
             return {
-                ...seat,
-                id: seat.id,
+                ...seatObj,
+                id: seatId,
                 status: 'AVAILABLE',
                 price: type.price,
                 tier: type.name,
@@ -54,8 +56,8 @@ const hydrateSeats = (theaterSeats, ticketTypes, seatMappings) => {
             };
         } else {
             return {
-                ...seat,
-                id: seat.id,
+                ...seatObj,
+                id: seatId,
                 status: 'UNAVAILABLE',
                 price: 0,
                 tier: 'N/A'
@@ -128,7 +130,44 @@ exports.updateEvent = async (req, res) => {
                 const theater = await Theater.findById(theaterId);
                 if (theater) {
                     const types = data.ticketTypes || event.ticketTypes;
-                    updateData.seats = hydrateSeats(theater.seats, types, seatMappings);
+                    
+                    // Create a map of existing seats to preserve status
+                    const existingSeatsMap = new Map(event.seats.map(s => [s.id, s]));
+
+                    updateData.seats = theater.seats.map(tSeat => {
+                        const seatObj = tSeat.toObject ? tSeat.toObject() : tSeat;
+                        const seatId = tSeat.id || (seatObj._id ? seatObj._id.toString() : seatObj.id);
+                        const existingSeat = existingSeatsMap.get(seatId);
+                        const typeId = seatMappings[seatId];
+                        const type = types.find(tt => tt.id === typeId);
+                        
+                        let status = 'UNAVAILABLE';
+                        // Preserve status if it exists and is a "busy" status
+                        if (existingSeat && ['SOLD', 'BOOKING_IN_PROGRESS', 'HELD'].includes(existingSeat.status)) {
+                            status = existingSeat.status;
+                        } else if (type) {
+                            status = 'AVAILABLE';
+                        }
+
+                        if (type) {
+                            return {
+                                ...seatObj,
+                                status,
+                                price: type.price,
+                                tier: type.name,
+                                color: type.color,
+                                ticketTypeId: type.id
+                            };
+                        } else {
+                            return {
+                                ...seatObj,
+                                status: status === 'AVAILABLE' ? 'UNAVAILABLE' : status,
+                                price: 0,
+                                tier: 'N/A'
+                            };
+                        }
+                    });
+                    
                     updateData.stage = theater.stage;
                     updateData.rows = theater.rows;
                     updateData.cols = theater.cols;
