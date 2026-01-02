@@ -762,9 +762,21 @@ const EventAnalytics: React.FC = () => {
                         </div>
                         <div className="p-6">
                             <div className="mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                                <p className="text-xs text-slate-500 uppercase font-bold mb-1">Selected Seats</p>
-                                <p className="font-medium text-slate-900">{selectedSeatIds.length} tickets</p>
-                                <p className="text-lg font-bold text-indigo-600">${selectionTotal.toFixed(2)}</p>
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p className="text-xs text-slate-500 uppercase font-bold">Selected Seats</p>
+                                        <p className="font-medium text-slate-900">{selectedSeatIds.length} tickets</p>
+                                    </div>
+                                    <p className="text-lg font-bold text-indigo-600">${selectionTotal.toFixed(2)}</p>
+                                </div>
+                                <div className="max-h-32 overflow-y-auto text-sm space-y-1 border-t border-slate-200 pt-2 mt-2">
+                                    {selectedSeatObjs.map(seat => (
+                                        <div key={seat.id} className="flex justify-between text-slate-600">
+                                            <span>{seat.rowLabel}{seat.seatNumber} <span className="text-xs text-slate-400">({seat.tier})</span></span>
+                                            <span>${(seat.price || 0).toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                             
                             <form onSubmit={handleBoxOfficeSubmit}>
