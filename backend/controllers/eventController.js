@@ -3,6 +3,17 @@ const Event = require('../models/Event');
 const Venue = require('../models/Venue');
 const Theater = require('../models/Theater');
 
+const formatVenueLocation = (v) => {
+    if (!v) return '';
+    const parts = [];
+    if (v.name) parts.push(v.name);
+    if (v.address) parts.push(v.address);
+    const cityState = [v.city, v.state].filter(Boolean).join(', ');
+    if (cityState) parts.push(cityState + (v.zipCode ? ` ${v.zipCode}` : ''));
+    if (v.country) parts.push(v.country);
+    return parts.join(', ');
+};
+
 exports.getEvents = async (req, res) => {
     try {
         let query = { deleted: false };
@@ -17,7 +28,20 @@ exports.getEvents = async (req, res) => {
         }
 
         const events = await Event.find(query);
-        res.json(events);
+
+        // Attach formatted location for each event (handles older events without stored location)
+        const venueIds = Array.from(new Set(events.map(e => String(e.venueId)).filter(Boolean)));
+        const venues = await Venue.find({ _id: { $in: venueIds } });
+        const venueMap = new Map(venues.map(v => [String(v._id), v]));
+
+        const out = events.map(ev => {
+            const evObj = ev.toObject ? ev.toObject({ virtuals: true }) : { ...ev };
+            const v = venueMap.get(String(evObj.venueId));
+            evObj.location = evObj.location || formatVenueLocation(v);
+            return evObj;
+        });
+
+        res.json(out);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -27,10 +51,11 @@ exports.getEventById = async (req, res) => {
     try {
         const event = await Event.findById(req.params.id);
         if (!event || event.deleted) return res.status(404).json(null);
-        
         const venue = await Venue.findById(event.venueId);
-        // Return event with venueName appended
-        res.json({ ...event.toObject({ virtuals: true }), venueName: venue ? venue.name : 'Unknown' });
+        const evObj = { ...event.toObject({ virtuals: true }) };
+        evObj.location = evObj.location || formatVenueLocation(venue);
+        evObj.venueName = venue ? venue.name : 'Unknown';
+        res.json(evObj);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -83,13 +108,24 @@ exports.createEvent = async (req, res) => {
             }
         }
 
+        const formatVenueLocation = (v) => {
+            if (!v) return '';
+            const parts = [];
+            if (v.name) parts.push(v.name);
+            if (v.address) parts.push(v.address);
+            const cityState = [v.city, v.state].filter(Boolean).join(', ');
+            if (cityState) parts.push(cityState + (v.zipCode ? ` ${v.zipCode}` : ''));
+            if (v.country) parts.push(v.country);
+            return parts.join(', ');
+        };
+
         const event = await Event.create({
             ...data,
             seats,
             stage,
             rows,
             cols,
-            location: venue ? `${venue.name}, ${venue.city}` : ''
+            location: formatVenueLocation(venue)
         });
         res.json(event);
     } catch (err) {
@@ -104,8 +140,19 @@ exports.updateEvent = async (req, res) => {
         if (!event) return res.status(404).json({ message: 'Not found' });
 
         let updateData = { ...data };
+        const formatVenueLocation = (v) => {
+            if (!v) return '';
+            const parts = [];
+            if (v.name) parts.push(v.name);
+            if (v.address) parts.push(v.address);
+            const cityState = [v.city, v.state].filter(Boolean).join(', ');
+            if (cityState) parts.push(cityState + (v.zipCode ? ` ${v.zipCode}` : ''));
+            if (v.country) parts.push(v.country);
+            return parts.join(', ');
+        };
+
         const venue= await Venue.findById(data.venueId || event.venueId);
-        updateData.location = venue ? `${venue.name}, ${venue.city}` : '';
+        updateData.location = formatVenueLocation(venue);
         // Handle Seat Remapping and theater/venue changes
         if ((data.seatingType || event.seatingType) === 'RESERVED') {
             const incomingTheaterId = data.theaterId || event.theaterId;

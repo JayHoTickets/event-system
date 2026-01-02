@@ -16,6 +16,9 @@ const AdminVenues: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newCity, setNewCity] = useState('');
+    const [newState, setNewState] = useState('');
+    const [newZipCode, setNewZipCode] = useState('');
+    const [newCountry, setNewCountry] = useState('');
 
   useEffect(() => {
     loadVenues();
@@ -32,6 +35,9 @@ const AdminVenues: React.FC = () => {
       setNewName('');
       setNewAddress('');
       setNewCity('');
+      setNewState('');
+      setNewZipCode('');
+      setNewCountry('');
       setShowModal(true);
   };
 
@@ -40,6 +46,9 @@ const AdminVenues: React.FC = () => {
       setNewName(venue.name);
       setNewAddress(venue.address);
       setNewCity(venue.city);
+      setNewState(venue.state || '');
+      setNewZipCode(venue.zipCode || '');
+      setNewCountry(venue.country || '');
       setShowModal(true);
   };
 
@@ -52,13 +61,19 @@ const AdminVenues: React.FC = () => {
             await updateVenue(editingVenue.id, {
                 name: newName,
                 address: newAddress,
-                city: newCity
+                city: newCity,
+                state: newState,
+                zipCode: newZipCode,
+                country: newCountry
             });
         } else {
             await createVenue({
                 name: newName,
                 address: newAddress,
-                city: newCity
+                city: newCity,
+                state: newState,
+                zipCode: newZipCode,
+                country: newCountry
             });
         }
         await loadVenues();
@@ -128,7 +143,7 @@ const AdminVenues: React.FC = () => {
                     <h3 className="text-lg font-bold text-slate-900 mb-1">{venue.name}</h3>
                     <div className="flex items-center text-sm text-slate-500 mb-1">
                         <MapPin className="w-3 h-3 mr-1" />
-                        {venue.address}, {venue.city}
+                        {venue.address}, {venue.city}{venue.state ? `, ${venue.state}` : ''}{venue.zipCode ? ` ${venue.zipCode}` : ''}{venue.country ? ` - ${venue.country}` : ''}
                     </div>
                     <div className="mt-4 text-xs text-slate-400">
                         ID: {venue.id}
@@ -150,13 +165,25 @@ const AdminVenues: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4 mb-6">
                         <div>
-                             <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
-                             <input required className="w-full border rounded-lg px-3 py-2" value={newAddress} onChange={e => setNewAddress(e.target.value)} />
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                            <input required className="w-full border rounded-lg px-3 py-2" value={newAddress} onChange={e => setNewAddress(e.target.value)} />
                         </div>
                         <div>
-                             <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
-                             <input required className="w-full border rounded-lg px-3 py-2" value={newCity} onChange={e => setNewCity(e.target.value)} />
+                            <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
+                            <input required className="w-full border rounded-lg px-3 py-2" value={newCity} onChange={e => setNewCity(e.target.value)} />
                         </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
+                            <input required className="w-full border rounded-lg px-3 py-2" value={newState} onChange={e => setNewState(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Zip Code</label>
+                            <input required className="w-full border rounded-lg px-3 py-2" value={newZipCode} onChange={e => setNewZipCode(e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Country</label>
+                        <input required className="w-full border rounded-lg px-3 py-2" value={newCountry} onChange={e => setNewCountry(e.target.value)} />
                     </div>
                     <div className="flex justify-end gap-2">
                         <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>

@@ -44,8 +44,8 @@ const seedData = async () => {
         const venueCount = await Venue.countDocuments();
         if (venueCount === 0) {
             await Venue.insertMany([
-                { name: 'Grand Central Hall', address: '123 Broadway', city: 'New York',deleted:false},
-                { name: 'Sunset Stadium', address: '456 Coast Blvd', city: 'Los Angeles',deleted:false }
+                { name: 'Grand Central Hall', address: '123 Broadway', city: 'New York', state: 'NY', zipCode: '10001', country: 'USA', deleted: false },
+                { name: 'Sunset Stadium', address: '456 Coast Blvd', city: 'Los Angeles', state: 'CA', zipCode: '90001', country: 'USA', deleted: false }
             ]);
             console.log('Venues seeded');
         }

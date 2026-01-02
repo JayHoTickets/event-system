@@ -420,7 +420,11 @@ const CreateEvent: React.FC = () => {
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Select Venue</label>
                                 <select required name="venueId" value={formData.venueId} onChange={handleChange} className="w-full border rounded-lg px-3 py-2">
                                     <option value="">-- Choose Venue --</option>
-                                    {venues.map(v => <option key={v.id} value={v.id}>{v.name} ({v.city})</option>)}
+                                    {venues.map(v => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.name}{v.address ? ` — ${v.address}` : ''}{v.city ? `, ${v.city}` : ''}{v.state ? `, ${v.state}` : ''}{v.zipCode ? ` ${v.zipCode}` : ''}{v.country ? ` (${v.country})` : ''}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 

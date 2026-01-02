@@ -91,7 +91,11 @@ const AdminTheaters: React.FC = () => {
       }
   };
 
-  const getVenueName = (id: string) => venues.find(v => v.id === id)?.name || 'Unknown Venue';
+    const formatVenue = (v?: Venue) => {
+        if (!v) return 'Unknown Venue';
+        const parts = [v.address, v.city, v.state, v.zipCode].filter(Boolean).join(', ');
+        return `${v.name}${parts ? ' — ' + parts : ''}${v.country ? ` (${v.country})` : ''}`;
+    };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -139,9 +143,14 @@ const AdminTheaters: React.FC = () => {
                 </div>
                 
                 <h3 className="text-lg font-bold text-slate-900 mb-1">{theater.name}</h3>
-                <div className="flex items-center text-sm text-slate-500 mb-6">
-                    <MapPin className="w-3 h-3 mr-1" />
-                    {getVenueName(theater.venueId)}
+                <div className="flex flex-col text-sm text-slate-500 mb-6">
+                    <div className="flex items-center">
+                        <MapPin className="w-3 h-3 mr-1" />
+                        <span className="font-medium text-slate-700">{venues.find(v => v.id === theater.venueId)?.name || 'Unknown Venue'}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                        {formatVenue(venues.find(v => v.id === theater.venueId))}
+                    </div>
                 </div>
 
                 <div className="mt-auto border-t pt-4">
@@ -169,7 +178,11 @@ const AdminTheaters: React.FC = () => {
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Associate with Venue</label>
                         <select className="w-full border rounded-lg px-3 py-2" value={selectedVenueId} onChange={e => setSelectedVenueId(e.target.value)}>
-                            {venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                            {venues.map(v => (
+                                <option key={v.id} value={v.id}>
+                                    {v.name} {v.city ? `(${v.city}${v.state ? `, ${v.state}` : ''}${v.zipCode ? ` ${v.zipCode}` : ''})` : ''}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     
