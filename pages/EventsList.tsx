@@ -49,7 +49,7 @@ const EventsList: React.FC = () => {
                   onClick={() => navigate(`/event/${event.id}`)}
                   className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors focus:ring-4 focus:ring-indigo-100"
                 >
-                  View Seats & Book
+                  View Event Details
                 </button>
               </div>
             </div>

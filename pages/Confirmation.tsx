@@ -30,7 +30,7 @@ const Confirmation: React.FC = () => {
         <div className="p-8">
             <div className="flex items-center justify-center gap-2 text-slate-600 bg-slate-50 p-4 rounded-lg mb-8 border border-slate-200">
                 <Mail className="w-5 h-5 text-indigo-500" />
-                <span>Confirmation email sent via <strong>Brevo</strong> to your inbox.</span>
+                <span>Confirmation email sent to your inbox.</span>
             </div>
 
             <h2 className="text-xl font-bold text-slate-900 mb-6">Your Tickets</h2>

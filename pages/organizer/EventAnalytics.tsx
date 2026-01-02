@@ -34,6 +34,7 @@ const EventAnalytics: React.FC = () => {
     // Box Office Form
     const [boName, setBoName] = useState('');
     const [boEmail, setBoEmail] = useState('');
+    const [boPhone, setBoPhone] = useState('');
     const [boMode, setBoMode] = useState<PaymentMode>(PaymentMode.CASH);
     const [boProcessing, setBoProcessing] = useState(false);
 
@@ -184,7 +185,7 @@ const EventAnalytics: React.FC = () => {
         
         try {
             await processPayment(
-                { name: boName, email: boEmail },
+                { name: boName, email: boEmail, phone: boPhone },
                 event,
                 selectedSeatObjs,
                 0, // No service fee for box office
@@ -673,6 +674,10 @@ const EventAnalytics: React.FC = () => {
                                         <span className="text-slate-500 block mb-1">Email</span>
                                         <span className="font-medium text-slate-900">{selectedOrder.customerEmail}</span>
                                     </div>
+                                       <div>
+                                        <span className="text-slate-500 block mb-1">Phone</span>
+                                        <span className="font-medium text-slate-900">{selectedOrder.customerPhone}</span>
+                                    </div>
                                     <div>
                                         <span className="text-slate-500 block mb-1">Payment Mode</span>
                                         <span className="font-bold text-slate-900">{selectedOrder.paymentMode || 'ONLINE'}</span>
@@ -774,6 +779,10 @@ const EventAnalytics: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Email (Optional)</label>
                                         <input className="w-full border rounded-lg px-3 py-2" placeholder="john@example.com" value={boEmail} onChange={e => setBoEmail(e.target.value)} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Phone (Optional)</label>
+                                        <input className="w-full border rounded-lg px-3 py-2" placeholder="+1 555 123 4567" value={boPhone} onChange={e => setBoPhone(e.target.value)} />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Payment Mode</label>

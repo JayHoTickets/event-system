@@ -45,6 +45,7 @@ const hydrateSeats = (theaterSeats, ticketTypes, seatMappings) => {
         if (type) {
             return {
                 ...seat,
+                id: seat.id,
                 status: 'AVAILABLE',
                 price: type.price,
                 tier: type.name,
@@ -54,6 +55,7 @@ const hydrateSeats = (theaterSeats, ticketTypes, seatMappings) => {
         } else {
             return {
                 ...seat,
+                id: seat.id,
                 status: 'UNAVAILABLE',
                 price: 0,
                 tier: 'N/A'
@@ -100,18 +102,44 @@ exports.updateEvent = async (req, res) => {
         if (!event) return res.status(404).json({ message: 'Not found' });
 
         let updateData = { ...data };
-        
-        // Handle Seat Remapping if provided
-        if ((data.seatingType || event.seatingType) === 'RESERVED' && seatMappings) {
-            const theaterId = data.theaterId || event.theaterId;
-            const theater = await Theater.findById(theaterId);
-            if (theater) {
-                const types = data.ticketTypes || event.ticketTypes;
-                updateData.seats = hydrateSeats(theater.seats, types, seatMappings);
-                updateData.stage = theater.stage;
-                updateData.rows = theater.rows;
-                updateData.cols = theater.cols;
+        const venue= await Venue.findById(data.venueId || event.venueId);
+        updateData.location = venue ? `${venue.name}, ${venue.city}` : '';
+        // Handle Seat Remapping and theater/venue changes
+        if ((data.seatingType || event.seatingType) === 'RESERVED') {
+            const incomingTheaterId = data.theaterId || event.theaterId;
+            const theaterChanged = data.theaterId && data.theaterId !== event.theaterId;
+            const venueChanged = data.venueId && data.venueId !== event.venueId;
+
+            // If the theater or venue changed, rebuild seats from the new theater layout
+            if (theaterChanged || venueChanged) {
+                const theater = await Theater.findById(incomingTheaterId);
+                if (theater) {
+                    const types = data.ticketTypes || event.ticketTypes;
+                    // Use provided seatMappings or empty mapping so new theater seats are assigned accordingly
+                    const mappingsToUse = seatMappings || {};
+                    updateData.seats = hydrateSeats(theater.seats, types, mappingsToUse);
+                    updateData.stage = theater.stage;
+                    updateData.rows = theater.rows;
+                    updateData.cols = theater.cols;
+                }
+            } else if (seatMappings) {
+                // If theater didn't change but explicit mappings were provided, remap seats accordingly
+                const theaterId = data.theaterId || event.theaterId;
+                const theater = await Theater.findById(theaterId);
+                if (theater) {
+                    const types = data.ticketTypes || event.ticketTypes;
+                    updateData.seats = hydrateSeats(theater.seats, types, seatMappings);
+                    updateData.stage = theater.stage;
+                    updateData.rows = theater.rows;
+                    updateData.cols = theater.cols;
+                }
             }
+        }
+        else{
+            updateData.seats=[];
+            updateData.stage=null;
+            updateData.rows=0;
+            updateData.cols=0;  
         }
 
         const updatedEvent = await Event.findByIdAndUpdate(req.params.id, updateData, { new: true });

@@ -18,6 +18,7 @@ const OrderTicketSchema = new mongoose.Schema({
 const OrderSchema = new mongoose.Schema({
     userId: String,
     customerName: String,
+    customerPhone: String,
     customerEmail: String,
     tickets: [OrderTicketSchema],
     totalAmount: Number,

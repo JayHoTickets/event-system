@@ -82,6 +82,7 @@ exports.createOrder = async (req, res) => {
             userId: customer.id || `guest-${Date.now()}`,
             customerName: customer.name,
             customerEmail: customer.email,
+            customerPhone: customer.phone || null,
             tickets: tickets,
             totalAmount,
             serviceFee,

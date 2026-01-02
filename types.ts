@@ -180,6 +180,7 @@ export interface Order {
   userId: string;
   customerName: string;
   customerEmail: string;
+  customerPhone?: string;
   tickets: Ticket[];
   totalAmount: number;
   serviceFee: number; // Platform fee charged

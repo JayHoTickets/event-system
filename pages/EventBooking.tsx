@@ -27,6 +27,7 @@ const EventBooking: React.FC = () => {
     if (!id) return;
     fetchEventById(id).then(e => {
         setEvent(e || null);
+        console.log('Loaded event', e);
         setLoading(false);
     });
   }, [id]);
@@ -166,35 +167,74 @@ const EventBooking: React.FC = () => {
     <div className="h-[calc(100vh-64px)] flex flex-col bg-white md:bg-transparent">
       
       {/* HEADER: Title & Info */}
-      <div className="bg-white border-b px-4 py-4 md:bg-transparent md:border-b-0 md:px-8 md:py-6 shrink-0 flex justify-between items-start">
-          <div>
-              <button onClick={() => navigate('/')} className="text-slate-500 hover:text-slate-900 flex items-center mb-2 text-sm">
-                  <ArrowLeft className="w-4 h-4 mr-1" /> Back
-              </button>
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">{event.title}</h1>
-              <p className="text-slate-500 flex items-center mt-1 text-sm md:text-base">
-                  <Clock className="w-4 h-4 mr-1" /> 
-                  {new Date(event.startTime).toLocaleDateString()} &bull; {new Date(event.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-              </p>
-          </div>
-
-          {/* DESKTOP SIDEBAR CART (Hidden on Mobile) */}
-          <div className="hidden md:block bg-white border rounded-lg p-4 shadow-sm w-72">
-              <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-slate-500">Total</span>
-                  <span className="text-2xl font-bold text-slate-900">${selectedTotal.toFixed(2)}</span>
+      <div className="relative mb-6">
+          <div className="w-full h-56 md:h-96 rounded-b-xl overflow-hidden relative bg-slate-900">
+              {/* Poster image shown fully (object-contain) so it isn't cropped */}
+              {event.imageUrl && (
+                  <img src={event.imageUrl} alt={event.title} className="absolute inset-0 w-full h-full object-contain" />
+              )}
+              <div className="absolute inset-0 bg-black/40"></div>
+              <div className="hidden md:block absolute left-4 top-4 md:left-12 md:top-12 text-white max-w-3xl">
+                  <button onClick={() => navigate('/')} className="text-white/90 flex items-center mb-2 text-sm">
+                      <ArrowLeft className="w-4 h-4 mr-1" /> Back
+                  </button>
+                  <h1 className="text-2xl md:text-4xl font-bold leading-tight">{event.title}</h1>
+                  <p className="mt-2 text-sm md:text-lg text-white/90 flex items-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      {new Date(event.startTime).toLocaleDateString()} &bull; {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <p className="text-white/90 text-sm mt-1">{event.location}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                      {event.ticketTypes && event.ticketTypes.map(tt => (
+                          <div key={tt.id} className="text-xs px-2 py-1 rounded-md bg-white/20 text-white backdrop-blur-sm">
+                              <span className="font-semibold">{tt.name}</span>
+                              <span className="ml-2">${tt.price.toFixed(2)}</span>
+                          </div>
+                      ))}
+                  </div>
               </div>
-              <p className="text-xs text-slate-500 mb-4">{selectedCount} items selected</p>
-              <button 
-                  onClick={handleCheckout}
-                  disabled={selectedCount === 0}
-                  className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition"
-              >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Checkout
-              </button>
-              {error && <p className="text-red-500 text-xs mt-2 text-center">{error}</p>}
+
+              {/* Floating checkout card on desktop */}
+              <div className="hidden md:block absolute right-6 top-6 w-72">
+                  <div className="bg-white border rounded-lg p-4 shadow-sm">
+                      <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm text-slate-500">Total</span>
+                          <span className="text-2xl font-bold text-slate-900">${selectedTotal.toFixed(2)}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-4">{selectedCount} items selected</p>
+                      <button
+                          onClick={handleCheckout}
+                          disabled={selectedCount === 0}
+                          className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition"
+                      >
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          Checkout
+                      </button>
+                      {error && <p className="text-red-500 text-xs mt-2 text-center">{error}</p>}
+                  </div>
+              </div>
           </div>
+      </div>
+
+      {/* Mobile: details shown below the poster (not overlay) */}
+      <div className="block md:hidden px-4 mt-3">
+          <h2 className="text-lg font-bold text-slate-900">{event.title}</h2>
+          <p className="text-slate-500 mt-1 text-sm flex items-center">
+              <Clock className="w-4 h-4 mr-2" />
+              {new Date(event.startTime).toLocaleDateString()} &bull; {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+          <p className="text-slate-500 text-sm mt-1">{event.location}</p>
+          <p className="text-slate-500 text-sm mt-1">{event.seatingType === SeatingType.RESERVED ? `${event.seats?.length || 0} seats` : 'General Admission'}</p>
+          {event.ticketTypes && event.ticketTypes.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                  {event.ticketTypes.map(tt => (
+                      <div key={tt.id} className="text-xs px-2 py-1 rounded-md border border-slate-200 bg-slate-50 text-slate-700">
+                          <span className="font-semibold">{tt.name}</span>
+                          <span className="ml-2">${tt.price.toFixed(2)}</span>
+                      </div>
+                  ))}
+              </div>
+          )}
       </div>
 
       {/* MAIN CONTENT AREA */}
@@ -238,7 +278,11 @@ const EventBooking: React.FC = () => {
                   {/* Map Canvas */}
                   <div ref={mapContainerRef} className="flex-1 bg-slate-100 overflow-hidden flex items-center justify-center p-4 relative touch-none">
                       <SeatGrid 
-                          seats={event.seats}
+                          // Ensure seats show ticket-type color when assigned (ticketTypeId -> ticketTypes)
+                          seats={event.seats.map(s => {
+                              const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
+                              return { ...s, color: t ? t.color : s.color };
+                          })}
                           stage={event.stage}
                           selectedSeatIds={selectedSeats.map(s => s.id)}
                           onSeatClick={handleSeatClick}

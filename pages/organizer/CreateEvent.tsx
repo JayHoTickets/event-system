@@ -54,6 +54,20 @@ const CreateEvent: React.FC = () => {
         terms: '',
     });
 
+    // Helper: convert ISO datetime -> local `datetime-local` input value (YYYY-MM-DDTHH:mm)
+    const toLocalDatetimeInput = (iso?: string) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const yyyy = d.getFullYear();
+        const MM = pad(d.getMonth() + 1);
+        const dd = pad(d.getDate());
+        const hh = pad(d.getHours());
+        const mm = pad(d.getMinutes());
+        return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
+    };
+
     // Ticket Types State
     const [ticketTypes, setTicketTypes] = useState<TicketType[]>([
         { id: 'tt-1', name: 'Standard', price: 50, color: '#3b82f6', totalQuantity: 100, sold: 0 }
@@ -82,8 +96,9 @@ const CreateEvent: React.FC = () => {
                         description: event.description,
                         venueId: event.venueId,
                         theaterId: event.theaterId || '',
-                        startTime: event.startTime,
-                        endTime: event.endTime,
+                        // Convert stored ISO datetimes into the format expected by <input type="datetime-local" />
+                        startTime: toLocalDatetimeInput(event.startTime as any),
+                        endTime: toLocalDatetimeInput(event.endTime as any),
                         timezone: event.timezone,
                         imageUrl: event.imageUrl,
                         category: event.category,
@@ -119,7 +134,33 @@ const CreateEvent: React.FC = () => {
                         // 5. Load Layout Visualization
                         if (event.theaterId) {
                             const layout = await fetchTheaterById(event.theaterId);
-                            if (layout) setSelectedTheaterLayout(layout);
+                            if (layout) {
+                                setSelectedTheaterLayout(layout);
+
+                                // Reconcile mappings to use the theater layout seat IDs.
+                                // Some events store seat assignments on event.seats which may
+                                // have different ids than the theater template. Try to map
+                                // by exact id first, then by rowLabel+seatNumber as a fallback.
+                                const reconciled: Record<string, string> = {};
+                                const layoutSeats = layout.seats || [];
+
+                                (event.seats || []).forEach(es => {
+                                    if (!es.ticketTypeId) return;
+                                    // 1) Try exact id match in layout
+                                    let target = layoutSeats.find(ls => ls.id === es.id);
+                                    // 2) Fallback: match by rowLabel + seatNumber
+                                    if (!target) {
+                                        target = layoutSeats.find(ls => ls.rowLabel === es.rowLabel && String(ls.seatNumber) === String(es.seatNumber));
+                                    }
+                                    // 3) If found, map layout seat id -> ticketTypeId
+                                    if (target) {
+                                        reconciled[target.id] = es.ticketTypeId;
+                                    }
+                                });
+
+                                // Merge with earlier mappings (so manual mappings remain)
+                                setSeatMappings(prev => ({ ...prev, ...reconciled }));
+                            }
                         }
                     }
                 }
@@ -282,6 +323,9 @@ const CreateEvent: React.FC = () => {
             if (isEditMode && id) {
                  await updateEvent(id, {
                     ...formData,
+                    // Convert datetime-local back to ISO for storage/backend
+                    startTime: formData.startTime ? new Date(formData.startTime).toISOString() : '',
+                    endTime: formData.endTime ? new Date(formData.endTime).toISOString() : '',
                     ticketTypes,
                     seatMappings
                 });
@@ -289,6 +333,9 @@ const CreateEvent: React.FC = () => {
             } else {
                 await createEvent({
                     ...formData,
+                    // Ensure backend receives ISO timestamps
+                    startTime: formData.startTime ? new Date(formData.startTime).toISOString() : '',
+                    endTime: formData.endTime ? new Date(formData.endTime).toISOString() : '',
                     organizerId: user.id,
                     ticketTypes,
                     seatMappings

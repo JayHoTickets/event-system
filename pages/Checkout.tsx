@@ -15,16 +15,19 @@ const CheckoutForm: React.FC<{
     event: Event,
     selectedSeats: Seat[],
     customerName: string,
+    customerPhone:string,
     customerEmail: string,
     appliedCoupon: Coupon | null,
     calculatedFee: number,
     finalTotal: number,
-    onSuccess: (transactionId: string) => Promise<void>
-}> = ({ event, selectedSeats, customerName, customerEmail, appliedCoupon, calculatedFee, finalTotal, onSuccess }) => {
+    onSuccess: (transactionId: string, termsAccepted: boolean) => Promise<void>
+}> = ({ event, selectedSeats, customerName, customerPhone, customerEmail, appliedCoupon, calculatedFee, finalTotal, onSuccess }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [termsError, setTermsError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,6 +36,11 @@ const CheckoutForm: React.FC<{
             setError("Please provide your full name and email address.");
             return;
         }
+        if (!termsAccepted) {
+            setTermsError('Please accept the Terms & Conditions before proceeding.');
+            return;
+        }
+        setTermsError(null);
         setProcessing(true);
         setError(null);
         try {
@@ -43,8 +51,9 @@ const CheckoutForm: React.FC<{
                 payment_method: {
                     card: cardElement,
                     billing_details: {
-                        name: customerName,
-                        email: customerEmail,
+                            name: customerName,
+                            email: customerEmail,
+                            phone: customerPhone
                     },
                 },
             });
@@ -83,9 +92,17 @@ const CheckoutForm: React.FC<{
                     {error}
                 </div>
             )}
+            <div className="flex items-start gap-3">
+                <input id="terms" type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="mt-1" />
+                <label htmlFor="terms" className="text-sm text-slate-700">
+                    I agree to the <a href="/terms" target="_blank" rel="noreferrer" className="text-indigo-600 underline">Terms &amp; Conditions</a>
+                </label>
+            </div>
+            {termsError && <p className="text-red-500 text-xs mt-2">{termsError}</p>}
+
             <button
                 type="submit"
-                disabled={!stripe || processing}
+                disabled={!stripe || processing || !termsAccepted}
                 className="w-full mt-4 bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-indigo-700 transition-colors flex justify-center items-center disabled:opacity-70 disabled:cursor-not-allowed"
             >
                 {processing ? (
@@ -111,6 +128,7 @@ const Checkout: React.FC = () => {
 
   const [customerName, setCustomerName] = useState(user?.name || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
+  const [customerPhone, setCustomerPhone] = useState<any>('');
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -290,11 +308,11 @@ useEffect(() => {
     }
   };
 
-  const handleOrderSuccess = async (transactionId: string) => {
+  const handleOrderSuccess = async (transactionId: string, termsAccepted?: boolean) => {
     isPaidRef.current = true; // Prevents the cleanup releaser from running
     try {
         const order = await processPayment(
-            { name: customerName, email: customerEmail, id: user?.id }, 
+                { name: customerName, email: customerEmail, phone: customerPhone, id: user?.id, termsAccepted: !!termsAccepted }, 
             event, 
             selectedSeats, 
             calculatedFee, 
@@ -395,6 +413,10 @@ useEffect(() => {
                         <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
                         <input type="email" className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:border-indigo-500" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
                     </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+                        <input type="tel" className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:border-indigo-500" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="e.g. +1 555 555 5555" />
+                    </div>
                 </div>
             </div>
             <div className="mb-8">
@@ -408,8 +430,8 @@ useEffect(() => {
             </div>
             <div className="mt-6">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Credit Card</label>
-                <Elements stripe={stripePromise}>
-                    <CheckoutForm event={event} selectedSeats={selectedSeats} customerName={customerName} customerEmail={customerEmail} appliedCoupon={appliedCoupon} calculatedFee={calculatedFee} finalTotal={finalTotal} onSuccess={handleOrderSuccess} />
+                <Elements stripe={stripePromise} >
+                    <CheckoutForm event={event} selectedSeats={selectedSeats} customerName={customerName} customerEmail={customerEmail}  customerPhone={customerPhone} appliedCoupon={appliedCoupon} calculatedFee={calculatedFee} finalTotal={finalTotal} onSuccess={handleOrderSuccess} />
                 </Elements>
             </div>
         </div>

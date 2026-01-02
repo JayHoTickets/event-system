@@ -243,7 +243,7 @@ export const fetchAllOrders = (): Promise<Order[]> => fetchJson('/orders');
 export const fetchEventOrders = (eventId: string): Promise<Order[]> => fetchJson(`/orders?eventId=${eventId}`);
 
 export const processPayment = (
-    customer: { name: string, email: string, id?: string }, 
+    customer: { name: string, email: string, id?: string, phone?: string }, 
     event: Event, 
     seats: Seat[], 
     serviceFee: number, 
