@@ -111,7 +111,16 @@ exports.updateEvent = async (req, res) => {
             const incomingTheaterId = data.theaterId || event.theaterId;
             const theaterChanged = data.theaterId && data.theaterId !== event.theaterId;
             const venueChanged = data.venueId && data.venueId !== event.venueId;
-
+            if(venueChanged && (seatMappings!=null || seatMappings.length===0) )
+            {
+                const emptyTheaterEvent=event
+                emptyTheaterEvent.theaterId=null;
+                emptyTheaterEvent.seats=[];
+                emptyTheaterEvent.stage=null;
+                emptyTheaterEvent.rows=0;
+                emptyTheaterEvent.cols=0;
+               await Event.findByIdAndUpdate(req.params.id, emptyTheaterEvent, { new: true }); 
+            }
             // If the theater or venue changed, rebuild seats from the new theater layout
             if (theaterChanged || venueChanged) {
                 const theater = await Theater.findById(incomingTheaterId);
