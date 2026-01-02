@@ -135,7 +135,12 @@ const CreateEvent: React.FC = () => {
                         if (event.theaterId) {
                             const layout = await fetchTheaterById(event.theaterId);
                             if (layout) {
-                                setSelectedTheaterLayout(layout);
+                                // Prefer the event's saved stage visuals (textSize/borderRadius)
+                                const mergedLayout = { ...layout } as Theater;
+                                if (event.stage) {
+                                    mergedLayout.stage = { ...layout.stage, ...event.stage };
+                                }
+                                setSelectedTheaterLayout(mergedLayout);
 
                                 // Reconcile mappings to use the theater layout seat IDs.
                                 // Some events store seat assignments on event.seats which may

@@ -18,6 +18,9 @@ const StageSchema = new mongoose.Schema({
     y: Number,
     width: Number,
     height: Number
+    // Optional visual properties for stage rendering
+    , textSize: Number,
+    borderRadius: Number
 }, { _id: false });
 
 const TheaterSchema = new mongoose.Schema({

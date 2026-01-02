@@ -32,6 +32,9 @@ const StageSchema = new mongoose.Schema({
     y: Number,
     width: Number,
     height: Number
+    // Optional visual properties to mirror Theater.stage
+    , textSize: Number
+    , borderRadius: Number
 }, { _id: false });
 
 const EventSchema = new mongoose.Schema({

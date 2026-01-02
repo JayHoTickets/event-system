@@ -216,13 +216,14 @@ const SeatGrid: React.FC<SeatGridProps> = ({
             {/* Stage */}
             {stage && (
                 <div 
-                    className="absolute bg-slate-800 text-slate-400 rounded-b-xl flex items-center justify-center font-bold tracking-widest uppercase shadow-md border-b-4 border-slate-900"
+                    className="absolute bg-slate-800 text-slate-400 flex items-center justify-center font-bold tracking-widest uppercase shadow-md border-b-4 border-slate-900"
                     style={{
                         left: stage.x * CELL_SIZE,
                         top: stage.y * CELL_SIZE,
                         width: stage.width * CELL_SIZE,
                         height: stage.height * CELL_SIZE,
-                        fontSize: `${Math.max(10, Math.min(24, stage.height * 4))}px`,
+                        fontSize: `${stage.textSize ? stage.textSize + 'px' : Math.max(10, Math.min(24, stage.height * 4))}`,
+                        borderRadius: stage.borderRadius ? `${stage.borderRadius}px` : undefined,
                         zIndex: 0
                     }}
                 >

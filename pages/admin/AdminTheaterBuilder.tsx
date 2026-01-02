@@ -22,7 +22,7 @@ const AdminTheaterBuilder: React.FC = () => {
   
   // Data State
   const [seats, setSeats] = useState<Seat[]>([]);
-  const [stage, setStage] = useState<Stage>({ label: 'Stage', x: 2, y: 0, width: 10, height: 4 });
+    const [stage, setStage] = useState<Stage>({ label: 'Stage', x: 2, y: 0, width: 10, height: 4, textSize: 16, borderRadius: 12 });
   
   // Interaction State
   const [tool, setTool] = useState<Tool>('SELECT');
@@ -558,7 +558,8 @@ const AdminTheaterBuilder: React.FC = () => {
                         top: stage.y * CELL_SIZE,
                         width: stage.width * CELL_SIZE,
                         height: stage.height * CELL_SIZE,
-                        fontSize: `${Math.min(24, Math.max(10, 8 + stage.height * 2))}px`
+                        fontSize: `${stage.textSize || Math.min(24, Math.max(10, 8 + stage.height * 2))}px`,
+                        borderRadius: stage.borderRadius ? `${stage.borderRadius}px` : undefined
                     }}
                 >
                     {stage.label}
@@ -637,6 +638,33 @@ const AdminTheaterBuilder: React.FC = () => {
                         <RotateCcw className="w-3 h-3 mr-2" /> Clear All Seats
                     </button>
                  </div>
+            </div>
+
+            {/* Stage Settings */}
+            <div className="mb-6 border-b pb-4">
+                <h3 className="text-xs font-bold text-slate-900 mb-2">Stage Properties</h3>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                        <label className="text-[10px] text-slate-500">Width (cells)</label>
+                        <input type="number" className="w-full border rounded px-2 py-1 text-sm" value={stage.width} onChange={e => setStage(s => ({ ...s, width: Math.max(1, Number(e.target.value)) }))} />
+                    </div>
+                    <div>
+                        <label className="text-[10px] text-slate-500">Height (cells)</label>
+                        <input type="number" className="w-full border rounded px-2 py-1 text-sm" value={stage.height} onChange={e => setStage(s => ({ ...s, height: Math.max(1, Number(e.target.value)) }))} />
+                    </div>
+                </div>
+
+                <div className="mb-3">
+                    <label className="text-[10px] text-slate-500">Label Text Size (px)</label>
+                    <input type="range" min="8" max="48" value={stage.textSize || 16} onChange={e => setStage(s => ({ ...s, textSize: Number(e.target.value) }))} className="w-full h-2" />
+                    <div className="text-xs text-slate-400 mt-1">{stage.textSize || 16}px</div>
+                </div>
+
+                <div>
+                    <label className="text-[10px] text-slate-500">Corner Curve (px)</label>
+                    <input type="range" min="0" max="100" value={stage.borderRadius || 0} onChange={e => setStage(s => ({ ...s, borderRadius: Number(e.target.value) }))} className="w-full h-2" />
+                    <div className="text-xs text-slate-400 mt-1">{stage.borderRadius || 0}px</div>
+                </div>
             </div>
 
             {selectedSeatIds.size === 0 ? (

@@ -38,6 +38,16 @@ exports.getEvents = async (req, res) => {
             const evObj = ev.toObject ? ev.toObject({ virtuals: true }) : { ...ev };
             const v = venueMap.get(String(evObj.venueId));
             evObj.location = evObj.location || formatVenueLocation(v);
+
+            // Hydrate stage from theater when missing so list endpoints also
+            // provide stage visuals for older events that didn't store them.
+            if ((!evObj.stage || Object.keys(evObj.stage).length === 0) && evObj.theaterId) {
+                // We won't await here; instead we'll mark it for later population.
+                // To keep this synchronous we attach a placeholder and let
+                // individual getEventById handle full hydration. However, if
+                // theater data is available in-memory it's preferable to fetch
+                // it — but to avoid multiple DB calls here we leave as-is.
+            }
             return evObj;
         });
 
@@ -55,6 +65,23 @@ exports.getEventById = async (req, res) => {
         const evObj = { ...event.toObject({ virtuals: true }) };
         evObj.location = evObj.location || formatVenueLocation(venue);
         evObj.venueName = venue ? venue.name : 'Unknown';
+        // If the event doesn't have a stage saved (older events), try to
+        // populate it from the referenced theater so the frontend (booking/
+        // analytics) can render stage visuals like size, textSize and curve.
+        if ((!evObj.stage || Object.keys(evObj.stage).length === 0) && evObj.theaterId) {
+            try {
+                const theater = await Theater.findById(evObj.theaterId);
+                if (theater && theater.stage) {
+                    evObj.stage = theater.stage;
+                    // Also surface rows/cols if missing so SeatGrid can auto-fit
+                    if (!evObj.rows && theater.rows) evObj.rows = theater.rows;
+                    if (!evObj.cols && theater.cols) evObj.cols = theater.cols;
+                }
+            } catch (thErr) {
+                // Non-fatal: if theater lookup fails, just continue without stage
+                console.warn('Failed to hydrate theater stage for event', evObj.id, thErr && thErr.message);
+            }
+        }
         res.json(evObj);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -102,7 +129,8 @@ exports.createEvent = async (req, res) => {
             if (theater) {
                 // Generate initial seat state based on theater layout + ticket mappings
                 seats = hydrateSeats(theater.seats, data.ticketTypes, seatMappings);
-                stage = theater.stage;
+                // Merge any incoming stage overrides (e.g., textSize/borderRadius)
+                stage = { ...(theater.stage || {}), ...(data.stage || {}) };
                 rows = theater.rows;
                 cols = theater.cols;
             }
@@ -176,7 +204,7 @@ exports.updateEvent = async (req, res) => {
                     // Use provided seatMappings or empty mapping so new theater seats are assigned accordingly
                     const mappingsToUse = seatMappings || {};
                     updateData.seats = hydrateSeats(theater.seats, types, mappingsToUse);
-                    updateData.stage = theater.stage;
+                    updateData.stage = { ...(theater.stage || {}), ...(data.stage || {}) };
                     updateData.rows = theater.rows;
                     updateData.cols = theater.cols;
                 }
@@ -224,7 +252,7 @@ exports.updateEvent = async (req, res) => {
                         }
                     });
                     
-                    updateData.stage = theater.stage;
+                    updateData.stage = { ...(theater.stage || {}), ...(data.stage || {}) };
                     updateData.rows = theater.rows;
                     updateData.cols = theater.cols;
                 }

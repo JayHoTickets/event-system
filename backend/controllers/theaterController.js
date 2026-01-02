@@ -28,7 +28,7 @@ exports.createTheater = async (req, res) => {
         const theaterData = {
             ...req.body,
             seats: [],
-            stage: { label: 'Stage', x: 2, y: 0, width: 10, height: 3 }
+            stage: { label: 'Stage', x: 2, y: 0, width: 10, height: 3, textSize: 16, borderRadius: 12 }
         };
         const theater = await Theater.create(theaterData);
         res.json(theater);
