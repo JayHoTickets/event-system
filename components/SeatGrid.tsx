@@ -176,7 +176,7 @@ const SeatGrid: React.FC<SeatGridProps> = ({
 
   return (
     <div 
-        className="w-full overflow-auto bg-slate-50 rounded-xl border border-slate-200 shadow-inner relative" 
+        className="w-full overflow-auto bg-slate-50 rounded-xl border border-slate-200 shadow-inner relative flex items-center justify-center" 
         style={{ minHeight: '400px', maxHeight: '80vh', cursor: allowDragSelect ? 'crosshair' : 'default' }}
         onMouseLeave={() => { setIsDragging(false); setSelectionBox(null); }}
     >

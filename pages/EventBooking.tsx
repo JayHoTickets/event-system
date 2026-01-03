@@ -35,7 +35,9 @@ const EventBooking: React.FC = () => {
   // Auto-fit map logic
   const fitMapToContainer = () => {
     if (event && event.seatingType === SeatingType.RESERVED && mapContainerRef.current) {
-        const padding = 60; // Less padding for mobile to maximize view
+                // Use smaller padding on narrow viewports (mobile) so the map can fill more space
+                const isMobile = window.innerWidth < 768;
+                const padding = isMobile ? 20 : 60;
         const cols = event.cols || 30;
         const rows = event.rows || 20;
         
@@ -50,18 +52,30 @@ const EventBooking: React.FC = () => {
         const scaleX = containerW / contentW;
         const scaleY = containerH / contentH;
         
-        // Use the smaller scale to ensure it fits entirely, but cap at 1.0 (no pixelation upsizing)
-        // Also set a minimum so it's not microscopic
-        const newScale = Math.min(1.2, Math.min(scaleX, scaleY));
-        setZoom(Math.max(0.1, newScale));
+                // Use the smaller scale to ensure content fits entirely in the container.
+                // Do NOT upscale above 1.0 — we want the full map visible by default and avoid zooming in.
+                const newScale = Math.min(1, Math.min(scaleX, scaleY));
+                // On mobile prefer a smaller default zoom so the full map is visible ("very small / second level").
+                const mobileDefaultMax = 0.15; // clamp mobile default to 25% (adjustable)
+                const finalScale = isMobile ? Math.min(newScale, mobileDefaultMax) : newScale;
+                setZoom(Math.max(0.05, finalScale));
     }
   };
 
   // Initial Fit and Window Resize Listener
   useEffect(() => {
-    fitMapToContainer();
-    window.addEventListener('resize', fitMapToContainer);
-    return () => window.removeEventListener('resize', fitMapToContainer);
+        // Run an immediate fit and a delayed fit to allow mobile layouts to settle
+        fitMapToContainer();
+        // Delay a bit so dynamic layout (safe areas, mobile UI) finishes before measuring
+        const t = window.setTimeout(fitMapToContainer, 120);
+
+        window.addEventListener('resize', fitMapToContainer);
+        window.addEventListener('orientationchange', fitMapToContainer);
+        return () => {
+            window.removeEventListener('resize', fitMapToContainer);
+            window.removeEventListener('orientationchange', fitMapToContainer);
+            clearTimeout(t);
+        };
   }, [event]);
 
   if (loading) return <div className="p-10 text-center text-slate-500">Loading event details...</div>;
@@ -168,10 +182,10 @@ const EventBooking: React.FC = () => {
       
       {/* HEADER: Title & Info */}
       <div className="relative mb-6">
-          <div className="w-full h-56 md:h-96 rounded-b-xl overflow-hidden relative bg-slate-900">
+          <div className="hidden md:block w-full h-56 md:h-96 rounded-b-xl overflow-hidden relative bg-slate-900">
               {/* Poster image shown fully (object-contain) so it isn't cropped */}
               {event.imageUrl && (
-                  <img src={event.imageUrl} alt={event.title} className="absolute inset-0 w-full h-full object-contain" />
+                  <img src={event.imageUrl} alt={event.title} className="hidden md:block absolute inset-0 w-full h-full object-contain" />
               )}
               <div className="absolute inset-0 bg-black/40"></div>
               <div className="hidden md:block absolute left-4 top-4 md:left-12 md:top-12 text-white max-w-3xl">
@@ -216,25 +230,37 @@ const EventBooking: React.FC = () => {
           </div>
       </div>
 
-      {/* Mobile: details shown below the poster (not overlay) */}
+      {/* Mobile: details left, small poster image on the right */}
       <div className="block md:hidden px-4 mt-3">
-          <h2 className="text-lg font-bold text-slate-900">{event.title}</h2>
-          <p className="text-slate-500 mt-1 text-sm flex items-center">
-              <Clock className="w-4 h-4 mr-2" />
-              {new Date(event.startTime).toLocaleDateString()} &bull; {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
-          <p className="text-slate-500 text-sm mt-1">{event.location}</p>
-          <p className="text-slate-500 text-sm mt-1">{event.seatingType === SeatingType.RESERVED ? `${event.seats?.length || 0} seats` : 'General Admission'}</p>
-          {event.ticketTypes && event.ticketTypes.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                  {event.ticketTypes.map(tt => (
-                      <div key={tt.id} className="text-xs px-2 py-1 rounded-md border border-slate-200 bg-slate-50 text-slate-700">
-                          <span className="font-semibold">{tt.name}</span>
-                          <span className="ml-2">${tt.price.toFixed(2)}</span>
+          <div className="flex items-start gap-3">
+              <div className="flex-1">
+                  <h2 className="text-lg font-bold text-slate-900">{event.title}</h2>
+                  <p className="text-slate-500 mt-1 text-sm flex items-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      {new Date(event.startTime).toLocaleDateString()} &bull; {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <p className="text-slate-500 text-sm mt-1">{event.location}</p>
+                  <p className="text-slate-500 text-sm mt-1">{event.seatingType === SeatingType.RESERVED ? `${event.seats?.length || 0} seats` : 'General Admission'}</p>
+
+                  {/* {event.ticketTypes && event.ticketTypes.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                          {event.ticketTypes.map(tt => (
+                              <div key={tt.id} className="text-xs px-2 py-1 rounded-md border border-slate-200 bg-slate-50 text-slate-700">
+                                  <span className="font-semibold">{tt.name}</span>
+                                  <span className="ml-2">${tt.price.toFixed(2)}</span>
+                              </div>
+                          ))}
                       </div>
-                  ))}
+                  )} */}
               </div>
-          )}
+
+              {/* Small poster on the right for mobile */}
+              {event.imageUrl && (
+                  <div className="w-24 h-24 flex-shrink-0 rounded-md overflow-hidden bg-slate-100 border border-slate-100">
+                      <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+                  </div>
+              )}
+          </div>
       </div>
 
       {/* MAIN CONTENT AREA */}
