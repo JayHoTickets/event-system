@@ -19,6 +19,8 @@ const EventBooking: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState(1);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+    // Track seat ids currently being processed to avoid race conditions
+    const pendingSeatIdsRef = useRef<Set<string>>(new Set());
 
   // GA State: ticketTypeId -> count
   const [gaSelection, setGaSelection] = useState<Record<string, number>>({});
@@ -82,19 +84,31 @@ const EventBooking: React.FC = () => {
   if (!event) return <div className="p-10 text-center text-red-500">Event not found</div>;
 
   const handleSeatClick = async (seat: Seat) => {
+      // Ignore clicks for seats that are currently being processed
+      if (pendingSeatIdsRef.current.has(seat.id)) return;
       // Toggle selection logic
       const isSelected = selectedSeats.some(s => s.id === seat.id);
       
       if (isSelected) {
           setSelectedSeats(prev => prev.filter(s => s.id !== seat.id));
       } else {
+          // Mark this seat as pending so rapid clicks don't cause duplicate adds
+          pendingSeatIdsRef.current.add(seat.id);
           // Check backend availability (mock)
-          const isAvailable = await holdSeat(event.id, seat.id);
-          if (isAvailable) {
-              setSelectedSeats(prev => [...prev, seat]);
-              setError(null);
-          } else {
-              setError(`Seat ${seat.rowLabel}${seat.seatNumber} is no longer available.`);
+          try {
+              const isAvailable = await holdSeat(event.id, seat.id);
+              if (isAvailable) {
+                  setSelectedSeats(prev => {
+                      // protect against duplicates in case of odd timing
+                      if (prev.some(s => s.id === seat.id)) return prev;
+                      return [...prev, seat];
+                  });
+                  setError(null);
+              } else {
+                  setError(`Seat ${seat.rowLabel}${seat.seatNumber} is no longer available.`);
+              }
+          } finally {
+              pendingSeatIdsRef.current.delete(seat.id);
           }
       }
   };
