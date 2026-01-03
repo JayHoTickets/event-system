@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const seedData = require('./config/seeder');
+const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -31,6 +32,16 @@ app.use('/api/payments', require('./routes/paymentRoutes'));
 
 // Specific seat route mapping
 app.post('/api/seats/hold', require('./controllers/eventController').holdSeat);
+
+// Serve frontend static files (if built) and provide SPA fallback for client-side routes
+const distPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
+
+app.get('*', (req, res) => {
+    // Don't try to serve index.html for API routes
+    if (req.path.startsWith('/api')) return res.status(404).end();
+    res.sendFile(path.join(distPath, 'index.html'));
+});
 
 app.listen(port, () => {
     console.log(`EventHorizon Server running on http://localhost:${port}`);

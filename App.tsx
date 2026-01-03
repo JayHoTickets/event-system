@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import EventsList from './pages/EventsList';
 import EventBooking from './pages/EventBooking';
 import Checkout from './pages/Checkout';
 import Confirmation from './pages/Confirmation';
 import Login from './pages/Login';
+import TermsAndConditions from './pages/TermsAndConditions';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminVenues from './pages/admin/AdminVenues';
 import AdminTheaters from './pages/admin/AdminTheaters';
@@ -32,6 +33,7 @@ function App() {
                 <Route path="/" element={<EventsList />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/event/:id" element={<EventBooking />} />
+                <Route path="/terms" element={<TermsAndConditions />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/confirmation" element={<Confirmation />} />
             </Route>
