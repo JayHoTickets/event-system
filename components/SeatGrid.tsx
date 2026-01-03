@@ -238,15 +238,15 @@ const SeatGrid: React.FC<SeatGridProps> = ({
                     onClick={() => onRowClick && onRowClick(label)}
                     type="button"
                     className={clsx(
-                        "absolute flex items-center justify-end pr-3 text-xs font-bold font-mono transition-colors",
-                        onRowClick ? "text-indigo-400 hover:text-indigo-600 cursor-pointer hover:font-extrabold" : "text-slate-300 cursor-default"
+                        "absolute flex items-center justify-end pr-3 text-sm md:text-base font-bold font-mono transition-colors",
+                        onRowClick ? "text-slate-800 hover:text-indigo-700 cursor-pointer hover:font-extrabold" : "text-slate-700 cursor-default"
                     )}
                     style={{
-                        left: coords.x - 50,
+                        left: coords.x - 60,
                         top: coords.y,
-                        width: 50,
-                        height: CELL_SIZE - 6,
-                        lineHeight: `${CELL_SIZE - 6}px`
+                        width: 60,
+                        height: CELL_SIZE,
+                        lineHeight: `${CELL_SIZE}px`
                     }}
                     title={onRowClick ? `Select Row ${label}` : undefined}
                 >
