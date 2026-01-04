@@ -1,5 +1,6 @@
 
 const Coupon = require('../models/Coupon');
+const { computeCouponDiscount } = require('../utils/discountService');
 
 exports.getCoupons = async (req, res) => {
     try {
@@ -43,16 +44,22 @@ exports.deleteCoupon = async (req, res) => {
 };
 
 exports.validateCoupon = async (req, res) => {
-    const { code, eventId } = req.body;
+    const { code, eventId, seats } = req.body;
     try {
         const coupon = await Coupon.findOne({ code, active: true, deleted: false });
         if (!coupon) return res.status(400).json({ message: 'Invalid coupon' });
-        
-        if (new Date(coupon.expiryDate) < new Date()) return res.status(400).json({ message: 'Expired' });
-        if (coupon.usedCount >= coupon.maxUses) return res.status(400).json({ message: 'Limit reached' });
         if (coupon.eventId && coupon.eventId !== eventId) return res.status(400).json({ message: 'Not valid for this event' });
-        
-        res.json(coupon);
+        if (coupon.expiryDate && new Date(coupon.expiryDate) < new Date()) return res.status(400).json({ message: 'Expired' });
+        if (coupon.maxUses && (coupon.usedCount || 0) >= coupon.maxUses) return res.status(400).json({ message: 'Limit reached' });
+
+        const subtotal = (seats || []).reduce((a, s) => a + (s.price || 0), 0);
+        const { discount } = computeCouponDiscount(coupon, { subtotal, seats, seatsCount: (seats || []).length, requestedCode: code, eventId });
+        if (!discount || discount <= 0) return res.status(400).json({ message: 'Not applicable' });
+
+        // Merge discount into returned coupon payload for frontend compatibility
+        const out = coupon.toJSON ? coupon.toJSON() : coupon;
+        out.discount = discount;
+        res.json(out);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

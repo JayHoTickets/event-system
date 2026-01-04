@@ -44,7 +44,7 @@ const CheckoutForm: React.FC<{
         setProcessing(true);
         setError(null);
         try {
-            const { clientSecret } = await createPaymentIntent(selectedSeats, appliedCoupon?.id);
+            const { clientSecret } = await createPaymentIntent(selectedSeats, appliedCoupon?.id, event.id);
             const cardElement = elements.getElement(CardElement);
             if (!cardElement) throw new Error("Card Element not found");
             const result = await stripe.confirmCardPayment(clientSecret, {
@@ -260,7 +260,7 @@ useEffect(() => {
 
     // Allow navigation back
     window.removeEventListener("popstate", onPopState);
-    window.location.href = `http://localhost:3000/#/event/${event.id}`;
+    window.location.href = `http://217.15.170.10:3000/event/${event.id}`;
 
     // Force reload after navigation
     // setTimeout(() => {
@@ -281,9 +281,13 @@ useEffect(() => {
   const subtotal = selectedSeats.reduce((acc, s) => acc + (s.price || 0), 0);
   let discountAmount = 0;
   if (appliedCoupon) {
-      discountAmount = appliedCoupon.discountType === 'PERCENTAGE' 
-        ? subtotal * (appliedCoupon.value / 100) 
-        : appliedCoupon.value;
+      if (typeof (appliedCoupon as any).discount === 'number') {
+          discountAmount = (appliedCoupon as any).discount;
+      } else {
+          discountAmount = appliedCoupon.discountType === 'PERCENTAGE' 
+            ? subtotal * (appliedCoupon.value / 100) 
+            : appliedCoupon.value;
+      }
   }
   const discountedSubtotal = Math.max(0, subtotal - discountAmount);
 
@@ -300,8 +304,8 @@ useEffect(() => {
   const handleApplyCoupon = async () => {
     setCouponError(null);
     try {
-        const coupon = await validateCoupon(couponCode, event.id);
-        setAppliedCoupon(coupon);
+                const coupon = await validateCoupon(couponCode, event.id, selectedSeats);
+                setAppliedCoupon(coupon);
     } catch (e: any) {
         setCouponError(e.message || "Invalid code");
         setAppliedCoupon(null);

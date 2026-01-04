@@ -4,6 +4,7 @@ const Event = require('../models/Event');
 const Coupon = require('../models/Coupon');
 const User = require('../models/User');
 const { sendOrderEmails } = require('../utils/emailService');
+const { computeCouponDiscount } = require('../utils/discountService');
 
 exports.getOrders = async (req, res) => {
     try {
@@ -18,19 +19,40 @@ exports.getOrders = async (req, res) => {
 exports.createOrder = async (req, res) => {
     const { customer, event, seats, serviceFee, couponId, paymentMode, transactionId } = req.body;
     try {
-        // 1. Process Coupon
+        // 1. Compute subtotal and determine any applicable coupon (auto-apply best)
         let couponCode;
         let discount = 0;
-        
+        let appliedCoupon = null;
+        const subtotal = seats.reduce((acc, s) => acc + (s.price || 0), 0);
+
         if (couponId) {
             const coupon = await Coupon.findById(couponId);
-            if(coupon) {
-                coupon.usedCount += 1;
-                await coupon.save();
-                couponCode = coupon.code;
-                
-                const subtotal = seats.reduce((acc, s) => acc + (s.price || 0), 0);
-                discount = coupon.discountType === 'PERCENTAGE' ? subtotal * (coupon.value / 100) : coupon.value;
+            if (coupon) {
+                // Validate and compute discount for this explicit coupon
+                const resCompute = computeCouponDiscount(coupon, { subtotal, seats, seatsCount: seats.length, requestedCode: coupon.code, eventId: event.id });
+                if (resCompute.discount > 0) {
+                    discount = resCompute.discount;
+                    appliedCoupon = { doc: coupon, usedInc: resCompute.usedCountIncrement };
+                    couponCode = coupon.code;
+                }
+            }
+        } else {
+            // auto-apply best coupon for this event/organizer
+            const eventDoc = await Event.findById(event.id);
+            const organizerId = eventDoc ? eventDoc.organizerId : null;
+            const coupons = await Coupon.find({ active: true, deleted: false, $or: [ { eventId: event.id }, { organizerId } ] });
+
+            let best = { discount: 0, coupon: null, usedInc: 0 };
+            for (const c of coupons) {
+                const { discount: d, usedCountIncrement } = computeCouponDiscount(c, { subtotal, seats, seatsCount: seats.length, eventId: event.id });
+                if (d > best.discount) {
+                    best = { discount: d, coupon: c, usedInc: usedCountIncrement };
+                }
+            }
+            if (best.coupon && best.discount > 0) {
+                discount = best.discount;
+                appliedCoupon = { doc: best.coupon, usedInc: best.usedInc };
+                couponCode = best.coupon.code;
             }
         }
 
@@ -57,8 +79,25 @@ exports.createOrder = async (req, res) => {
             await eventDoc.save();
         }
 
+        // If a coupon was applied, increment used count (respecting maxUses and increments)
+        if (appliedCoupon && appliedCoupon.doc) {
+            try {
+                const cdoc = appliedCoupon.doc;
+                const inc = appliedCoupon.usedInc || 1;
+                if (cdoc.maxUses) {
+                    const remaining = Math.max(0, cdoc.maxUses - (cdoc.usedCount || 0));
+                    const toAdd = Math.min(inc, remaining);
+                    cdoc.usedCount = (cdoc.usedCount || 0) + toAdd;
+                } else {
+                    cdoc.usedCount = (cdoc.usedCount || 0) + inc;
+                }
+                await cdoc.save();
+            } catch (e) {
+                console.error('Failed to update coupon usage count', e);
+            }
+        }
+
         // 3. Create Order
-        const subtotal = seats.reduce((acc, s) => acc + (s.price || 0), 0);
         const totalAmount = Math.max(0, subtotal - discount) + serviceFee;
         
         // Generate Ticket Objects with IDs

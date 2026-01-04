@@ -27,7 +27,9 @@ const OrganizerCoupons: React.FC = () => {
         value: 10,
         eventId: '',
         maxUses: 100,
-        expiryDate: ''
+        expiryDate: '',
+        ruleType: 'CODE',
+        ruleParamsRaw: '' // JSON textarea for advanced params
     });
 
     useEffect(() => {
@@ -49,7 +51,7 @@ const OrganizerCoupons: React.FC = () => {
 
     const openCreateModal = () => {
         setEditingCoupon(null);
-        setFormData({ code: '', discountType: 'PERCENTAGE', value: 10, eventId: '', maxUses: 100, expiryDate: '' });
+        setFormData({ code: '', discountType: 'PERCENTAGE', value: 10, eventId: '', maxUses: 100, expiryDate: '', ruleType: 'CODE', ruleParamsRaw: '' });
         setShowModal(true);
     };
 
@@ -61,7 +63,9 @@ const OrganizerCoupons: React.FC = () => {
             value: coupon.value,
             eventId: coupon.eventId || '',
             maxUses: coupon.maxUses,
-            expiryDate: coupon.expiryDate
+            expiryDate: coupon.expiryDate,
+            ruleType: (coupon as any).ruleType || 'CODE',
+            ruleParamsRaw: JSON.stringify((coupon as any).ruleParams || {}, null, 2)
         });
         setShowModal(true);
     };
@@ -71,27 +75,29 @@ const OrganizerCoupons: React.FC = () => {
         if(!user) return;
         setSubmitting(true);
         try {
+            // Build payload including new rule fields
+            let ruleParams: any = {};
+            if (formData.ruleParamsRaw) {
+                try { ruleParams = JSON.parse(formData.ruleParamsRaw); } catch (err) { ruleParams = {}; }
+            }
+
+            const payload: any = {
+                code: formData.code.toUpperCase(),
+                discountType: formData.discountType as 'PERCENTAGE' | 'FIXED',
+                value: Number(formData.value),
+                eventId: formData.eventId || null,
+                organizerId: user.id,
+                maxUses: Number(formData.maxUses),
+                expiryDate: formData.expiryDate,
+                ruleType: formData.ruleType || 'CODE',
+                ruleParams: ruleParams,
+                active: true
+            };
+
             if (editingCoupon) {
-                // Update Logic
-                await updateCoupon(editingCoupon.id, {
-                    code: formData.code.toUpperCase(),
-                    discountType: formData.discountType as 'PERCENTAGE' | 'FIXED',
-                    value: Number(formData.value),
-                    eventId: formData.eventId || null,
-                    maxUses: Number(formData.maxUses),
-                    expiryDate: formData.expiryDate
-                });
+                await updateCoupon(editingCoupon.id, payload);
             } else {
-                // Create Logic
-                await createCoupon({
-                    code: formData.code.toUpperCase(),
-                    discountType: formData.discountType as 'PERCENTAGE' | 'FIXED',
-                    value: Number(formData.value),
-                    eventId: formData.eventId || null,
-                    organizerId: user.id,
-                    maxUses: Number(formData.maxUses),
-                    expiryDate: formData.expiryDate
-                });
+                await createCoupon(payload);
             }
             
             loadData();
@@ -248,6 +254,17 @@ const OrganizerCoupons: React.FC = () => {
                                 </div>
                             </div>
 
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Rule Type</label>
+                                <select className="w-full border rounded-lg px-3 py-2" value={(formData as any).ruleType} onChange={e => setFormData({...formData, ruleType: e.target.value})}>
+                                    <option value="CODE">Code (manual apply)</option>
+                                    <option value="THRESHOLD">Threshold (min amount)</option>
+                                    <option value="EARLY_BIRD">Early Bird (first N tickets)</option>
+                                    <option value="SEAT_COUNT">Seat Count (min seats)</option>
+                                </select>
+                                <p className="text-xs text-slate-500 mt-1">Choose how this coupon should be applied.</p>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
@@ -285,6 +302,12 @@ const OrganizerCoupons: React.FC = () => {
                                     ))}
                                 </select>
                                 <p className="text-xs text-slate-500 mt-1">Leave as "All Events" to apply to everything.</p>
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Rule Params (JSON)</label>
+                                <textarea className="w-full border rounded-lg px-3 py-2 font-mono text-sm h-28" value={(formData as any).ruleParamsRaw} onChange={e => setFormData({...formData, ruleParamsRaw: e.target.value})} placeholder='{"minAmount":300, "value":5, "discountType":"PERCENTAGE"}' />
+                                <p className="text-xs text-slate-500 mt-1">Advanced: specify rule parameters as JSON. Common keys: <code>minAmount</code>, <code>maxQuantityEligible</code>, <code>minSeats</code>, <code>value</code>, <code>discountType</code>.</p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4 mb-6">

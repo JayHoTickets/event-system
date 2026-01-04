@@ -3,9 +3,11 @@ const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const Coupon = require('../models/Coupon');
 const ServiceCharge = require('../models/ServiceCharge');
+const Event = require('../models/Event');
+const { computeCouponDiscount } = require('../utils/discountService');
 
 exports.createPaymentIntent = async (req, res) => {
-    const { seats, couponId } = req.body;
+    const { seats, couponId, eventId } = req.body;
 
     try {
         if (!process.env.STRIPE_SECRET_KEY) {
@@ -16,16 +18,24 @@ exports.createPaymentIntent = async (req, res) => {
         const subtotal = seats.reduce((acc, s) => acc + (s.price || 0), 0);
         let discount = 0;
 
-        // 2. Apply Coupon
+        // 2. Apply Coupon: if couponId provided, evaluate that coupon; otherwise auto-apply best available for event/organizer
         if (couponId) {
             const coupon = await Coupon.findById(couponId);
             if (coupon && coupon.active && !coupon.deleted) {
-                if (coupon.discountType === 'PERCENTAGE') {
-                    discount = subtotal * (coupon.value / 100);
-                } else {
-                    discount = coupon.value;
-                }
+                const res = computeCouponDiscount(coupon, { subtotal, seats, seatsCount: seats.length, requestedCode: coupon.code, eventId });
+                discount = res.discount || 0;
             }
+        } else if (eventId) {
+            const eventDoc = await Event.findById(eventId);
+            const organizerId = eventDoc ? eventDoc.organizerId : null;
+            const coupons = await Coupon.find({ active: true, deleted: false, $or: [ { eventId }, { organizerId } ] });
+
+            let best = { discount: 0 };
+            for (const c of coupons) {
+                const { discount: d } = computeCouponDiscount(c, { subtotal, seats, seatsCount: seats.length, eventId });
+                if (d > best.discount) best = { discount: d };
+            }
+            discount = best.discount || 0;
         }
         
         const discountedSubtotal = Math.max(0, subtotal - discount);

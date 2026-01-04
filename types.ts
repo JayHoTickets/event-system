@@ -142,6 +142,11 @@ export interface Coupon {
   discountType: 'PERCENTAGE' | 'FIXED';
   value: number;
   eventId: string | null; // If null, applies to all events by organizer
+  // New rule-driven fields
+  ruleType?: 'THRESHOLD' | 'EARLY_BIRD' | 'SEAT_COUNT' | 'CODE';
+  ruleParams?: any;
+  // Backend may return a computed discount during validation
+  discount?: number;
   organizerId: string;
   maxUses: number;
   usedCount: number;
