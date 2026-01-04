@@ -143,7 +143,10 @@ export interface Coupon {
   value: number;
   eventId: string | null; // If null, applies to all events by organizer
   // New rule-driven fields
-  ruleType?: 'THRESHOLD' | 'EARLY_BIRD' | 'SEAT_COUNT' | 'CODE';
+  ruleType?: 'THRESHOLD' | 'SEAT_COUNT' | 'CODE';
+  // Explicit rule fields (preferred over legacy ruleParams)
+  minAmount?: number; // for THRESHOLD
+  minSeats?: number; // for SEAT_COUNT
   ruleParams?: any;
   // Backend may return a computed discount during validation
   discount?: number;

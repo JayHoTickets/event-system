@@ -33,6 +33,12 @@ const Confirmation: React.FC = () => {
                 <span>Confirmation email sent to your inbox.</span>
             </div>
 
+            {order.couponCode && order.discountApplied > 0 && (
+                <div className="mb-6 p-4 rounded bg-green-50 text-green-800 border border-green-100">
+                    <strong>Coupon applied:</strong> {order.couponCode} — you saved ${order.discountApplied.toFixed(2)}
+                </div>
+            )}
+
             <h2 className="text-xl font-bold text-slate-900 mb-6">Your Tickets</h2>
             
             <div className="space-y-6">

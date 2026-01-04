@@ -21,7 +21,7 @@ const OrganizerCoupons: React.FC = () => {
     const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
 
     // Form State
-    const [formData, setFormData] = useState({
+    const initialForm = {
         code: '',
         discountType: 'PERCENTAGE',
         value: 10,
@@ -29,8 +29,12 @@ const OrganizerCoupons: React.FC = () => {
         maxUses: 100,
         expiryDate: '',
         ruleType: 'CODE',
-        ruleParamsRaw: '' // JSON textarea for advanced params
-    });
+        // explicit fields
+        minAmount: 0,
+        minSeats: 0,
+    };
+
+    const [formData, setFormData] = useState({ ...initialForm });
 
     useEffect(() => {
         loadData();
@@ -51,21 +55,33 @@ const OrganizerCoupons: React.FC = () => {
 
     const openCreateModal = () => {
         setEditingCoupon(null);
-        setFormData({ code: '', discountType: 'PERCENTAGE', value: 10, eventId: '', maxUses: 100, expiryDate: '', ruleType: 'CODE', ruleParamsRaw: '' });
+        setFormData({ ...initialForm });
         setShowModal(true);
     };
 
     const openEditModal = (coupon: Coupon) => {
         setEditingCoupon(coupon);
+        // Normalize expiry date to `datetime-local` input format if available
+        let expiry = '';
+        try {
+            if ((coupon as any).expiryDate) {
+                const d = new Date((coupon as any).expiryDate);
+                if (!isNaN(d.getTime())) expiry = d.toISOString().slice(0,16);
+            }
+        } catch (e) { expiry = ''; }
+
         setFormData({
-            code: coupon.code,
-            discountType: coupon.discountType,
-            value: coupon.value,
-            eventId: coupon.eventId || '',
-            maxUses: coupon.maxUses,
-            expiryDate: coupon.expiryDate,
-            ruleType: (coupon as any).ruleType || 'CODE',
-            ruleParamsRaw: JSON.stringify((coupon as any).ruleParams || {}, null, 2)
+            ...initialForm,
+            code: coupon.code || initialForm.code,
+            discountType: coupon.discountType || initialForm.discountType,
+            value: typeof (coupon as any).value !== 'undefined' ? (coupon as any).value : initialForm.value,
+            eventId: coupon.eventId || initialForm.eventId,
+            maxUses: typeof (coupon as any).maxUses !== 'undefined' ? (coupon as any).maxUses : initialForm.maxUses,
+            expiryDate: expiry || initialForm.expiryDate,
+            ruleType: (coupon as any).ruleType || initialForm.ruleType,
+            // explicit fields prefer top-level values, fall back to legacy ruleParams
+            minAmount: (typeof (coupon as any).minAmount !== 'undefined' && (coupon as any).minAmount !== null) ? (coupon as any).minAmount : ((coupon as any).ruleParams && (coupon as any).ruleParams.minAmount) || initialForm.minAmount,
+            minSeats: (typeof (coupon as any).minSeats !== 'undefined' && (coupon as any).minSeats !== null) ? (coupon as any).minSeats : ((coupon as any).ruleParams && (coupon as any).ruleParams.minSeats) || initialForm.minSeats
         });
         setShowModal(true);
     };
@@ -76,11 +92,6 @@ const OrganizerCoupons: React.FC = () => {
         setSubmitting(true);
         try {
             // Build payload including new rule fields
-            let ruleParams: any = {};
-            if (formData.ruleParamsRaw) {
-                try { ruleParams = JSON.parse(formData.ruleParamsRaw); } catch (err) { ruleParams = {}; }
-            }
-
             const payload: any = {
                 code: formData.code.toUpperCase(),
                 discountType: formData.discountType as 'PERCENTAGE' | 'FIXED',
@@ -90,7 +101,9 @@ const OrganizerCoupons: React.FC = () => {
                 maxUses: Number(formData.maxUses),
                 expiryDate: formData.expiryDate,
                 ruleType: formData.ruleType || 'CODE',
-                ruleParams: ruleParams,
+                    // Explicit fields preferred by backend; keep ruleParams for compatibility
+                    minAmount: Number((formData as any).minAmount) || 0,
+                    minSeats: Number((formData as any).minSeats) || 0,
                 active: true
             };
 
@@ -102,6 +115,18 @@ const OrganizerCoupons: React.FC = () => {
             
             loadData();
             setShowModal(false);
+            // reset form to defaults (ensure controlled inputs for next open)
+            setFormData({
+                code: '',
+                discountType: 'PERCENTAGE',
+                value: 10,
+                eventId: '',
+                maxUses: 100,
+                expiryDate: '',
+                ruleType: 'CODE',
+                minAmount: 0,
+                minSeats: 0
+            });
         } catch (error) {
             alert('Failed to save coupon: ' + error);
         } finally {
@@ -259,7 +284,7 @@ const OrganizerCoupons: React.FC = () => {
                                 <select className="w-full border rounded-lg px-3 py-2" value={(formData as any).ruleType} onChange={e => setFormData({...formData, ruleType: e.target.value})}>
                                     <option value="CODE">Code (manual apply)</option>
                                     <option value="THRESHOLD">Threshold (min amount)</option>
-                                    <option value="EARLY_BIRD">Early Bird (first N tickets)</option>
+                                    {/* Early bird removed */}
                                     <option value="SEAT_COUNT">Seat Count (min seats)</option>
                                 </select>
                                 <p className="text-xs text-slate-500 mt-1">Choose how this coupon should be applied.</p>
@@ -305,9 +330,28 @@ const OrganizerCoupons: React.FC = () => {
                             </div>
 
                             <div className="mb-4">
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Rule Params (JSON)</label>
-                                <textarea className="w-full border rounded-lg px-3 py-2 font-mono text-sm h-28" value={(formData as any).ruleParamsRaw} onChange={e => setFormData({...formData, ruleParamsRaw: e.target.value})} placeholder='{"minAmount":300, "value":5, "discountType":"PERCENTAGE"}' />
-                                <p className="text-xs text-slate-500 mt-1">Advanced: specify rule parameters as JSON. Common keys: <code>minAmount</code>, <code>maxQuantityEligible</code>, <code>minSeats</code>, <code>value</code>, <code>discountType</code>.</p>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Rule Parameters</label>
+
+                                {/* Threshold */}
+                                {(formData as any).ruleType === 'THRESHOLD' && (
+                                    <div className="mb-3">
+                                        <label className="block text-xs font-medium text-slate-600 mb-1">Minimum Order Amount (for Threshold)</label>
+                                        <input type="number" className="w-full border rounded-lg px-3 py-2" value={(formData as any).minAmount} onChange={e => setFormData({...formData, minAmount: Number(e.target.value)})} placeholder="0.00" />
+                                    </div>
+                                )}
+
+                                {/* Early bird rule removed — no fields here anymore */}
+
+                                {/* Seat Count */}
+                                {(formData as any).ruleType === 'SEAT_COUNT' && (
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 mb-1">Minimum Seats Required (for Seat Count)</label>
+                                        <input type="number" className="w-full border rounded-lg px-3 py-2" value={(formData as any).minSeats} onChange={e => setFormData({...formData, minSeats: Number(e.target.value)})} placeholder="e.g. 2" />
+                                    </div>
+                                )}
+
+                                <p className="text-xs text-slate-500 mt-2">Tip: Set the fields relevant to the selected <strong>Rule Type</strong>. </p>
+                                {/* Legacy JSON params removed — only explicit fields supported now */}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4 mb-6">

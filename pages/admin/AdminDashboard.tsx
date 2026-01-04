@@ -33,6 +33,7 @@ const AdminDashboard: React.FC = () => {
       activeEvents: 0,
       users: 0
   });
+  const [totalDiscounts, setTotalDiscounts] = useState(0);
   
   // Charts State
   const [salesData, setSalesData] = useState<any[]>([]);
@@ -50,14 +51,16 @@ const AdminDashboard: React.FC = () => {
              // 1. Calculate KPI Stats
              const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
              const totalTickets = orders.reduce((sum, o) => sum + o.tickets.length, 0);
+             const totalDiscounts = orders.reduce((sum, o) => sum + (o.discountApplied || 0), 0);
              const activeEventsCount = events.filter(e => e.status === EventStatus.PUBLISHED).length;
              
-             setStats({
-                 revenue: totalRevenue,
-                 tickets: totalTickets,
-                 activeEvents: activeEventsCount,
-                 users: users.length
-             });
+            setStats({
+                revenue: totalRevenue,
+                tickets: totalTickets,
+                activeEvents: activeEventsCount,
+                users: users.length
+            });
+            setTotalDiscounts(totalDiscounts);
 
              // 2. Prepare Revenue by Event Chart
              const salesMap: Record<string, number> = {};
@@ -92,7 +95,10 @@ const AdminDashboard: React.FC = () => {
 
              setSeatDist(seatChart);
 
-             setLoading(false);
+            // store discounts in a separate state for display
+            setLoading(false);
+            // attach global discounts metric to window for now (or consider adding to state)
+            (window as any)._totalDiscounts = totalDiscounts;
          } catch (error) {
              console.error("Failed to load dashboard data", error);
              setLoading(false);
@@ -130,7 +136,7 @@ const AdminDashboard: React.FC = () => {
         />
         <StatCard title="Tickets Sold" value={stats.tickets.toLocaleString()} icon={Ticket} color="bg-blue-500" />
         <StatCard title="Active Events" value={stats.activeEvents} icon={Calendar} color="bg-purple-500" />
-        <StatCard title="Registered Users" value={stats.users} icon={Users} color="bg-orange-500" />
+        <StatCard title="Discounts Given" value={`$${totalDiscounts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} icon={DollarSign} color="bg-rose-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

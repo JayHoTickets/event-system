@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Event, Seat, Coupon, ServiceCharge, PaymentMode, SeatingType } from '../types';
-import { validateCoupon, processPayment, fetchServiceCharges, createPaymentIntent, releaseSeats, releaseSeatsKeepAlive } from '../services/mockBackend';
+import { validateCoupon, processPayment, fetchServiceCharges, createPaymentIntent, releaseSeats, releaseSeatsKeepAlive, fetchBestCoupon } from '../services/mockBackend';
 import { useAuth } from '../context/AuthContext';
 import { TicketCheck, CreditCard, Tag, Info, AlertTriangle, Timer, ArrowLeft } from 'lucide-react';
 import clsx from 'clsx';
@@ -132,6 +132,8 @@ const Checkout: React.FC = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+    const [manualCouponApplied, setManualCouponApplied] = useState(false);
+    const [autoApplied, setAutoApplied] = useState(false);
   const [serviceCharges, setServiceCharges] = useState<ServiceCharge[]>([]);
   const [calculatedFee, setCalculatedFee] = useState(0);
 
@@ -139,6 +141,7 @@ const Checkout: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const isPaidRef = useRef(false);
   const releasedRef = useRef(false);
+    const timeLeftRef = useRef(timeLeft);
 
   useEffect(() => {
     if (!event || !selectedSeats) {
@@ -158,7 +161,9 @@ const Checkout: React.FC = () => {
 
     const timer = setInterval(() => {
         setTimeLeft(prev => {
-            if (prev <= 1) {
+            const next = prev <= 1 ? 0 : prev - 1;
+            timeLeftRef.current = next;
+            if (next === 0) {
                 clearInterval(timer);
                 // Explicitly release seats before navigating away on timeout
                 (async () => {
@@ -170,9 +175,8 @@ const Checkout: React.FC = () => {
                     }
                     handleTimeout();
                 })();
-                return 0;
             }
-            return prev - 1;
+            return next;
         });
     }, 1000);
 
@@ -304,13 +308,53 @@ useEffect(() => {
   const handleApplyCoupon = async () => {
     setCouponError(null);
     try {
-                const coupon = await validateCoupon(couponCode, event.id, selectedSeats);
-                setAppliedCoupon(coupon);
+                                const coupon = await validateCoupon(couponCode, event.id, selectedSeats);
+                                setAppliedCoupon(coupon);
+                                setManualCouponApplied(true);
+                                setAutoApplied(false);
     } catch (e: any) {
         setCouponError(e.message || "Invalid code");
         setAppliedCoupon(null);
     }
   };
+
+    // Auto-poll for best applicable coupon while checkout timer is active
+    useEffect(() => {
+        if (!event || !selectedSeats || manualCouponApplied) return;
+
+        let stopped = false;
+
+        const checkBest = async () => {
+            try {
+                const res = await fetchBestCoupon(event.id, selectedSeats);
+                const best = res?.coupon || null;
+                if (best && typeof (best as any).discount === 'number') {
+                    const currentDiscount = appliedCoupon && typeof (appliedCoupon as any).discount === 'number' ? (appliedCoupon as any).discount : 0;
+                    if ((best as any).discount > currentDiscount) {
+                        setAppliedCoupon(best as any);
+                        setCouponCode((best as any).code || '');
+                        setAutoApplied(true);
+                    }
+                }
+            } catch (err) {
+                // ignore network errors during polling
+            }
+        };
+
+        // Initial check immediately
+        checkBest();
+
+        const poll = setInterval(() => {
+            // Use the ref for timeLeft so we don't re-create this effect every second
+            if (isPaidRef.current || timeLeftRef.current <= 0 || stopped || manualCouponApplied) {
+                clearInterval(poll);
+                return;
+            }
+            checkBest();
+        }, 15000);
+
+        return () => { stopped = true; clearInterval(poll); };
+    }, [event, selectedSeats, manualCouponApplied]);
 
   const handleOrderSuccess = async (transactionId: string, termsAccepted?: boolean) => {
     isPaidRef.current = true; // Prevents the cleanup releaser from running
@@ -380,12 +424,25 @@ useEffect(() => {
                     <span>Subtotal</span>
                     <span>${subtotal.toFixed(2)}</span>
                 </div>
-                {appliedCoupon && (
-                    <div className="flex justify-between text-green-600 font-medium">
-                        <span>Discount ({appliedCoupon.code})</span>
-                        <span>-${discountAmount.toFixed(2)}</span>
-                    </div>
-                )}
+                                {appliedCoupon && (
+                                        <>
+                                            {!manualCouponApplied && autoApplied && (
+                                                <div className="p-3 mb-3 bg-green-50 text-green-800 rounded flex items-center justify-between">
+                                                    <div>
+                                                        <strong>Auto-applied discount:</strong> {appliedCoupon.code} — you saved ${discountAmount.toFixed(2)}
+                                                    </div>
+                                                    <div>
+                                                        <button onClick={() => { setAppliedCoupon(null); setCouponCode(''); setManualCouponApplied(true); setAutoApplied(false); }} className="text-sm text-red-600 underline">Remove</button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between text-green-600 font-medium">
+                                                <span>Discount ({appliedCoupon.code})</span>
+                                                <span>-${discountAmount.toFixed(2)}</span>
+                                            </div>
+                                        </>
+                                )}
                 {calculatedFee > 0 && (
                      <div className="flex justify-between text-slate-600">
                         <span className="flex items-center" title="Platform and Processing Fees">
