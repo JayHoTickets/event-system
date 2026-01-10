@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { verifyTicket, checkInTicket } from '../../services/mockBackend';
 import { Ticket, Order } from '../../types';
 import { ArrowLeft, CheckCircle, AlertTriangle, Scan, RefreshCw, Camera, X } from 'lucide-react';
@@ -8,7 +8,9 @@ import { useNavigate } from 'react-router-dom';
 
 const OrganizerScanner: React.FC = () => {
   const navigate = useNavigate();
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+    const scannerRef = useRef<Html5Qrcode | null>(null);
+    const preferredDeviceIdRef = useRef<string | null>(null);
+    const permissionStreamRef = useRef<MediaStream | null>(null);
   
   // State
   const [scanResult, setScanResult] = useState<{ ticket: Ticket, order: Order } | null>(null);
@@ -24,34 +26,57 @@ const OrganizerScanner: React.FC = () => {
     if (isScanning) {
         // Short timeout to ensure DOM element exists
         const timeoutId = setTimeout(() => {
-            if (!scannerRef.current) {
-                const scanner = new Html5QrcodeScanner(
-                  "reader",
-                  { fps: 10, qrbox: { width: 250, height: 250 } },
-                  /* verbose= */ false
-                );
-                
-                scannerRef.current = scanner;
-                
-                scanner.render(
-                    (decodedText) => onScanSuccess(decodedText), 
-                    (errorMessage) => onScanFailure(errorMessage)
-                );
-            }
+            (async () => {
+                if (!scannerRef.current) {
+                    const html5QrCode = new Html5Qrcode("reader");
+                    scannerRef.current = html5QrCode;
+
+                    // Prefer explicit deviceId when available (we obtained it earlier after permission),
+                    // otherwise ask for environment facing camera.
+                    const cameraConstraints: any = preferredDeviceIdRef.current
+                        ? { deviceId: { exact: preferredDeviceIdRef.current } }
+                        : { facingMode: { ideal: "environment" } };
+
+                    try {
+                        await html5QrCode.start(
+                            cameraConstraints,
+                            { fps: 10, qrbox: { width: 250, height: 250 } },
+                            (decodedText: string) => onScanSuccess(decodedText),
+                            (errorMessage: any) => onScanFailure(errorMessage)
+                        );
+                    } catch (err: any) {
+                        setError(err?.message || 'Failed to start camera');
+                        // cleanup on failure
+                        if (scannerRef.current) {
+                            try { await scannerRef.current.stop(); } catch(_) {}
+                            scannerRef.current = null;
+                        }
+                    }
+                }
+            })();
         }, 100);
 
         return () => {
             clearTimeout(timeoutId);
             if (scannerRef.current) {
-                scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+                scannerRef.current.stop().catch(err => console.error("Failed to stop scanner", err));
                 scannerRef.current = null;
+            }
+            // stop any temporary permission stream
+            if (permissionStreamRef.current) {
+                permissionStreamRef.current.getTracks().forEach(t => t.stop());
+                permissionStreamRef.current = null;
             }
         };
     } else {
         // Cleanup if scanning is turned off
         if (scannerRef.current) {
-            scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+            scannerRef.current.stop().catch(err => console.error("Failed to stop scanner", err));
             scannerRef.current = null;
+        }
+        if (permissionStreamRef.current) {
+            permissionStreamRef.current.getTracks().forEach(t => t.stop());
+            permissionStreamRef.current = null;
         }
     }
   }, [isScanning]);
@@ -114,15 +139,56 @@ const OrganizerScanner: React.FC = () => {
   };
 
   const toggleCamera = () => {
-      if (isScanning) {
-          setIsScanning(false);
-          setScanResult(null);
-          setError(null);
-          lastScannedCodeRef.current = null;
-      } else {
-          setIsScanning(true);
-      }
+            if (isScanning) {
+                    setIsScanning(false);
+                    setScanResult(null);
+                    setError(null);
+                    lastScannedCodeRef.current = null;
+            } else {
+                    // On mobile browsers calling getUserMedia will trigger permission popup and allow us
+                    // to select the back camera. We request permission first, then start the scanner.
+                    (async () => {
+                            const ok = await requestCameraPermissionAndSelectBack();
+                            if (ok) setIsScanning(true);
+                    })();
+            }
   };
+
+    // Request camera permission and determine preferred back camera deviceId.
+    const requestCameraPermissionAndSelectBack = async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            setError('Camera not supported in this browser');
+            return false;
+        }
+
+        try {
+            // Ask for environment-facing camera to trigger permission prompt and let the browser prefer back camera
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+            permissionStreamRef.current = stream;
+
+            // Enumerate devices now that we have permission to read labels
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+            // Try to find a device whose label suggests it's the back/rear camera
+            let backDevice = videoDevices.find(d => /back|rear|environment|traseira|trasera/i.test(d.label));
+            if (!backDevice && videoDevices.length > 1) {
+                // If we couldn't match by label, pick the last device (common pattern where rear camera is last)
+                backDevice = videoDevices[videoDevices.length - 1];
+            }
+
+            preferredDeviceIdRef.current = backDevice ? backDevice.deviceId : (videoDevices[0]?.deviceId ?? null);
+
+            // Stop the temporary stream; Html5Qrcode will open its own stream using the chosen device
+            stream.getTracks().forEach(t => t.stop());
+            permissionStreamRef.current = null;
+
+            return true;
+        } catch (err: any) {
+            setError(err?.message || 'Camera permission denied');
+            return false;
+        }
+    };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
