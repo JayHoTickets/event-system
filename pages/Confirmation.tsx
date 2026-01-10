@@ -9,6 +9,170 @@ const Confirmation: React.FC = () => {
   const { state } = useLocation();
   const order = (state as any)?.order as Order;
 
+    // Helper: convert an SVG element to an Image object
+    const svgElementToImage = (svgEl: SVGSVGElement) => {
+        return new Promise<HTMLImageElement>((resolve, reject) => {
+            try {
+                let svgString = new XMLSerializer().serializeToString(svgEl);
+                if (!svgString.includes('xmlns')) {
+                    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    resolve(img);
+                };
+                img.onerror = (e) => {
+                    URL.revokeObjectURL(url);
+                    reject(e);
+                };
+                img.src = url;
+            } catch (err) {
+                reject(err);
+            }
+        });
+    };
+
+    // Generate a PNG of the ticket area (QR + details) and trigger download
+    const downloadTicket = async (ticketId: string) => {
+        const wrapper = document.getElementById(`ticket-${ticketId}`);
+        if (!wrapper) throw new Error('Ticket element not found');
+
+        const svg = wrapper.querySelector('svg') as SVGSVGElement | null;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas not supported');
+
+        const width = 900;
+        const height = 280;
+        canvas.width = width;
+        canvas.height = height;
+
+        // Background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw QR from shared order QR element if present
+        const sharedSvg = document.querySelector('#order-qr svg') as SVGSVGElement | null;
+        if (sharedSvg) {
+            const img = await svgElementToImage(sharedSvg);
+            const qrSize = 180;
+            ctx.drawImage(img, 32, (height - qrSize) / 2, qrSize, qrSize);
+        }
+
+        // Read textual details from DOM elements
+        const titleEl = wrapper.querySelector('h3');
+        const seatEl = wrapper.querySelector('p span.font-semibold')?.parentElement;
+        const ticketIdEl = Array.from(wrapper.querySelectorAll('p')).find(p => p.textContent?.includes('Ticket ID'));
+        const priceEl = Array.from(wrapper.querySelectorAll('p')).find(p => p.textContent?.includes('Price'));
+
+        const paddingLeft = 240;
+        const lineHeight = 28;
+        let y = 70;
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '22px Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+        if (titleEl) {
+            ctx.fillText(titleEl.textContent || '', paddingLeft, y);
+            y += lineHeight + 8;
+        }
+
+        ctx.fillStyle = '#374151';
+        ctx.font = '16px Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+        if (seatEl) {
+            ctx.fillText(seatEl.textContent || '', paddingLeft, y);
+            y += lineHeight;
+        }
+        if (ticketIdEl) {
+            ctx.fillText(ticketIdEl.textContent || '', paddingLeft, y);
+            y += lineHeight;
+        }
+        if (priceEl) {
+            ctx.fillText(priceEl.textContent || '', paddingLeft, y);
+            y += lineHeight;
+        }
+
+        // Footer / order id small
+        const orderIdText = `Order: ${order.id}`;
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '14px Inter, system-ui';
+        ctx.fillText(orderIdText, paddingLeft, height - 28);
+
+        // Trigger download
+        const dataUrl = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `ticket-${ticketId}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    };
+
+    // Generate a PDF of the entire confirmation content
+    const downloadConfirmationPdf = async () => {
+        const el = document.getElementById('confirmation-root');
+        if (!el) throw new Error('Confirmation element not found');
+
+        // Dynamically import to avoid build errors if packages are missing
+        const { default: html2canvas }: any = await import('html2canvas');
+        const { jsPDF }: any = await import('jspdf');
+
+        // Hide elements marked for exclusion from PDF
+        const excluded = Array.from(document.querySelectorAll('.exclude-from-pdf')) as HTMLElement[];
+        const previousDisplays = excluded.map(el => el.style.display);
+        try {
+            excluded.forEach(el => (el.style.display = 'none'));
+            const canvas = await html2canvas(el, { scale: 2, useCORS: true });
+
+            const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+
+            const margin = 40; // pts
+            const usablePdfWidth = pdfWidth - margin * 2;
+
+            // scale from canvas px to PDF pts
+            const scale = usablePdfWidth / canvas.width;
+            const totalImgHeightPts = canvas.height * scale;
+
+            // how many px correspond to one PDF page height (usable area)
+            const usablePdfHeight = pdfHeight - margin * 2;
+            const pageHeightPx = Math.floor(usablePdfHeight / scale);
+
+            let renderedHeight = 0;
+            let page = 0;
+
+            while (renderedHeight < canvas.height) {
+                const sliceHeight = Math.min(pageHeightPx, canvas.height - renderedHeight);
+
+                // create a page-sized canvas slice
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = sliceHeight;
+                const pageCtx = pageCanvas.getContext('2d');
+                if (!pageCtx) throw new Error('Canvas not supported');
+
+                pageCtx.drawImage(canvas, 0, renderedHeight, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+                const imgData = pageCanvas.toDataURL('image/png');
+                const imgHeightPts = sliceHeight * scale;
+
+                if (page > 0) pdf.addPage();
+                pdf.addImage(imgData, 'PNG', margin, margin, usablePdfWidth, imgHeightPts);
+
+                renderedHeight += sliceHeight;
+                page += 1;
+            }
+
+            pdf.save(`confirmation-${order.id}.pdf`);
+        } finally {
+            excluded.forEach((el, i) => (el.style.display = previousDisplays[i] || ''));
+        }
+    };
+
   if (!order) {
       return (
           <div className="text-center pt-20">
@@ -19,7 +183,7 @@ const Confirmation: React.FC = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
+      <div id="confirmation-root" className="relative max-w-3xl mx-auto px-4 py-12">
       <div className="bg-white rounded-xl shadow-lg border border-green-100 overflow-hidden">
         <div className="bg-green-600 p-8 text-center text-white">
             <CheckCircle className="w-16 h-16 mx-auto mb-4 opacity-90" />
@@ -28,6 +192,22 @@ const Confirmation: React.FC = () => {
         </div>
         
         <div className="p-8">
+            {/* Top-right icon-only PDF download (visible on page, excluded from PDF) */}
+            <div className="absolute right-6 top-6 z-20">
+                <button
+                    onClick={async () => {
+                        try {
+                            await downloadConfirmationPdf();
+                        } catch (err) {
+                            console.error('PDF generation failed', err);
+                        }
+                    }}
+                    title="Download Confirmation"
+                    className="exclude-from-pdf text-indigo-600 bg-white p-2 rounded-full shadow hover:bg-indigo-50 transition"
+                >
+                    <Download className="w-5 h-5" />
+                </button>
+            </div>
             <div className="flex items-center justify-center gap-2 text-slate-600 bg-slate-50 p-4 rounded-lg mb-8 border border-slate-200">
                 <Mail className="w-5 h-5 text-indigo-500" />
                 <span>Confirmation email sent to your inbox.</span>
@@ -41,13 +221,15 @@ const Confirmation: React.FC = () => {
 
             <h2 className="text-xl font-bold text-slate-900 mb-6">Your Tickets</h2>
             
+            <div id="order-qr" className="flex items-center justify-center mb-6">
+                <div className="bg-white p-3 rounded border border-slate-200 shadow-sm">
+                    <QRCodeSVG value={JSON.stringify({ orderId: order.id, tickets: order.tickets.map(t => t.id) })} size={180} />
+                </div>
+            </div>
+
             <div className="space-y-6">
                 {order.tickets.map(ticket => (
-                    <div key={ticket.id} className="flex flex-col sm:flex-row border-2 border-dashed border-slate-300 rounded-lg p-6 items-center gap-6">
-                        <div className="bg-white p-2 rounded border border-slate-200 shadow-sm">
-                            {/* Value is ticket.id which acts as QR data */}
-                            <QRCodeSVG value={ticket.id} size={120} />
-                        </div>
+                    <div id={`ticket-${ticket.id}`} key={ticket.id} className="flex flex-col sm:flex-row border-2 border-dashed border-slate-300 rounded-lg p-6 items-center gap-6">
                         <div className="flex-1 text-center sm:text-left">
                             <h3 className="text-lg font-bold text-slate-900">{ticket.eventTitle}</h3>
                             <div className="mt-2 text-slate-600 space-y-1">
@@ -56,12 +238,24 @@ const Confirmation: React.FC = () => {
                                 <p><span className="font-semibold text-slate-800">Price:</span> ${ticket.price}</p>
                             </div>
                         </div>
-                        <button className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors" title="Download Ticket">
+                        {/* <button
+                            onClick={async () => {
+                                try {
+                                    await downloadTicket(ticket.id);
+                                } catch (err) {
+                                    console.error('Download failed', err);
+                                }
+                            }}
+                            className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors"
+                            title="Download Ticket"
+                        >
                             <Download className="w-6 h-6" />
-                        </button>
+                        </button> */}
                     </div>
                 ))}
             </div>
+
+            {/* Download helper (client-side only) */}
 
             <div className="mt-10 border-t pt-6">
                 <div className="flex justify-between text-slate-500 text-sm mb-1">
@@ -86,11 +280,26 @@ const Confirmation: React.FC = () => {
                 </div>
             </div>
 
-            <div className="mt-10 text-center">
-                <Link to="/" className="bg-slate-900 text-white px-8 py-3 rounded-lg font-medium hover:bg-slate-800 transition">
-                    Browse More Events
-                </Link>
-            </div>
+            {/* <div className="mt-10 text-center">
+                                <div className="flex flex-col sm:flex-row justify-center gap-4">
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await downloadConfirmationPdf();
+                                            } catch (err) {
+                                                console.error('PDF generation failed', err);
+                                            }
+                                        }}
+                                        className="exclude-from-pdf bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-500 transition"
+                                    >
+                                        Download Confirmation (PDF)
+                                    </button>
+
+                                    <Link to="/" className="exclude-from-pdf bg-slate-900 text-white px-8 py-3 rounded-lg font-medium hover:bg-slate-800 transition">
+                                        Browse More Events
+                                    </Link>
+                                </div>
+            </div> */}
 
             {/* Footer Information */}
             <div className="mt-12 pt-8 border-t border-slate-200 text-slate-600">
