@@ -661,7 +661,7 @@ const EventAnalytics: React.FC = () => {
                                 <X className="w-6 h-6"/>
                             </button>
                         </div>
-                        <div className="p-6">
+                        <div className="p-6 overflow-y-auto max-h-[70vh]">
                             {/* Customer Info */}
                             <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Customer Information</h4>
@@ -702,7 +702,7 @@ const EventAnalytics: React.FC = () => {
                                     </span>
                                 )}
                             </h4>
-                            <div className="border rounded-lg overflow-hidden mb-6">
+                            <div className="border rounded-lg mb-6 max-h-[20vh] overflow-y-auto">
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-slate-50 border-b">
                                         <tr>
