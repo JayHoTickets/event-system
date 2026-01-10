@@ -20,6 +20,9 @@ const EventSeatSchema = new mongoose.Schema({
     rowLabel: String,
     seatNumber: String,
     status: String,
+    // Timestamp until which this seat is held for a booking-in-progress.
+    // When null/absent the seat is not held.
+    holdUntil: Date,
     tier: String,
     price: Number,
     color: String,

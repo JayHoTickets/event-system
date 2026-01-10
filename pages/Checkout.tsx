@@ -181,28 +181,39 @@ const Checkout: React.FC = () => {
     }, 1000);
 
     // Release seats on unmount if not paid. Also register a beforeunload
-    // handler for browser/tab closes that uses keepalive.
+    // handler for browser/tab closes that triggers the browser confirmation.
+    // The actual release is performed on `pagehide`/`unload` (using keepalive)
+    // so it only runs when the user confirms leaving.
     const beforeUnload = (e: BeforeUnloadEvent) => {
         if (!isPaidRef.current) {
-            try {
-                // Best-effort synchronous/keepalive release
-                releasedRef.current = true;
-                releaseSeatsKeepAlive(event.id, selectedSeats.map(s => s.id));
-            } catch (err) {
-                // ignore
-            }
             e.preventDefault();
+            // Modern browsers ignore the custom message, but setting returnValue
+            // prompts the confirmation dialog.
             e.returnValue = '';
         }
     };
 
+    const handlePageHide = () => {
+        if (!isPaidRef.current && !releasedRef.current && event.seatingType === SeatingType.RESERVED) {
+            releasedRef.current = true;
+            // Best-effort release using keepalive (sendBeacon / fetch keepalive)
+            releaseSeatsKeepAlive(event.id, selectedSeats.map(s => s.id));
+        }
+    };
+
     window.addEventListener('beforeunload', beforeUnload);
+    // `pagehide` is more reliable than `unload` in some browsers and supports
+    // the `persisted` flag for bfcache; add both as a fallback.
+    window.addEventListener('pagehide', handlePageHide as EventListener);
+    window.addEventListener('unload', handlePageHide as EventListener);
 
     return () => {
         clearInterval(timer);
         window.removeEventListener('beforeunload', beforeUnload);
+        window.removeEventListener('pagehide', handlePageHide as EventListener);
+        window.removeEventListener('unload', handlePageHide as EventListener);
         if (!isPaidRef.current && !releasedRef.current && event.seatingType === SeatingType.RESERVED) {
-            // Fire-and-forget release; UI is unmounting so we don't await
+            // Fire-and-forget release when SPA unmounts (navigation within app)
             releasedRef.current = true;
             releaseSeatsKeepAlive(event.id, selectedSeats.map(s => s.id));
         }

@@ -1,7 +1,7 @@
 
 import { Event, Seat, SeatStatus, User, UserRole, Coupon, Order, Venue, Theater, Stage, ServiceCharge, PaymentMode, Ticket } from '../types';
 
-const API_URL = 'http://217.15.170.10:5000/api';
+const API_URL = 'http://localhost:5000/api';
 
 const fetchJson = async (url: string, options?: RequestInit) => {
     try {
@@ -174,8 +174,21 @@ export const releaseSeatsKeepAlive = (eventId: string, seatIds: string[]) => {
         // Prefer navigator.sendBeacon when available (more reliable on unload)
         if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
             try {
-                const blob = new Blob([payload], { type: 'application/json' });
-                (navigator as any).sendBeacon(url, blob);
+                        // Some browsers / network stacks may not send the blob with
+                        // the expected JSON content-type for sendBeacon. As a
+                        // fallback we append the seatIds as a query param and send
+                        // an empty body — the server will accept either body or
+                        // query parameters (see backend controller).
+                        const query = `?seatIds=${encodeURIComponent(JSON.stringify(seatIds))}`;
+                        const beaconUrl = url + query;
+                        try {
+                            const blob = new Blob([payload], { type: 'application/json' });
+                            // Try sending the JSON blob first
+                            (navigator as any).sendBeacon(url, blob);
+                        } catch (beaconErr) {
+                            // Fallback: send with seatIds in query and no body
+                            try { (navigator as any).sendBeacon(beaconUrl, new Blob()); } catch (e) { throw beaconErr; }
+                        }
                 return;
             } catch (beaconErr) {
                 console.warn('sendBeacon failed, falling back to fetch keepalive', beaconErr);
@@ -228,6 +241,13 @@ export const validateCoupon = (code: string, eventId: string, seats?: Seat[]): P
     return fetchJson('/coupons/validate', { 
         method: 'POST', 
         body: JSON.stringify({ code, eventId, seats }) 
+    });
+};
+
+export const fetchBestCoupon = (eventId: string, seats: Seat[]): Promise<{ coupon: Coupon | null }> => {
+    return fetchJson('/coupons/best', {
+        method: 'POST',
+        body: JSON.stringify({ eventId, seats })
     });
 };
 

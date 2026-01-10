@@ -14,6 +14,30 @@ const formatVenueLocation = (v) => {
     return parts.join(', ');
 };
 
+// Cleanup job: find seats where holdUntil has expired and revert them to AVAILABLE
+exports.cleanupExpiredHolds = async () => {
+    try {
+        const now = new Date();
+        // Find events that have at least one seat with holdUntil < now
+        const events = await Event.find({ 'seats.holdUntil': { $lt: now } });
+        for (const ev of events) {
+            let changed = false;
+            ev.seats = ev.seats.map(s => {
+                if (s.status === 'BOOKING_IN_PROGRESS' && s.holdUntil && new Date(s.holdUntil) < now) {
+                    changed = true;
+                    return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
+                }
+                return s;
+            });
+            if (changed) {
+                await ev.save();
+            }
+        }
+    } catch (err) {
+        console.error('cleanupExpiredHolds error', err);
+    }
+};
+
 exports.getEvents = async (req, res) => {
     try {
         let query = { deleted: false };
@@ -338,8 +362,9 @@ exports.lockSeats = async (req, res) => {
             return res.json({ success: false, conflicts });
         }
 
-        // Second pass: update statuses to BOOKING_IN_PROGRESS
-        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s, status: 'BOOKING_IN_PROGRESS' } : s);
+        // Second pass: update statuses to BOOKING_IN_PROGRESS and set expiry
+        const holdExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s, status: 'BOOKING_IN_PROGRESS', holdUntil: holdExpiry } : s);
         await event.save();
 
         res.json({ success: true });
@@ -350,15 +375,25 @@ exports.lockSeats = async (req, res) => {
 
 // Release seats previously placed in BOOKING_IN_PROGRESS back to AVAILABLE
 exports.releaseSeats = async (req, res) => {
-    const { seatIds } = req.body;
+    // Accept seatIds either from the JSON body or as a query parameter
+    // (some keepalive/beacon requests may send data via query). The
+    // query form is expected to be a JSON-encoded array string.
+    let seatIds = req.body && req.body.seatIds;
+    if ((!seatIds || seatIds.length === 0) && req.query && req.query.seatIds) {
+        try {
+            seatIds = JSON.parse(req.query.seatIds);
+        } catch (parseErr) {
+            // If parsing fails, try splitting comma separated
+            seatIds = String(req.query.seatIds).split(',').map(s => s.trim()).filter(Boolean);
+        }
+    }
     try {
         const event = await Event.findById(req.params.id);
         if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
-
-        const seatIdSet = new Set(seatIds);
+        const seatIdSet = new Set(seatIds || []);
         event.seats = event.seats.map(s => {
             if (seatIdSet.has(s.id) && s.status === 'BOOKING_IN_PROGRESS') {
-                return { ...s, status: 'AVAILABLE' };
+                return { ...s, status: 'AVAILABLE', holdUntil: null };
             }
             return s;
         });
@@ -395,8 +430,9 @@ exports.lockSeats = async (req, res) => {
             return res.json({ success: false, conflicts });
         }
 
-        // Mark as BOOKING_IN_PROGRESS
-        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s.toObject ? s.toObject() : s, status: 'BOOKING_IN_PROGRESS' } : s);
+        // Mark as BOOKING_IN_PROGRESS and add expiry timestamp
+        const holdExpiry2 = new Date(Date.now() + 5 * 60 * 1000);
+        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s.toObject ? s.toObject() : s, status: 'BOOKING_IN_PROGRESS', holdUntil: holdExpiry2 } : s);
         await event.save();
         return res.json({ success: true });
     } catch (err) {
@@ -417,7 +453,7 @@ exports.releaseSeats = async (req, res) => {
         const seatIdSet = new Set(seatIds);
         event.seats = event.seats.map(s => {
             if (seatIdSet.has(s.id) && s.status === 'BOOKING_IN_PROGRESS') {
-                return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE' };
+                return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
             }
             return s;
         });

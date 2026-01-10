@@ -1,12 +1,15 @@
 
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 
 const PublicLayout: React.FC = () => {
+    const location = useLocation();
+    const hideNavbar = location.pathname.startsWith('/checkout');
+
     return (
         <div className="min-h-screen flex flex-col bg-slate-50">
-            <Navbar />
+            {!hideNavbar && <Navbar />}
             <main className="flex-grow">
                 <Outlet />
             </main>

@@ -13,6 +13,18 @@ const port = process.env.PORT || 5000;
 connectDB().then(() => {
     // Run seeder to ensure default admin/organizer exist
     seedData();
+
+    // Start periodic cleanup job to free expired seat holds
+    try {
+        const eventController = require('./controllers/eventController');
+        // Run immediately, then every minute
+        eventController.cleanupExpiredHolds();
+        setInterval(() => {
+            eventController.cleanupExpiredHolds();
+        }, 60 * 1000);
+    } catch (err) {
+        console.error('Failed to start cleanup job', err);
+    }
 });
 
 // Middleware

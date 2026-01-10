@@ -65,7 +65,7 @@ exports.createOrder = async (req, res) => {
                 // or still AVAILABLE to SOLD. Do not accidentally overwrite other states.
                 eventDoc.seats = eventDoc.seats.map(s => {
                     if (soldIds.has(s.id) && (s.status === 'BOOKING_IN_PROGRESS' || s.status === 'AVAILABLE')) {
-                        return { ...s, status: 'SOLD' };
+                        return { ...s, status: 'SOLD', holdUntil: null };
                     }
                     return s;
                 });
