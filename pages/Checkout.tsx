@@ -28,6 +28,7 @@ const CheckoutForm: React.FC<{
     const [processing, setProcessing] = useState(false);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [termsError, setTermsError] = useState<string | null>(null);
+    const [showTermsModal, setShowTermsModal] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -70,7 +71,7 @@ const CheckoutForm: React.FC<{
         }
     };
 
-    return (
+    return (<>
         <form onSubmit={handleSubmit} className="space-y-6">
              <div className="bg-white p-4 rounded-md border border-slate-300">
                 <CardElement 
@@ -95,7 +96,7 @@ const CheckoutForm: React.FC<{
             <div className="flex items-start gap-3">
                 <input id="terms" type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="mt-1" />
                 <label htmlFor="terms" className="text-sm text-slate-700">
-                    I agree to the <a href="/terms" target="_blank" rel="noreferrer" className="text-indigo-600 underline">Terms &amp; Conditions</a>
+                    I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="text-indigo-600 underline">Terms &amp; Conditions</button>
                 </label>
             </div>
             {termsError && <p className="text-red-500 text-xs mt-2">{termsError}</p>}
@@ -115,6 +116,72 @@ const CheckoutForm: React.FC<{
                 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" className="h-6" />
             </div>
         </form>
+        {showTermsModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/50" onClick={() => setShowTermsModal(false)} />
+                <div className="relative w-full max-w-lg md:max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden max-h-[90vh]">
+                    <div className="flex items-center justify-between p-4 border-b bg-slate-50">
+                        <h3 className="text-lg font-bold">Terms &amp; Conditions</h3>
+                        <button onClick={() => setShowTermsModal(false)} className="text-slate-500 hover:text-slate-800 p-2 rounded">
+                            Close
+                        </button>
+                    </div>
+                    <div className="p-4 overflow-y-auto max-h-[72vh] text-sm text-slate-700">
+                        <section className="mb-4">
+                            <h4 className="font-semibold mb-2">Important Instructions</h4>
+                            <ul className="list-disc pl-5 space-y-1">
+                                <li>Please arrive 30 minutes before the event starts</li>
+                                <li>Bring a valid photo ID along with this confirmation</li>
+                                <li>Screenshots of this email are acceptable for entry</li>
+                                <li>Contact support if you need to make any changes</li>
+                            </ul>
+                        </section>
+
+                        <section>
+                            <h4 className="font-semibold mb-2">Terms and Conditions</h4>
+                            <p className="mb-3">Please carefully read and understand these terms and conditions before purchasing tickets for this event. By purchasing tickets, you acknowledge and agree to adhere to the following terms and conditions:</p>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <h5 className="font-semibold">Ticket Modifications, Cancellations, and Refunds</h5>
+                                    <p>Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. In case of Event cancellation, refunds will be initiated for the face value of the ticket only. Service or transaction fees are non-refundable.</p>
+                                </div>
+
+                                <div>
+                                    <h5 className="font-semibold">Payment Gateway Charges</h5>
+                                    <p>Payment gateways apply a service fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.</p>
+                                </div>
+
+                                <div>
+                                    <h5 className="font-semibold">Late Entry and Venue Arrival</h5>
+                                    <p>The organizers reserve the right to deny late entry to the Event. To ensure seamless entry, we strongly recommend arriving at the venue at least an hour before the scheduled start time of the Event.</p>
+                                </div>
+
+                                <div>
+                                    <h5 className="font-semibold">Event Cancellation/Postponement Refunds</h5>
+                                    <p>In the event of Event cancellation or postponement, refunds will cover only the face value of the ticket. Service or transaction fees are non-refundable.</p>
+                                </div>
+
+                                <div>
+                                    <h5 className="font-semibold">Venue Rules and Entry</h5>
+                                    <p>Each venue has its own set of rules and regulations. The venue management holds the right to deny entry to individuals who do not comply with these rules.</p>
+                                </div>
+
+                                <div>
+                                    <h5 className="font-semibold">Modification of Terms and Conditions</h5>
+                                    <p>These terms and conditions are subject to change at the sole discretion of the organizer. Any changes will be effective immediately upon being posted on the official website or communicated through official channels.</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    <div className="p-4 border-t bg-white flex items-center gap-3 justify-end">
+                        <button onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Accept</button>
+                        <button onClick={() => setShowTermsModal(false)} className="px-4 py-2 border rounded-lg">Close</button>
+                    </div>
+                </div>
+            </div>
+        )}
+    </>
     );
 };
 
