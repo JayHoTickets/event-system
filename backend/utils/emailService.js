@@ -53,35 +53,59 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
         `;
     }).join('');
 
-    // 1. Email to Customer (Ticket Confirmation)
-    const customerHtml = `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #4f46e5; text-align: center;">Your Tickets are Here!</h2>
-            <p>Hi ${customerName},</p>
-            <p>Thank you for your purchase for <strong>${event.title}</strong>.</p>
-            
-            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 5px 0;"><strong>Date:</strong> ${dateStr} at ${timeStr}</p>
-                <p style="margin: 5px 0;"><strong>Location:</strong> ${event.location || 'See event details'}</p>
-                <p style="margin: 5px 0;"><strong>Order ID:</strong> ${order.id}</p>
+    // Shared renderer to produce the same formatted email for any recipient
+    const renderCommonHtml = ({ headline, introHtml = '', includeCustomerInfo = false, showCoupon = true }) => `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 680px; margin: 0 auto;">
+            <div style="background:#16a34a;padding:28px 18px;text-align:center;color:#fff;border-top-left-radius:8px;border-top-right-radius:8px;">
+                <div style="font-size:44px;line-height:1;margin-bottom:6px;">✅</div>
+                <h1 style="margin:0;font-size:28px;font-weight:700;">${headline}</h1>
+                <p style="margin:6px 0 0 0;color:rgba(255,255,255,0.9);">Order ID: ${order.id}</p>
             </div>
 
-            <h3 style="border-bottom: 1px solid #eee; padding-bottom: 10px;">Your Tickets</h3>
-            ${ticketsHtml}
-            
-            <div style="margin-top: 20px; text-align: right;">
-                <p><strong>Total Paid: ${formatCurrency(order.totalAmount)}</strong></p>
-            </div>
+            <div style="background:#fff;padding:24px;border:1px solid #e6e6e6;border-bottom-left-radius:8px;border-bottom-right-radius:8px;">
+                <div style="text-align:center;margin-bottom:14px;color:#6b7280;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;background:#f8fafc;padding:12px;border-radius:6px;">
+                    <span style="color:#4f46e5;font-weight:600;">📧</span>
+                    <span>Confirmation email sent to your inbox.</span>
+                </div>
 
-            <p style="margin-top: 30px; font-size: 12px; color: #888; text-align: center;">
-                Please present the QR codes above at the venue entrance. Each code is unique to a seat.
-            </p>
+                ${introHtml}
 
-            <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 30px; color: #555;">
-                <!-- Important Instructions -->
-                <div style="margin-bottom: 30px;">
-                    <h3 style="color: #333; margin-bottom: 10px; font-size: 16px;">⚠️ Important Instructions</h3>
-                    <ul style="font-size: 14px; line-height: 1.6; padding-left: 20px; color: #444;">
+                ${includeCustomerInfo ? `<p><strong>Customer:</strong> ${customerName} (${customerEmail})</p>` : `<p>Thanks for purchasing tickets to <strong>${event.title}</strong>.</p>`}
+
+                <div style="background:#f3f4f6;padding:12px;border-radius:8px;margin:18px 0;">
+                    <p style="margin:6px 0;"><strong>Date:</strong> ${dateStr} at ${timeStr}</p>
+                    <p style="margin:6px 0;"><strong>Location:</strong> ${event.location || 'See event details'}</p>
+                    <p style="margin:6px 0;"><strong>Order ID:</strong> ${order.id}</p>
+                </div>
+
+                ${showCoupon && order.couponCode && order.discountApplied > 0 ? `<div style="margin-bottom:12px;padding:10px;border-radius:6px;background:#ecfdf5;color:#065f46;border:1px solid #bbf7d0;"><strong>Coupon applied:</strong> ${order.couponCode} — you saved ${formatCurrency(order.discountApplied)}</div>` : ''}
+
+                <h3 style="font-size:18px;margin:14px 0;border-bottom:1px solid #eee;padding-bottom:10px;color:#111;">Your Tickets</h3>
+
+                ${ticketsHtml}
+
+                <div style="margin-top:18px;border-top:1px solid #eee;padding-top:14px;color:#374151;">
+                    <div style="display:flex;justify-content:space-between;font-size:14px;color:#6b7280;margin-bottom:6px;">
+                        <span>Subtotal</span>
+                        <span>${formatCurrency((order.totalAmount || 0) - (order.serviceFee || 0) + (order.discountApplied || 0))}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px;">
+                        <span style="color:#059669">Discount</span>
+                        <span style="color:#059669">-${formatCurrency(order.discountApplied || 0)}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:14px;color:#6b7280;margin-bottom:6px;">
+                        <span>Service Fees</span>
+                        <span>${formatCurrency(order.serviceFee || 0)}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-weight:800;font-size:18px;color:#111;margin-top:8px;">
+                        <span>Total Paid</span>
+                        <span>${formatCurrency(order.totalAmount || 0)}</span>
+                    </div>
+                </div>
+
+                <div style="margin-top:22px;">
+                    <h4 style="margin:0 0 8px 0;color:#111;font-size:16px;">⚠️ Important Instructions</h4>
+                    <ul style="padding-left:18px;color:#444;font-size:13px;line-height:1.6;margin-top:8px;">
                         <li>Please arrive 30 minutes before the event starts</li>
                         <li>Bring a valid photo ID along with this confirmation</li>
                         <li>Screenshots of this email are acceptable for entry</li>
@@ -89,62 +113,39 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                     </ul>
                 </div>
 
-                <!-- Terms and Conditions -->
-                <div style="margin-bottom: 30px; background-color: #f9f9f9; padding: 20px; border-radius: 8px;">
-                    <h3 style="color: #333; margin-bottom: 15px; margin-top: 0; font-size: 16px;">Terms and Conditions</h3>
-                    <div style="font-size: 11px; line-height: 1.5; color: #666; text-align: justify;">
-                        <p style="margin-bottom: 10px;">Please carefully read and understand these terms and conditions before purchasing tickets for this event. By purchasing tickets, you acknowledge and agree to adhere to the following terms and conditions:</p>
-                        
-                        <p style="margin-bottom: 10px;">
-                            <strong style="color: #333;">Ticket Modifications, Cancellations, and Refunds</strong><br/>
-                            Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event.
-                            In case of Event cancellation, Jay-Ho! will initiate refunds for the face value of the ticket only. Service or transaction fees are non-refundable.
-                        </p>
-
-                        <p style="margin-bottom: 10px;">
-                            <strong style="color: #333;">Payment Gateway Charges</strong><br/>
-                            Payment gateways apply a service fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.
-                        </p>
-
-                        <p style="margin-bottom: 10px;">
-                            <strong style="color: #333;">Late Entry and Venue Arrival</strong><br/>
-                            The organizers reserve the right to deny late entry to the Event. To ensure seamless entry, we strongly recommend arriving at the venue at least an hour before the scheduled start time of the Event.
-                        </p>
-
-                        <p style="margin-bottom: 10px;">
-                            <strong style="color: #333;">Event Cancellation/Postponement Refunds</strong><br/>
-                            In the event of Event cancellation or postponement, Jay-Ho! will refund only the face value of the ticket. Service or transaction fees are non-refundable.
-                        </p>
-
-                        <p style="margin-bottom: 10px;">
-                            <strong style="color: #333;">Venue Rules and Entry</strong><br/>
-                            Each venue has its own set of rules and regulations. The venue management holds the right to deny entry to individuals who do not comply with these rules.
-                        </p>
-
-                         <p style="margin-bottom: 10px;">
-                            <strong style="color: #333;">Modification of Terms and Conditions</strong><br/>
-                            These terms and conditions are subject to change at the sole discretion of the organizer. Any changes will be effective immediately upon being posted on the official website or communicated through official channels.
-                        </p>
-                        
-                        <p>Please note that your ticket purchase signifies your understanding and acceptance of these terms and conditions.</p>
+                <div style="margin-top:18px;background:#f9fafb;padding:14px;border-radius:8px;border:1px solid #f1f5f9;font-size:12px;color:#6366f1;">
+                    <strong style="color:#111;display:block;margin-bottom:6px;">Terms and Conditions</strong>
+                    <div style="color:#666;font-size:12px;line-height:1.5;text-align:justify;">
+                        Tickets are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. Service or transaction fees are non-refundable. Venue rules apply and organizers may deny entry for non-compliance.
                     </div>
                 </div>
 
-                <!-- Support Footer -->
-                <div style="background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; padding: 25px; text-align: center;">
-                    <p style="font-weight: bold; color: #1f2937; margin: 0 0 5px 0; font-size: 16px;">Thank you for choosing JayHo Tickets!</p>
-                    <p style="font-size: 14px; color: #6b7280; margin: 0 0 20px 0;">We're excited to see you at the event. If you have any questions, we're here to help.</p>
-                    
-                    <div style="font-size: 14px;">
-                        <p style="margin: 5px 0;"><span style="color: #4f46e5; font-weight: bold;">Support:</span> <a href="mailto:support@jayhotickets.com" style="color: #4f46e5; text-decoration: none;">support@jayhotickets.com</a></p>
-                        <p style="margin: 5px 0;"><span style="color: #374151; font-weight: bold;">Phone:</span> +1 (555) 123-4567</p>
+                <div style="margin-top:20px;background:#f3f4f6;border-radius:8px;padding:18px;text-align:center;border:1px solid #e6e6e6;">
+                    <p style="margin:0;font-weight:700;color:#111;">Thank you for choosing JayHo Tickets!</p>
+                    <p style="margin:6px 0 0 0;color:#6b7280;font-size:13px;">We're excited to see you at the event. If you have any questions, we're here to help.</p>
+                    <div style="margin-top:10px;color:#374151;font-size:13px;">
+                        <span style="display:block;margin-bottom:6px;color:#4f46e5;font-weight:600;">Support: <a href="mailto:support@jayhotickets.com" style="color:#4f46e5;text-decoration:none;">support@jayhotickets.com</a></span>
+                        <span style="display:block;color:#374151;">Phone: +1 (555) 123-4567</span>
                     </div>
                 </div>
             </div>
         </div>
     `;
 
-    await sendEmail(customerEmail, `Your Tickets: ${event.title}`, customerHtml);
+    // Send customer email
+    await sendEmail(customerEmail, `Your Tickets: ${event.title}`, renderCommonHtml({ headline: 'Payment Successful!', introHtml: `<p>Hi ${customerName},</p>`, includeCustomerInfo: false }));
+
+    // 2. Email to Organizer (New Sale Alert) — use same format but include customer info
+    if (organizerEmail) {
+        const organizerIntro = `<p>Hello,</p><p>You have received a new order for <strong>${event.title}</strong>.</p>`;
+        await sendEmail(organizerEmail, `New Sale: ${event.title}`, renderCommonHtml({ headline: 'New Ticket Sale!', introHtml: organizerIntro, includeCustomerInfo: true }));
+    }
+
+    // 3. Email to Admin (optional) — use same format and include customer info
+    if (adminEmail) {
+        const adminIntro = `<p>Hello Admin,</p><p>A new order has been placed for <strong>${event.title}</strong>.</p>`;
+        await sendEmail(adminEmail, `New Order: ${event.title}`, renderCommonHtml({ headline: 'New Ticket Sale (Admin)', introHtml: adminIntro, includeCustomerInfo: true }));
+    }
 
     // 2. Email to Organizer (New Sale Alert)
     if (organizerEmail) {
