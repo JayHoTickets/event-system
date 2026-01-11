@@ -100,9 +100,21 @@ exports.createOrder = async (req, res) => {
         // 3. Create Order
         const totalAmount = Math.max(0, subtotal - discount) + serviceFee;
         
-        // Generate Ticket Objects with IDs
+        // Generate Ticket Objects with compact alphanumeric IDs (10-12 chars)
+        const crypto = require('crypto');
+        const generateTicketId = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            const len = 10 + Math.floor(Math.random() * 3); // 10,11,12
+            const bytes = crypto.randomBytes(len);
+            let out = '';
+            for (let i = 0; i < len; i++) {
+                out += chars[bytes[i] % chars.length];
+            }
+            return out;
+        };
+
         const tickets = seats.map(s => {
-            const ticketId = `tkt-${s.id}-${Date.now()}`;
+            const ticketId = generateTicketId();
             return {
                 id: ticketId,
                 eventId: event.id,
@@ -111,7 +123,7 @@ exports.createOrder = async (req, res) => {
                 seatLabel: `${s.rowLabel}${s.seatNumber}`,
                 price: s.price,
                 ticketType: s.tier,
-                qrCodeData: ticketId, // QR code now contains the exact Ticket ID
+                qrCodeData: ticketId, // QR code now contains the compact Ticket ID
                 purchaseDate: new Date(),
                 checkedIn: false
             };

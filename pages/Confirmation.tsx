@@ -96,7 +96,7 @@ const Confirmation: React.FC = () => {
                 )}
                 {order.serviceFee > 0 && (
                      <div className="flex justify-between text-slate-500 text-sm mb-1">
-                        <span>Service Fees</span>
+                        <span>Booking Fee</span>
                         <span>${order.serviceFee.toFixed(2)}</span>
                     </div>
                 )}
@@ -134,12 +134,12 @@ const Confirmation: React.FC = () => {
                         <div>
                             <span className="font-semibold block text-slate-700 mb-0.5">Ticket Modifications, Cancellations, and Refunds</span>
                             Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event.
-                            In case of Event cancellation, Jay-Ho! will initiate refunds for the face value of the ticket only. Service or transaction fees are non-refundable.
+                            In case of Event cancellation, Jay-Ho! will initiate refunds for the face value of the ticket only. Booking or transaction fees are non-refundable.
                         </div>
 
                         <div>
                             <span className="font-semibold block text-slate-700 mb-0.5">Payment Gateway Charges</span>
-                            Payment gateways apply a service fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.
+                            Payment gateways apply a booking fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.
                         </div>
 
                         <div>
@@ -149,7 +149,7 @@ const Confirmation: React.FC = () => {
 
                         <div>
                             <span className="font-semibold block text-slate-700 mb-0.5">Event Cancellation/Postponement Refunds</span>
-                            In the event of Event cancellation or postponement, Jay-Ho! will refund only the face value of the ticket. Service or transaction fees are non-refundable.
+                            In the event of Event cancellation or postponement, Jay-Ho! will refund only the face value of the ticket. Booking or transaction fees are non-refundable.
                         </div>
 
                         <div>

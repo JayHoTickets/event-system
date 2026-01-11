@@ -94,7 +94,7 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                         <span style="color:#059669">-${formatCurrency(order.discountApplied || 0)}</span>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:14px;color:#6b7280;margin-bottom:6px;">
-                        <span>Service Fees</span>
+                        <span>Booking Fee</span>
                         <span>${formatCurrency(order.serviceFee || 0)}</span>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-weight:800;font-size:18px;color:#111;margin-top:8px;">
@@ -116,7 +116,7 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                 <div style="margin-top:18px;background:#f9fafb;padding:14px;border-radius:8px;border:1px solid #f1f5f9;font-size:12px;color:#6366f1;">
                     <strong style="color:#111;display:block;margin-bottom:6px;">Terms and Conditions</strong>
                     <div style="color:#666;font-size:12px;line-height:1.5;text-align:justify;">
-                        Tickets are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. Service or transaction fees are non-refundable. Venue rules apply and organizers may deny entry for non-compliance.
+                    Tickets are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. Booking or transaction fees are non-refundable. Venue rules apply and organizers may deny entry for non-compliance.
                     </div>
                 </div>
 
@@ -124,8 +124,8 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                     <p style="margin:0;font-weight:700;color:#111;">Thank you for choosing JayHo Tickets!</p>
                     <p style="margin:6px 0 0 0;color:#6b7280;font-size:13px;">We're excited to see you at the event. If you have any questions, we're here to help.</p>
                     <div style="margin-top:10px;color:#374151;font-size:13px;">
-                        <span style="display:block;margin-bottom:6px;color:#4f46e5;font-weight:600;">Support: <a href="mailto:support@jayhotickets.com" style="color:#4f46e5;text-decoration:none;">support@jayhotickets.com</a></span>
-                        <span style="display:block;color:#374151;">Phone: +1 (555) 123-4567</span>
+                        <span style="display:block;margin-bottom:6px;color:#4f46e5;font-weight:600;">Support: <a href="mailto:Jayho@jay-ho.com" style="color:#4f46e5;text-decoration:none;">Jayho@jay-ho.com</a></span>
+                        <span style="display:block;color:#374151;">Phone: +1 (339) 245-8655</span>
                     </div>
                 </div>
             </div>

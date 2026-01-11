@@ -144,12 +144,12 @@ const CheckoutForm: React.FC<{
                             <div className="space-y-4">
                                 <div>
                                     <h5 className="font-semibold">Ticket Modifications, Cancellations, and Refunds</h5>
-                                    <p>Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. In case of Event cancellation, refunds will be initiated for the face value of the ticket only. Service or transaction fees are non-refundable.</p>
+                                    <p>Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. In case of Event cancellation, refunds will be initiated for the face value of the ticket only. Booking or transaction fees are non-refundable.</p>
                                 </div>
 
                                 <div>
                                     <h5 className="font-semibold">Payment Gateway Charges</h5>
-                                    <p>Payment gateways apply a service fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.</p>
+                                    <p>Payment gateways apply a booking fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.</p>
                                 </div>
 
                                 <div>
@@ -159,7 +159,7 @@ const CheckoutForm: React.FC<{
 
                                 <div>
                                     <h5 className="font-semibold">Event Cancellation/Postponement Refunds</h5>
-                                    <p>In the event of Event cancellation or postponement, refunds will cover only the face value of the ticket. Service or transaction fees are non-refundable.</p>
+                                    <p>In the event of Event cancellation or postponement, refunds will cover only the face value of the ticket. Booking or transaction fees are non-refundable.</p>
                                 </div>
 
                                 <div>
@@ -524,7 +524,7 @@ useEffect(() => {
                 {calculatedFee > 0 && (
                      <div className="flex justify-between text-slate-600">
                         <span className="flex items-center" title="Platform and Processing Fees">
-                            Service Fees <Info className="w-3 h-3 ml-1 text-slate-400" />
+                            Booking Fee <Info className="w-3 h-3 ml-1 text-slate-400" />
                         </span>
                         <span>${calculatedFee.toFixed(2)}</span>
                     </div>

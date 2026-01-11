@@ -32,12 +32,12 @@ const TermsAndConditions: React.FC = () => {
         <div className="space-y-4 text-sm text-slate-700">
           <div>
             <h3 className="font-semibold">Ticket Modifications, Cancellations, and Refunds</h3>
-            <p>Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. In case of Event cancellation, Jay-Ho! will initiate refunds for the face value of the ticket only. Service or transaction fees are non-refundable.</p>
+            <p>Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. In case of Event cancellation, Jay-Ho! will initiate refunds for the face value of the ticket only. Booking or transaction fees are non-refundable.</p>
           </div>
 
           <div>
             <h3 className="font-semibold">Payment Gateway Charges</h3>
-            <p>Payment gateways apply a service fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.</p>
+            <p>Payment gateways apply a booking fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.</p>
           </div>
 
           <div>
@@ -47,7 +47,7 @@ const TermsAndConditions: React.FC = () => {
 
           <div>
             <h3 className="font-semibold">Event Cancellation/Postponement Refunds</h3>
-            <p>In the event of Event cancellation or postponement, Jay-Ho! will refund only the face value of the ticket. Service or transaction fees are non-refundable.</p>
+            <p>In the event of Event cancellation or postponement, Jay-Ho! will refund only the face value of the ticket. Booking or transaction fees are non-refundable.</p>
           </div>
 
           <div>
