@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { useLocation, Link } from 'react-router-dom';
 import { Order } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
@@ -8,6 +10,24 @@ import { CheckCircle, Mail, Download } from 'lucide-react';
 const Confirmation: React.FC = () => {
   const { state } = useLocation();
   const order = (state as any)?.order as Order;
+
+    const handleDownload = async (ticket: any) => {
+        try {
+            const el = document.getElementById(`ticket-${ticket.id}`);
+            if (!el) return;
+            const canvas = await html2canvas(el, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const imgProps = (pdf as any).getImageProperties(imgData);
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`ticket-${ticket.id}.pdf`);
+        } catch (err) {
+            // silent fail for now
+            console.error('Download failed', err);
+        }
+    };
 
   if (!order) {
       return (
@@ -42,8 +62,8 @@ const Confirmation: React.FC = () => {
             <h2 className="text-xl font-bold text-slate-900 mb-6">Your Tickets</h2>
             
             <div className="space-y-6">
-                {order.tickets.map(ticket => (
-                    <div key={ticket.id} className="flex flex-col sm:flex-row border-2 border-dashed border-slate-300 rounded-lg p-6 items-center gap-6">
+                    {order.tickets.map(ticket => (
+                        <div id={`ticket-${ticket.id}`} key={ticket.id} className="flex flex-col sm:flex-row border-2 border-dashed border-slate-300 rounded-lg p-6 items-center gap-6">
                         <div className="bg-white p-2 rounded border border-slate-200 shadow-sm">
                             {/* Value is ticket.id which acts as QR data */}
                             <QRCodeSVG value={ticket.id} size={120} />
@@ -56,7 +76,7 @@ const Confirmation: React.FC = () => {
                                 <p><span className="font-semibold text-slate-800">Price:</span> ${ticket.price}</p>
                             </div>
                         </div>
-                        <button className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors" title="Download Ticket">
+                        <button onClick={async () => await handleDownload(ticket)} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors" title="Download Ticket">
                             <Download className="w-6 h-6" />
                         </button>
                     </div>
