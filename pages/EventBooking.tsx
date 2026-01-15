@@ -287,8 +287,8 @@ return (
             <p className="text-slate-600">{event.location}</p>
             
             <div className="flex items-center gap-2 text-slate-600">
-              <Tag className="w-4 h-4 flex-shrink-0" />
-              <span>{event.seatingType === SeatingType.RESERVED ? 'Reserved Seating' : 'General Admission'}</span>
+              {/* <Tag className="w-4 h-4 flex-shrink-0" /> */}
+              {/* <span>{event.seatingType === SeatingType.RESERVED ? 'Reserved Seating' : 'General Admission'}</span> */}
             </div>
           </div>
           
@@ -473,7 +473,7 @@ return (
             {new Date(event.startTime).toLocaleDateString()} &bull; {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
           <p className="text-slate-500 text-sm mt-1">{event.location}</p>
-          <p className="text-slate-500 text-sm mt-1">{event.seatingType === SeatingType.RESERVED ? `${event.seats?.length || 0} seats` : 'General Admission'}</p>
+          {/* <p className="text-slate-500 text-sm mt-1">{event.seatingType === SeatingType.RESERVED ? 'Reserved Seating' : 'General Admission'}</p> */}
         </div>
 
         {/* Small poster on the right for mobile */}
