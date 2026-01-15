@@ -492,9 +492,9 @@ return (
       {event.seatingType === SeatingType.RESERVED ? (
         <div className="flex-1 bg-slate-100 flex flex-col relative overflow-hidden">
           
-          {/* Legend Bar - Scrollable on mobile */}
-          <div className="p-3 border-b bg-white shrink-0 overflow-x-auto scrollbar-hide z-10 shadow-sm">
-            <div className="flex gap-4 text-xs font-medium text-slate-600 whitespace-nowrap px-2">
+          {/* Legend Bar - wrap ticket types on mobile (no horizontal scroll) */}
+          <div className="p-3 border-b bg-white shrink-0 z-10 shadow-sm">
+            <div className="flex flex-wrap gap-3 items-center text-xs font-medium text-slate-600 px-2">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-slate-200 border border-slate-300"></div>
                 <span>Sold</span>
