@@ -197,10 +197,28 @@ return (
     {/* HEADER: Back button and title - only on mobile */}
     <div className="relative mb-6 md:hidden">
         <div className="w-full h-56 rounded-b-xl overflow-hidden relative bg-slate-900">
-            {event.imageUrl && (
-                <img src={event.imageUrl} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
-            )}
-            <div className="absolute inset-0 bg-black/40"></div>
+          {event.imageUrl && (
+            <>
+              {/* Blurred background fill */}
+              <div className="absolute inset-0">
+                <img
+                  src={event.imageUrl}
+                  alt={event.title}
+                  className="w-full h-full object-cover transform scale-105 filter blur-sm brightness-75"
+                />
+              </div>
+
+              {/* Foreground: show full image centered without cropping */}
+              <div className="absolute inset-0 flex items-center justify-center p-4">
+                <img
+                  src={event.imageUrl}
+                  alt={event.title}
+                  className="max-h-full max-w-full object-contain rounded-md shadow-lg"
+                />
+              </div>
+            </>
+          )}
+          <div className="absolute inset-0 bg-black/40"></div>
             <div className="absolute left-4 top-4 text-white max-w-3xl">
                 <button onClick={() => navigate('/')} className="text-white/90 flex items-center mb-2 text-sm">
                     <ArrowLeft className="w-4 h-4 mr-1" /> Back
@@ -229,12 +247,20 @@ return (
           
           {/* Small image */}
           {event.imageUrl && (
-            <div className="w-full h-48 rounded-lg overflow-hidden mb-4 bg-slate-100">
-              <img 
-                src={event.imageUrl} 
-                alt={event.title} 
-                className="w-full h-full object-cover"
-              />
+            <div className="w-full h-48 rounded-lg overflow-hidden mb-4 bg-slate-100 relative">
+              {/* Blurred background fill so small images look good */}
+              <div className="absolute inset-0">
+                <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover transform scale-105 filter blur-sm brightness-90" />
+              </div>
+
+              {/* Foreground: show full image centered and contained */}
+              <div className="absolute inset-0 flex items-center justify-center p-3">
+                <img
+                  src={event.imageUrl}
+                  alt={event.title}
+                  className="max-h-full max-w-full object-contain rounded-md shadow"
+                />
+              </div>
             </div>
           )}
           
