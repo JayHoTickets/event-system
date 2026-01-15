@@ -122,6 +122,7 @@ exports.createOrder = async (req, res) => {
                 seatId: s.id,
                 seatLabel: `${s.rowLabel}${s.seatNumber}`,
                 price: s.price,
+                color: s.color || null,
                 ticketType: s.tier,
                 qrCodeData: ticketId, // QR code now contains the compact Ticket ID
                 purchaseDate: new Date(),

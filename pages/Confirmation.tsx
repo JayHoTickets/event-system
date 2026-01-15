@@ -70,6 +70,12 @@ const Confirmation: React.FC = () => {
                         </div>
                         <div className="flex-1 text-center sm:text-left">
                             <h3 className="text-lg font-bold text-slate-900">{ticket.eventTitle}</h3>
+                            {ticket.color && (
+                                <div className="mt-2">
+                                    <span className="inline-block w-4 h-4 rounded-sm mr-2 align-middle" style={{ backgroundColor: ticket.color, border: '1px solid rgba(0,0,0,0.06)' }} />
+                                    <span className="text-sm text-slate-600">{ticket.ticketType}</span>
+                                </div>
+                            )}
                             <div className="mt-2 text-slate-600 space-y-1">
                                 <p><span className="font-semibold text-slate-800">Seat:</span> {ticket.seatLabel}</p>
                                 <p><span className="font-semibold text-slate-800">Ticket ID:</span> {ticket.id}</p>

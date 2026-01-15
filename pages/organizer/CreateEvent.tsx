@@ -547,19 +547,29 @@ const CreateEvent: React.FC = () => {
                                                             />
                                                         </div>
                                                     )}
-                                                    <div className="w-16">
+                                                    <div className="w-24">
                                                         <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Color</label>
-                                                        <div className="flex gap-1 flex-wrap">
-                                                            {PRESET_COLORS.slice(0, 4).map(c => (
+                                                        <div className="flex gap-1 flex-wrap items-center">
+                                                            {PRESET_COLORS.map(c => (
                                                                 <button 
                                                                     key={c}
                                                                     type="button"
-                                                                    className={`w-3 h-3 rounded-full ${tt.color === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
+                                                                    className={`w-4 h-4 rounded-full ${tt.color === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
                                                                     style={{ backgroundColor: c }}
                                                                     onClick={(e) => { e.stopPropagation(); updateTicketType(tt.id, 'color', c); }}
+                                                                    title={c}
                                                                 />
                                                             ))}
+                                                            <input
+                                                                type="color"
+                                                                value={tt.color}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onChange={(e) => updateTicketType(tt.id, 'color', e.target.value)}
+                                                                className="w-8 h-8 p-0 border-0 rounded"
+                                                                aria-label="Custom color"
+                                                            />
                                                         </div>
+                                                        <div className="text-[10px] text-slate-400 mt-1 truncate">{tt.color}</div>
                                                     </div>
                                                 </div>
                                                 {ticketTypes.length > 1 && (

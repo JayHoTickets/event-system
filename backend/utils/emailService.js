@@ -44,7 +44,10 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                     <img src="${qrUrl}" alt="QR Code" width="120" height="120" />
                 </div>
                 <div>
-                    <h3 style="margin: 0 0 5px 0; color: #333;">${t.ticketType || 'Ticket'}</h3>
+                    <h3 style="margin: 0 0 5px 0; color: #333; display:flex; align-items:center; gap:8px;">
+                        ${t.color ? `<span style="width:14px;height:14px;display:inline-block;border-radius:3px;background:${t.color};border:1px solid rgba(0,0,0,0.08);"></span>` : ''}
+                        ${t.ticketType || 'Ticket'}
+                    </h3>
                     <p style="margin: 0; color: #555;"><strong>Seat:</strong> ${t.seatLabel}</p>
                     <p style="margin: 0; color: #555;"><strong>Price:</strong> ${formatCurrency(t.price)}</p>
                     <p style="margin: 5px 0 0 0; font-size: 11px; color: #888;">ID: ${t.id}</p>

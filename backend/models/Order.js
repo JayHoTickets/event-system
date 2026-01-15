@@ -8,6 +8,7 @@ const OrderTicketSchema = new mongoose.Schema({
     seatId: String,
     seatLabel: String,
     price: Number,
+    color: String,
     ticketType: String,
     qrCodeData: String,
     purchaseDate: Date,
