@@ -293,7 +293,7 @@ return (
           </div>
           
           {/* Ticket Types */}
-          <div className="mb-6">
+          {/* <div className="mb-6">
             <h3 className="font-semibold text-slate-900 mb-3">Ticket Types</h3>
             <div className="space-y-2">
               {event.ticketTypes.map(tt => (
@@ -315,7 +315,7 @@ return (
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
       
@@ -323,27 +323,40 @@ return (
       <div className="w-2/3 flex flex-col">
         {event.seatingType === SeatingType.RESERVED ? (
           <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-            {/* Legend Bar */}
+            {/* Legend Bar with ticket types on the right (desktop) */}
             <div className="p-4 border-b bg-white shrink-0">
-              <div className="flex gap-4 text-sm font-medium text-slate-600">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm bg-slate-200 border border-slate-300"></div>
-                  <span>Sold</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm bg-green-500 border border-green-600"></div>
-                  <span>Selected</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm bg-slate-800 border border-slate-900 flex items-center justify-center">
-                    <div className="w-2 h-px bg-slate-500 rotate-45 transform absolute"></div>
-                    <div className="w-2 h-px bg-slate-500 -rotate-45 transform absolute"></div>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-4 text-sm font-medium text-slate-600">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm bg-slate-200 border border-slate-300"></div>
+                    <span>Sold</span>
                   </div>
-                  <span>Blocked</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm bg-green-500 border border-green-600"></div>
+                    <span>Selected</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm bg-slate-800 border border-slate-900 flex items-center justify-center">
+                      <div className="w-2 h-px bg-slate-500 rotate-45 transform absolute"></div>
+                      <div className="w-2 h-px bg-slate-500 -rotate-45 transform absolute"></div>
+                    </div>
+                    <span>Blocked</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm bg-amber-200 border border-amber-300"></div>
+                    <span>Booking (In-progress)</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm bg-amber-200 border border-amber-300"></div>
-                  <span>Booking (In-progress)</span>
+
+                {/* Ticket type chips - visible on desktop */}
+                <div className="hidden md:flex items-center gap-3 flex-wrap text-sm">
+                  {event.ticketTypes.map(tt => (
+                    <div key={tt.id} className="flex items-center gap-2 px-3 py-1 rounded-full border bg-white shadow-sm">
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: tt.color }} />
+                      <div className="text-slate-700 font-medium">{tt.name}</div>
+                      <div className="text-slate-500 ml-2">${tt.price.toFixed(0)}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
