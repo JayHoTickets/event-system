@@ -48,6 +48,7 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                         ${t.color ? `<span style="width:14px;height:14px;display:inline-block;border-radius:3px;background:${t.color};border:1px solid rgba(0,0,0,0.08);"></span>` : ''}
                         ${t.ticketType || 'Ticket'}
                     </h3>
+                    <p style="margin: 0 0 6px 0; color: #555;"><strong>Event:</strong> ${event.title}</p>
                     <p style="margin: 0; color: #555;"><strong>Seat:</strong> ${t.seatLabel}</p>
                     <p style="margin: 0; color: #555;"><strong>Price:</strong> ${formatCurrency(t.price)}</p>
                     <p style="margin: 5px 0 0 0; font-size: 11px; color: #888;">ID: ${t.id}</p>
@@ -66,10 +67,6 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
             </div>
 
             <div style="background:#fff;padding:24px;border:1px solid #e6e6e6;border-bottom-left-radius:8px;border-bottom-right-radius:8px;">
-                <div style="text-align:center;margin-bottom:14px;color:#6b7280;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;background:#f8fafc;padding:12px;border-radius:6px;">
-                    <span style="color:#4f46e5;font-weight:600;">📧</span>
-                    <span>Confirmation email sent to your inbox.</span>
-                </div>
 
                 ${introHtml}
 
@@ -116,10 +113,42 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                     </ul>
                 </div>
 
-                <div style="margin-top:18px;background:#f9fafb;padding:14px;border-radius:8px;border:1px solid #f1f5f9;font-size:12px;color:#6366f1;">
-                    <strong style="color:#111;display:block;margin-bottom:6px;">Terms and Conditions</strong>
-                    <div style="color:#666;font-size:12px;line-height:1.5;text-align:justify;">
-                    Tickets are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. Booking or transaction fees are non-refundable. Venue rules apply and organizers may deny entry for non-compliance.
+                <div style="margin-top:18px;">
+                    <h3 style="font-size:16px;margin:0 0 8px 0;color:#111;font-weight:700;">Terms and Conditions</h3>
+                    <div style="font-size:12px;color:#666;line-height:1.5;text-align:justify;background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #eef2f7;">
+                        <p>Please carefully read and understand these terms and conditions before purchasing tickets for this event. By purchasing tickets, you acknowledge and agree to adhere to the following terms and conditions:</p>
+
+                        <div style="margin-top:8px;">
+                            <strong style="display:block;color:#111;margin-bottom:4px;">Ticket Modifications, Cancellations, and Refunds</strong>
+                            Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. In case of Event cancellation, Jay-Ho! will initiate refunds for the face value of the ticket only. Booking or transaction fees are non-refundable.
+                        </div>
+
+                        <div style="margin-top:10px;">
+                            <strong style="display:block;color:#111;margin-bottom:4px;">Payment Gateway Charges</strong>
+                            Payment gateways apply a booking fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.
+                        </div>
+
+                        <div style="margin-top:10px;">
+                            <strong style="display:block;color:#111;margin-bottom:4px;">Late Entry and Venue Arrival</strong>
+                            The organizers reserve the right to deny late entry to the Event. To ensure seamless entry, we strongly recommend arriving at the venue at least an hour before the scheduled start time of the Event.
+                        </div>
+
+                        <div style="margin-top:10px;">
+                            <strong style="display:block;color:#111;margin-bottom:4px;">Event Cancellation/Postponement Refunds</strong>
+                            In the event of Event cancellation or postponement, Jay-Ho! will refund only the face value of the ticket. Booking or transaction fees are non-refundable.
+                        </div>
+
+                        <div style="margin-top:10px;">
+                            <strong style="display:block;color:#111;margin-bottom:4px;">Venue Rules and Entry</strong>
+                            Each venue has its own set of rules and regulations. The venue management holds the right to deny entry to individuals who do not comply with these rules.
+                        </div>
+
+                        <div style="margin-top:10px;">
+                            <strong style="display:block;color:#111;margin-bottom:4px;">Modification of Terms and Conditions</strong>
+                            These terms and conditions are subject to change at the sole discretion of the organizer. Any changes will be effective immediately upon being posted on the official website or communicated through official channels.
+                        </div>
+
+                        <p style="margin-top:8px;font-style:italic;">Please note that your ticket purchase signifies your understanding and acceptance of these terms and conditions.</p>
                     </div>
                 </div>
 
@@ -127,45 +156,36 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                     <p style="margin:0;font-weight:700;color:#111;">Thank you for choosing JayHo Tickets!</p>
                     <p style="margin:6px 0 0 0;color:#6b7280;font-size:13px;">We're excited to see you at the event. If you have any questions, we're here to help.</p>
                     <div style="margin-top:10px;color:#374151;font-size:13px;">
-                        <span style="display:block;margin-bottom:6px;color:#4f46e5;font-weight:600;">Support: <a href="mailto:Jayho@jay-ho.com" style="color:#4f46e5;text-decoration:none;">Jayho@jay-ho.com</a></span>
-                        <span style="display:block;color:#374151;">Phone: +1 (339) 245-8655</span>
+                        <span style="display:block;margin-bottom:6px;color:#4f46e5;font-weight:600;">Support: <a href="mailto:support@jayhotickets.com" style="color:#4f46e5;text-decoration:none;">support@jayhotickets.com</a></span>
+                        <span style="display:block;color:#374151;">Phone: +1 (555) 123-4567</span>
                     </div>
                 </div>
             </div>
         </div>
     `;
 
-    // Send customer email
-    await sendEmail(customerEmail, `Your Tickets: ${event.title}`, renderCommonHtml({ headline: 'Payment Successful!', introHtml: `<p>Hi ${customerName},</p>`, includeCustomerInfo: false }));
+    // Normalize organizer display name (fallbacks if not present)
+    const organizerDisplayName = event.organizer || event.organizerName || (organizerEmail ? organizerEmail.split('@')[0] : 'Organizer');
 
-    // 2. Email to Organizer (New Sale Alert) — use same format but include customer info
+    // Customer greeting
+    const customerIntro = `<p>Hi ${customerName}, your order for ${event.title} has been received.</p>`;
+
+    // Organizer greeting
+    const organizerIntro = `<p>Hi Organizer, you have received an order for ${event.title}.</p>`;
+
+    // Admin greeting includes organizer name
+    const adminIntro = `<p>Hi Admin, ${organizerDisplayName} has received an order for ${event.title}.</p>`;
+
+    // Send customer email (same shared template, customized greeting)
+    await sendEmail(customerEmail, `Your Tickets: ${event.title}`, renderCommonHtml({ headline: 'Payment Successful!', introHtml: customerIntro, includeCustomerInfo: false }));
+
+    // Send organizer email (shared template)
     if (organizerEmail) {
-        const organizerIntro = `<p>Hello,</p><p>You have received a new order for <strong>${event.title}</strong>.</p>`;
         await sendEmail(organizerEmail, `New Sale: ${event.title}`, renderCommonHtml({ headline: 'New Ticket Sale!', introHtml: organizerIntro, includeCustomerInfo: true }));
     }
 
-    // 3. Email to Admin (optional) — use same format and include customer info
+    // Send admin email (shared template)
     if (adminEmail) {
-        const adminIntro = `<p>Hello Admin,</p><p>A new order has been placed for <strong>${event.title}</strong>.</p>`;
         await sendEmail(adminEmail, `New Order: ${event.title}`, renderCommonHtml({ headline: 'New Ticket Sale (Admin)', introHtml: adminIntro, includeCustomerInfo: true }));
-    }
-
-    // 2. Email to Organizer (New Sale Alert)
-    if (organizerEmail) {
-        const organizerHtml = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
-                <h2 style="color: #4f46e5;">New Ticket Sale!</h2>
-                <p>You have received a new order for <strong>${event.title}</strong>.</p>
-                
-                <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <p><strong>Customer:</strong> ${customerName} (${customerEmail})</p>
-                    <p><strong>Items:</strong> ${order.tickets.length} Ticket(s)</p>
-                    <p><strong>Total Revenue:</strong> ${formatCurrency(order.totalAmount)}</p>
-                </div>
-                
-                <p><a href="#">Login to Dashboard</a> to view full details.</p>
-            </div>
-        `;
-        await sendEmail(organizerEmail, `New Sale: ${event.title}`, organizerHtml);
     }
 };
