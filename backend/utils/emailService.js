@@ -49,7 +49,7 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                         ${t.ticketType || 'Ticket'}
                     </h3>
                     <p style="margin: 0 0 6px 0; color: #555;"><strong>Event:</strong> ${event.title}</p>
-                    <p style="margin: 0; color: #555;"><strong>Seat:</strong> ${t.seatLabel}</p>
+                    ${event.seatingType === 'RESERVED' ? `<p style="margin: 0; color: #555;"><strong>Seat:</strong> ${t.seatLabel}</p>` : ''}
                     <p style="margin: 0; color: #555;"><strong>Price:</strong> ${formatCurrency(t.price)}</p>
                     <p style="margin: 5px 0 0 0; font-size: 11px; color: #888;">ID: ${t.id}</p>
                 </div>

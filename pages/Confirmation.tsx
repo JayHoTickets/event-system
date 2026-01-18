@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useLocation, Link } from 'react-router-dom';
@@ -10,6 +10,23 @@ import { CheckCircle, Mail, Download } from 'lucide-react';
 const Confirmation: React.FC = () => {
   const { state } = useLocation();
   const order = (state as any)?.order as Order;
+    const [seatingType, setSeatingType] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchEvent = async () => {
+            try {
+                if (!order || !order.tickets || order.tickets.length === 0) return;
+                const eventId = order.tickets[0].eventId;
+                const res = await fetch(`/api/events/${eventId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                setSeatingType(data.seatingType || null);
+            } catch (err) {
+                // ignore
+            }
+        };
+        fetchEvent();
+    }, [order]);
 
     const handleDownload = async (ticket: any) => {
         try {
@@ -77,7 +94,9 @@ const Confirmation: React.FC = () => {
                                 </div>
                             )}
                             <div className="mt-2 text-slate-600 space-y-1">
-                                <p><span className="font-semibold text-slate-800">Seat:</span> {ticket.seatLabel}</p>
+                                {seatingType === 'RESERVED' && (
+                                    <p><span className="font-semibold text-slate-800">Seat:</span> {ticket.seatLabel}</p>
+                                )}
                                 <p><span className="font-semibold text-slate-800">Ticket ID:</span> {ticket.id}</p>
                                 <p><span className="font-semibold text-slate-800">Price:</span> ${ticket.price}</p>
                             </div>
