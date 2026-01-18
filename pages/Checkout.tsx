@@ -454,7 +454,12 @@ useEffect(() => {
             <div className="space-y-3 mb-6 max-h-48 overflow-y-auto pr-2">
                 {selectedSeats.map(seat => (
                     <div key={seat.id} className="flex justify-between text-sm text-slate-600">
-                         <span>{seat.tier} - {seat.rowLabel}{seat.seatNumber}</span>
+                         <span>
+                            {seat.tier}
+                            {event.seatingType === SeatingType.RESERVED && (
+                                <> - {seat.rowLabel}{seat.seatNumber}</>
+                            )}
+                         </span>
                          <span>${(seat.price || 0).toFixed(2)}</span>
                     </div>
                 ))}
