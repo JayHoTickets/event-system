@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Event, Seat, SeatingType, SeatStatus } from '../types';
+import { Event, Seat, SeatingType, SeatStatus, EventStatus } from '../types';
 import { fetchEventById, holdSeat, lockSeats } from '../services/mockBackend';
 import SeatGrid, { CELL_SIZE } from '../components/SeatGrid';
 import { ArrowLeft, Clock, ShoppingCart, Tag, ZoomIn, ZoomOut, Maximize, Minus, Plus } from 'lucide-react';
@@ -14,6 +14,7 @@ const EventBooking: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [event, setEvent] = useState<Event | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,6 +30,9 @@ const EventBooking: React.FC = () => {
     if (!id) return;
     fetchEventById(id).then(e => {
         setEvent(e || null);
+        if (e && e.status && e.status !== EventStatus.PUBLISHED) {
+            setBlocked(true);
+        }
         console.log('Loaded event', e);
         setLoading(false);
     });
@@ -42,6 +46,9 @@ const EventBooking: React.FC = () => {
       .then(e => {
         if (!mounted) return;
         setEvent(e || null);
+        if (e && e.status && e.status !== EventStatus.PUBLISHED) {
+            setBlocked(true);
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -102,6 +109,16 @@ const EventBooking: React.FC = () => {
 
   if (loading) return <div className="p-10 text-center text-slate-500">Loading event details...</div>;
   if (!event) return <div className="p-10 text-center text-red-500">Event not found</div>;
+  if (blocked) return (
+    <div className="p-10 text-center">
+      <h2 className="text-2xl font-bold mb-4">This event is not available for booking</h2>
+      <p className="text-slate-600 mb-4">The event status is {event?.status || 'unavailable'}. Tickets cannot be purchased.</p>
+      <div className="flex justify-center gap-4">
+        <button onClick={() => navigate('/')} className="px-4 py-2 bg-indigo-600 text-white rounded">Browse Events</button>
+        <button onClick={() => navigate(-1)} className="px-4 py-2 border rounded">Go Back</button>
+      </div>
+    </div>
+  );
 
   const handleSeatClick = async (seat: Seat) => {
       // Ignore clicks for seats that are currently being processed

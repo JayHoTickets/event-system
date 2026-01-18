@@ -40,14 +40,22 @@ exports.cleanupExpiredHolds = async () => {
 
 exports.getEvents = async (req, res) => {
     try {
-        let query = { deleted: false };
-        
+        // Default query
+        let query = {};
+
+        // If organizerId provided, scope to that organizer
         if (req.query.organizerId) {
             query.organizerId = req.query.organizerId;
-        } else if (req.query.admin) {
-            // Admin sees all not deleted
-        } else {
-            // Public sees only published
+        }
+
+        // Deleted filtering: by default hide deleted events. If admin or
+        // includeDeleted=true is passed, allow deleted events to be shown.
+        if (!req.query.admin && !req.query.includeDeleted) {
+            query.deleted = false;
+        }
+
+        // Public (no organizerId, no admin) should only see published events
+        if (!req.query.organizerId && !req.query.admin) {
             query.status = 'PUBLISHED';
         }
 

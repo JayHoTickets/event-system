@@ -447,6 +447,14 @@ const CreateEvent: React.FC = () => {
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Banner Image URL</label>
                                 <input name="imageUrl" value={formData.imageUrl} onChange={handleChange} className="w-full border rounded-lg px-3 py-2" placeholder="https://..." />
                             </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                                <select name="status" value={formData.status} onChange={handleChange} className="w-full border rounded-lg px-3 py-2">
+                                    <option value={EventStatus.DRAFT}>Draft</option>
+                                    <option value={EventStatus.PUBLISHED}>Active</option>
+                                    <option value={EventStatus.COMPLETED}>Completed</option>
+                                </select>
+                            </div>
                             
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>

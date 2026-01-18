@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Plus, Calendar, MapPin, Ticket, AlertCircle, Search, Trash2, Edit, Tag, BarChart2 } from 'lucide-react';
 import clsx from 'clsx';
 
-type TabType = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'CANCELLED' | 'COMPLETED';
+type TabType = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'CANCELLED' | 'COMPLETED' | 'DELETED';
 
 const OrganizerDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -18,12 +18,13 @@ const OrganizerDashboard: React.FC = () => {
 
     useEffect(() => {
         loadEvents();
-    }, [user]);
+    }, [user, activeTab]);
 
     const loadEvents = () => {
         if (user) {
             setLoading(true);
-            fetchEventsByOrganizer(user.id).then(data => {
+            // Always fetch all events (including deleted) so tab counts are accurate
+            fetchEventsByOrganizer(user.id, true).then(data => {
                 setEvents(data);
                 setLoading(false);
             });
@@ -54,8 +55,9 @@ const OrganizerDashboard: React.FC = () => {
     };
 
     const filteredEvents = events.filter(e => {
-        if (activeTab === 'ALL') return true;
-        return e.status === activeTab;
+        if (activeTab === 'ALL') return !e.deleted;
+        if (activeTab === 'DELETED') return e.deleted === true;
+        return !e.deleted && e.status === activeTab;
     });
 
     const getStatusStyle = (status: string) => {
@@ -96,10 +98,10 @@ const OrganizerDashboard: React.FC = () => {
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 {[
-                    { label: 'Total Events', value: events.length },
-                    { label: 'Published', value: events.filter(e => e.status === EventStatus.PUBLISHED).length },
-                    { label: 'Drafts', value: events.filter(e => e.status === EventStatus.DRAFT).length },
-                    { label: 'Completed', value: events.filter(e => e.status === EventStatus.COMPLETED).length },
+                    { label: 'Total Events', value: events.filter(e => !e.deleted).length },
+                    { label: 'Published', value: events.filter(e => !e.deleted && e.status === EventStatus.PUBLISHED).length },
+                    { label: 'Drafts', value: events.filter(e => !e.deleted && e.status === EventStatus.DRAFT).length },
+                    { label: 'Completed', value: events.filter(e => !e.deleted && e.status === EventStatus.COMPLETED).length },
                 ].map((stat, idx) => (
                     <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{stat.label}</p>
@@ -110,7 +112,7 @@ const OrganizerDashboard: React.FC = () => {
 
             {/* Tabs */}
             <div className="flex border-b border-slate-200 mb-6 overflow-x-auto">
-                {(['ALL', 'PUBLISHED', 'DRAFT', 'COMPLETED', 'CANCELLED'] as TabType[]).map((tab) => (
+                {(['ALL', 'PUBLISHED', 'DRAFT', 'COMPLETED', 'CANCELLED', 'DELETED'] as TabType[]).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -123,7 +125,7 @@ const OrganizerDashboard: React.FC = () => {
                     >
                         {tab.charAt(0) + tab.slice(1).toLowerCase()} 
                         <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">
-                            {tab === 'ALL' ? events.length : events.filter(e => e.status === tab).length}
+                            {tab === 'ALL' ? events.filter(e => !e.deleted).length : tab === 'DELETED' ? events.filter(e => e.deleted).length : events.filter(e => !e.deleted && e.status === tab).length}
                         </span>
                     </button>
                 ))}
@@ -188,19 +190,23 @@ const OrganizerDashboard: React.FC = () => {
                                 {/* Status Dropdown */}
                                 <div className="w-full md:w-40">
                                     <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Status</label>
-                                    <select 
-                                        value={event.status}
-                                        onChange={(e) => handleStatusChange(event.id, e.target.value as EventStatus)}
+                                        {!event.deleted ? (
+                                            <select 
+                                            value={event.status}
+                                            onChange={(e) => handleStatusChange(event.id, e.target.value as EventStatus)}
                                         className={clsx(
                                             "w-full text-xs font-bold px-3 py-2 rounded-lg border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500",
                                             getStatusStyle(event.status)
                                         )}
-                                    >
+                                            >
                                         <option value="DRAFT">DRAFT</option>
                                         <option value="PUBLISHED">PUBLISHED</option>
                                         <option value="COMPLETED">COMPLETED</option>
                                         <option value="CANCELLED">CANCELLED</option>
-                                    </select>
+                                            </select>
+                                        ) : (
+                                            <div className="text-xs font-semibold text-red-600">DELETED</div>
+                                        )}
                                 </div>
 
                                 <div className="flex gap-2 w-full md:w-auto">
@@ -217,6 +223,19 @@ const OrganizerDashboard: React.FC = () => {
                                     >
                                         Edit
                                     </button>
+                                    {event.deleted && (
+                                        <button onClick={async () => {
+                                            if (!window.confirm('Restore this event from deleted state?')) return;
+                                            try {
+                                                // Restore: unset deleted and set to DRAFT so organizer can edit
+                                                await updateEvent(event.id, { deleted: false, status: 'DRAFT' });
+                                                loadEvents();
+                                            } catch (err) {
+                                                console.error('Failed to restore', err);
+                                                alert('Failed to restore event');
+                                            }
+                                        }} className="px-3 py-2 text-green-600 bg-green-50 border border-green-100 rounded-lg">Restore</button>
+                                    )}
                                     <button 
                                         onClick={() => handleDelete(event.id)}
                                         className="px-3 py-2 text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-lg transition"

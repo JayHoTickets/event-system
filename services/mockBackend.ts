@@ -1,7 +1,7 @@
 
 import { Event, Seat, SeatStatus, User, UserRole, Coupon, Order, Venue, Theater, Stage, ServiceCharge, PaymentMode, Ticket } from '../types';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://jayhoshow.com/api';
 
 const fetchJson = async (url: string, options?: RequestInit) => {
     try {
@@ -120,7 +120,7 @@ export const saveTheaterLayout = (id: string, seats: Seat[], stage: Stage, rows:
 // --- EVENTS ---
 export const fetchEvents = (): Promise<Event[]> => fetchJson('/events');
 export const fetchAllEventsForAdmin = (): Promise<Event[]> => fetchJson('/events?admin=true');
-export const fetchEventsByOrganizer = (organizerId: string): Promise<Event[]> => fetchJson(`/events?organizerId=${organizerId}`);
+export const fetchEventsByOrganizer = (organizerId: string, includeDeleted = false): Promise<Event[]> => fetchJson(`/events?organizerId=${organizerId}${includeDeleted ? '&includeDeleted=true' : ''}`);
 export const fetchEventById = (id: string): Promise<Event & { venueName: string } | undefined> => fetchJson(`/events/${id}`);
 
 export const createEvent = (eventData: any): Promise<Event> => {
