@@ -33,6 +33,26 @@ const EventBooking: React.FC = () => {
         setLoading(false);
     });
   }, [id]);
+  
+  // Handle fetch errors gracefully
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    fetchEventById(id)
+      .then(e => {
+        if (!mounted) return;
+        setEvent(e || null);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load event', err);
+        if (!mounted) return;
+        setEvent(null);
+        setLoading(false);
+        setError('Failed to load event details. Please try again later.');
+      });
+    return () => { mounted = false; };
+  }, [id]);
 
   // Auto-fit map logic
   const fitMapToContainer = () => {

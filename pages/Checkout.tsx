@@ -247,19 +247,11 @@ const Checkout: React.FC = () => {
         });
     }, 1000);
 
-    // Release seats on unmount if not paid. Also register a beforeunload
-    // handler for browser/tab closes that triggers the browser confirmation.
-    // The actual release is performed on `pagehide`/`unload` (using keepalive)
-    // so it only runs when the user confirms leaving.
-    const beforeUnload = (e: BeforeUnloadEvent) => {
-        if (!isPaidRef.current) {
-            e.preventDefault();
-            // Modern browsers ignore the custom message, but setting returnValue
-            // prompts the confirmation dialog.
-            e.returnValue = '';
-        }
-    };
-
+    // Release seats on unmount if not paid. Register `pagehide`/`unload`
+    // handlers for best-effort release (these do not trigger a browser
+    // confirmation dialog). We intentionally avoid `beforeunload` so the
+    // browser's "Changes that you made may not be saved." prompt doesn't
+    // duplicate our custom confirmation when the user presses Back.
     const handlePageHide = () => {
         if (!isPaidRef.current && !releasedRef.current && event.seatingType === SeatingType.RESERVED) {
             releasedRef.current = true;
@@ -268,15 +260,11 @@ const Checkout: React.FC = () => {
         }
     };
 
-    window.addEventListener('beforeunload', beforeUnload);
-    // `pagehide` is more reliable than `unload` in some browsers and supports
-    // the `persisted` flag for bfcache; add both as a fallback.
     window.addEventListener('pagehide', handlePageHide as EventListener);
     window.addEventListener('unload', handlePageHide as EventListener);
 
     return () => {
         clearInterval(timer);
-        window.removeEventListener('beforeunload', beforeUnload);
         window.removeEventListener('pagehide', handlePageHide as EventListener);
         window.removeEventListener('unload', handlePageHide as EventListener);
         if (!isPaidRef.current && !releasedRef.current && event.seatingType === SeatingType.RESERVED) {
@@ -289,73 +277,45 @@ const Checkout: React.FC = () => {
 
   const handleTimeout = () => {
       alert("Your booking session has expired. The seats have been released.");
-      navigate(`/event/${event.id}`);
+      window.location.href = `/event/${event.id}`;
   };
 
   const handleManualBack = () => {
-      if (window.confirm("Navigating back will release your selected seats. Continue?")) {
-          (async () => {
-              try {
-                  if (!isPaidRef.current && event.seatingType === SeatingType.RESERVED) {
-                      releasedRef.current = true;
-                      await releaseSeats(event.id, selectedSeats.map(s => s.id));
-                  }
-              } catch (err) {
-                  console.error('Failed to release seats on manual back', err);
-              } finally {
-                  // Use replace so the checkout page isn't reachable via back button
-                  navigate(`/event/${event.id}`);
-              }
-          })();
+      if (event && event.seatingType === SeatingType.RESERVED) {
+        if (!window.confirm("Navigating back will release your selected seats. Continue?")) return;
+        (async () => {
+            try {
+                if (!isPaidRef.current) {
+                    releasedRef.current = true;
+                    await releaseSeats(event.id, selectedSeats.map(s => s.id));
+                }
+            } catch (err) {
+                console.error('Failed to release seats on manual back', err);
+            } finally {
+                window.location.href = `/event/${event.id}`;
+            }
+        })();
+      } else if (event) {
+        // For non-reserved events just navigate back without prompts or release logic
+        window.location.href = `/event/${event.id}`;
       }
   };
 useEffect(() => {
-  // Push a dummy state so back stays on this page
-  window.history.pushState(null, "", window.location.href);
-
-  const onPopState = () => {
+    if (!event || event.seatingType !== SeatingType.RESERVED) return;
+    // Push a dummy state so back stays on this page
     window.history.pushState(null, "", window.location.href);
-    handleManualBack(); // optional: show confirm + release seats
-  };
 
-  window.addEventListener("popstate", onPopState);
+    const onPopState = () => {
+        window.history.pushState(null, "", window.location.href);
+        handleManualBack(); // show confirm + release seats only for reserved
+    };
 
-  return () => {
-    window.removeEventListener("popstate", onPopState);
-  };
-}, []);
+    window.addEventListener("popstate", onPopState);
 
-useEffect(() => {
-  // Lock back navigation on checkout
-  window.history.pushState(null, "", window.location.href);
-
-  const onPopState = () => {
-    const confirmed = window.confirm(
-      "Going back will release your selected seats. Continue?"
-    );
-
-    if (!confirmed) {
-      // Stay on checkout
-      window.history.pushState(null, "", window.location.href);
-      return;
-    }
-
-    // Allow navigation back
-    window.removeEventListener("popstate", onPopState);
-    window.location.href = `http://217.15.170.10:3000/event/${event.id}`;
-
-    // Force reload after navigation
-    // setTimeout(() => {
-    //   window.location.reload();
-    // }, 0);
-  };
-
-  window.addEventListener("popstate", onPopState);
-
-  return () => {
-    window.removeEventListener("popstate", onPopState);
-  };
-}, []);
+    return () => {
+        window.removeEventListener("popstate", onPopState);
+    };
+}, [event]);
 
 
   if (!event || !selectedSeats) return null;
@@ -458,25 +418,27 @@ useEffect(() => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Timer Banner */}
-      <div className={clsx(
-          "mb-6 flex items-center justify-between p-4 rounded-xl border-2 transition-colors",
-          timeLeft < 60 ? "bg-red-50 border-red-200 text-red-700 animate-pulse" : "bg-indigo-50 border-indigo-200 text-indigo-700"
-      )}>
-          <div className="flex items-center gap-2 font-bold">
-              <Timer className="w-5 h-5" />
-              <span>Checkout Timer</span>
-          </div>
-          <div className="text-2xl font-mono font-bold tracking-widest">
-              {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
-          </div>
-          <button 
-            onClick={handleManualBack}
-            className="flex items-center text-xs font-bold uppercase hover:underline"
-          >
-              <ArrowLeft className="w-3 h-3 mr-1" /> Change Seats
-          </button>
-      </div>
+      {/* Timer Banner (only for reserved seating) */}
+      {event.seatingType === SeatingType.RESERVED && (
+        <div className={clsx(
+            "mb-6 flex items-center justify-between p-4 rounded-xl border-2 transition-colors",
+            timeLeft < 60 ? "bg-red-50 border-red-200 text-red-700 animate-pulse" : "bg-indigo-50 border-indigo-200 text-indigo-700"
+        )}>
+            <div className="flex items-center gap-2 font-bold">
+                <Timer className="w-5 h-5" />
+                <span>Checkout Timer</span>
+            </div>
+            <div className="text-2xl font-mono font-bold tracking-widest">
+                {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
+            </div>
+            <button 
+              onClick={handleManualBack}
+              className="flex items-center text-xs font-bold uppercase hover:underline"
+            >
+                <ArrowLeft className="w-3 h-3 mr-1" /> Change Seats
+            </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 grid grid-cols-1 md:grid-cols-2">
         {/* Order Summary */}
