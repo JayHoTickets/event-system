@@ -102,15 +102,16 @@ exports.createOrder = async (req, res) => {
         
         // Generate Ticket Objects with compact alphanumeric IDs (10-12 chars)
         const crypto = require('crypto');
+        const TICKET_PREFIX = process.env.TICKET_PREFIX || 'JH';
         const generateTicketId = () => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            const len = 10 + Math.floor(Math.random() * 3); // 10,11,12
-            const bytes = crypto.randomBytes(len);
-            let out = '';
-            for (let i = 0; i < len; i++) {
-                out += chars[bytes[i] % chars.length];
+            const coreLen = 8 + Math.floor(Math.random() * 3); // 8,9,10 core chars
+            const bytes = crypto.randomBytes(coreLen);
+            let core = '';
+            for (let i = 0; i < coreLen; i++) {
+                core += chars[bytes[i] % chars.length];
             }
-            return out;
+            return `${TICKET_PREFIX}${core}`;
         };
 
         const tickets = seats.map(s => {
