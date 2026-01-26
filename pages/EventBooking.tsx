@@ -475,6 +475,33 @@ return (
               <p className="text-slate-500">Total</p>
               <p className="text-3xl font-bold text-slate-900">${selectedTotal.toFixed(2)}</p>
               <p className="text-sm text-slate-500 mt-1">{selectedCount} items selected</p>
+              {/* Selection summary: show seat numbers for reserved seating, or ticket type counts for GA */}
+              <div className="text-sm text-slate-600 mt-2">
+                {event.seatingType === SeatingType.RESERVED ? (
+                  selectedSeats.length > 0 ? (
+                    <div className="flex gap-2 flex-wrap">
+                      {selectedSeats.map(s => (
+                        <span key={s.id} className="px-2 py-1 text-xs bg-slate-100 rounded border border-slate-200">{s.rowLabel}{s.seatNumber}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400">No seats selected</span>
+                  )
+                ) : (
+                  Object.entries(gaSelection).filter(([,c]) => c > 0).length > 0 ? (
+                    <div className="flex gap-2 flex-wrap">
+                      {Object.entries(gaSelection).filter(([,c]) => c > 0).map(([ttId,c]) => {
+                        const tt = event.ticketTypes.find(t => t.id === ttId);
+                        return (
+                          <span key={ttId} className="px-2 py-1 text-xs bg-slate-100 rounded border border-slate-200">{tt?.name || ttId} x{c}</span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400">No tickets selected</span>
+                  )
+                )}
+              </div>
             </div>
             <button
               onClick={handleCheckout}
@@ -618,11 +645,31 @@ return (
     </div>
 
     {/* MOBILE STICKY FOOTER */}
-    <div className="bg-white border-t border-slate-200 p-4 safe-area-pb shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
+      <div className="bg-white border-t border-slate-200 p-4 safe-area-pb shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
       <div className="flex justify-between items-center mb-2">
         <div>
           <p className="text-xs text-slate-500 font-medium">{selectedCount} tickets selected</p>
           <p className="text-xl font-bold text-slate-900">${selectedTotal.toFixed(2)}</p>
+          <div className="text-xs text-slate-600 mt-1">
+            {event.seatingType === SeatingType.RESERVED ? (
+              selectedSeats.length > 0 ? (
+                <div className="flex gap-2 flex-wrap">
+                  {selectedSeats.map(s => (
+                    <span key={s.id} className="px-2 py-1 bg-slate-100 rounded border border-slate-200">{s.rowLabel}{s.seatNumber}</span>
+                  ))}
+                </div>
+              ) : 'No seats selected'
+            ) : (
+              Object.entries(gaSelection).filter(([,c]) => c > 0).length > 0 ? (
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(gaSelection).filter(([,c]) => c > 0).map(([ttId,c]) => {
+                    const tt = event.ticketTypes.find(t => t.id === ttId);
+                    return <span key={ttId} className="px-2 py-1 bg-slate-100 rounded border border-slate-200">{tt?.name || ttId} x{c}</span>;
+                  })}
+                </div>
+              ) : 'No tickets selected'
+            )}
+          </div>
         </div>
         <button 
           onClick={handleCheckout}
