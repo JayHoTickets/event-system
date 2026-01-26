@@ -91,9 +91,9 @@ const OrganizerScanner: React.FC = () => {
     try {
       const data = await verifyTicket(decodedText);
       if (data.valid) {
-        setScanResult({ ticket: data.ticket, order: data.order });
-        // Optional: Stop scanning automatically on success?
-        // setIsScanning(false); 
+                setScanResult({ ticket: data.ticket, order: data.order });
+                // Stop scanning automatically on success and hide camera
+                setIsScanning(false);
       } else {
         setError("Invalid Ticket Code");
         setScanResult(null);
@@ -134,8 +134,8 @@ const OrganizerScanner: React.FC = () => {
       setScanResult(null);
       setError(null);
       lastScannedCodeRef.current = null;
-      // If we want to restart scanning immediately (if we stopped it)
-      // setIsScanning(true);
+      // Restart scanning for next ticket
+      setIsScanning(true);
   };
 
   const toggleCamera = () => {
@@ -200,8 +200,9 @@ const OrganizerScanner: React.FC = () => {
             <Scan className="w-8 h-8 mr-3 text-indigo-600" /> Ticket Scanner
         </h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Scanner Column */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Scanner Column (hidden when a scan result is present) */}
+            {!scanResult && (
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 {!isScanning ? (
                     <div className="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
@@ -227,6 +228,7 @@ const OrganizerScanner: React.FC = () => {
                     </div>
                 )}
             </div>
+            )}
 
             {/* Results Column */}
             <div className="space-y-6">
@@ -300,6 +302,9 @@ const OrganizerScanner: React.FC = () => {
                             >
                                 {scanResult.ticket.checkedIn ? 'Undo Check-in' : 'CHECK IN'}
                             </button>
+                             <div className="p-3 bg-slate-100 text-center">
+                    <button onClick={handleReset} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Scan Next Ticket</button>
+                </div>
                         </div>
 
                         {/* Other Seats in Order (Group) */}
