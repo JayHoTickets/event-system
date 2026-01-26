@@ -68,10 +68,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       )}>
         {/* Header */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 shrink-0">
-            <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
-                <Ticket className="h-6 w-6 text-indigo-500" />
-                <span className="ml-2 text-lg font-bold tracking-tight">Jay-Ho Tickets</span>
-            </div>
+          <div className="flex items-center cursor-pointer" onClick={() => navigate('/') }>
+            <Ticket className="h-6 w-6 text-indigo-500" />
+            <img src="https://events.jay-ho.com/wp-content/uploads/2026/01/white_logo-scaled.png" alt="Jay-Ho" className="ml-2 h-6 w-auto object-contain" />
+          </div>
             <button onClick={() => setIsOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
                 <X className="w-6 h-6" />
             </button>
