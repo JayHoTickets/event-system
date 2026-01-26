@@ -104,7 +104,7 @@ const AdminVenues: React.FC = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
             <h1 className="text-3xl font-bold text-slate-900">Venue Management</h1>
-            <p className="text-slate-500 mt-1">Manage physical locations (Buildings, Stadiums).</p>
+            <p className="text-slate-500 mt-1">Manage physical Venue (Buildings, Stadiums).</p>
         </div>
         <button 
             onClick={openCreateModal}

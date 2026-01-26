@@ -170,8 +170,8 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                     <p style="margin:0;font-weight:700;color:#111;">Thank you for choosing JayHo Tickets!</p>
                     <p style="margin:6px 0 0 0;color:#6b7280;font-size:13px;">We're excited to see you at the event. If you have any questions, we're here to help.</p>
                     <div style="margin-top:10px;color:#374151;font-size:13px;">
-                        <span style="display:block;margin-bottom:6px;color:#4f46e5;font-weight:600;">Support: <a href="mailto:support@jayhotickets.com" style="color:#4f46e5;text-decoration:none;">support@jayhotickets.com</a></span>
-                        <span style="display:block;color:#374151;">Phone: +1 (555) 123-4567</span>
+                        <span style="display:block;margin-bottom:6px;color:#4f46e5;font-weight:600;">Support: <a href="mailto:Jayho@jay-ho.com" style="color:#4f46e5;text-decoration:none;">Jayho@jay-ho.com</a></span>
+                        <span style="display:block;color:#374151;">Phone: +1 (339) 245-8655</span>
                     </div>
                 </div>
             </div>

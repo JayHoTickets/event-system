@@ -196,9 +196,9 @@ const Confirmation: React.FC = () => {
                     <p className="text-sm text-slate-500 mb-4">We're excited to see you at the event. If you have any questions, we're here to help.</p>
                     
                     <div className="flex flex-col sm:flex-row justify-center gap-4 text-sm">
-                        <span className="font-medium text-indigo-600">Support: support@jayhotickets.com</span>
+                        <span className="font-medium text-indigo-600">Support: Jayho@jay-ho.com</span>
                         <span className="hidden sm:inline text-slate-300">|</span>
-                        <span className="font-medium text-slate-700">Phone: +1 (555) 123-4567</span>
+                        <span className="font-medium text-slate-700">Phone: +1 (339) 245-8655</span>
                     </div>
                 </div>
             </div>
