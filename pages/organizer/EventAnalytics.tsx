@@ -17,6 +17,10 @@ const EventAnalytics: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [orderDateFrom, setOrderDateFrom] = useState('');
+    const [orderDateTo, setOrderDateTo] = useState('');
+    const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL'|'PAID'|'FAILED'|'REFUNDED'>('ALL');
+    const [orderModeFilter, setOrderModeFilter] = useState<'ALL' | PaymentMode>('ALL');
     
     // View State
     const [activeView, setActiveView] = useState<'STATS' | 'MAP' | 'CHECKIN'>('STATS');
@@ -105,11 +109,33 @@ const EventAnalytics: React.FC = () => {
     ];
 
     // --- Filtering Orders ---
-    const filteredOrders = orders.filter(o => 
-        o.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        o.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-    ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const filteredOrders = orders.filter(o => {
+        const q = searchTerm.toLowerCase();
+        const matchesSearch =
+            o.id.toLowerCase().includes(q) ||
+            o.customerEmail.toLowerCase().includes(q) ||
+            o.customerName.toLowerCase().includes(q);
+
+        // Status filter
+        const matchesStatus = orderStatusFilter === 'ALL' ? true : o.status === orderStatusFilter;
+
+        // Mode filter
+        const matchesMode = orderModeFilter === 'ALL' ? true : o.paymentMode === orderModeFilter;
+
+        // Date range filter (order.date expected to be ISO string)
+        let matchesDate = true;
+        const orderTs = new Date(o.date).getTime();
+        if (orderDateFrom) {
+            const fromTs = new Date(orderDateFrom + 'T00:00:00').getTime();
+            if (orderTs < fromTs) matchesDate = false;
+        }
+        if (orderDateTo) {
+            const toTs = new Date(orderDateTo + 'T23:59:59').getTime();
+            if (orderTs > toTs) matchesDate = false;
+        }
+
+        return matchesSearch && matchesStatus && matchesMode && matchesDate;
+    }).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // --- Flatten Tickets for Check-in Report ---
     const allTickets = orders.flatMap(o => o.tickets.map(t => ({
@@ -378,16 +404,52 @@ const EventAnalytics: React.FC = () => {
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <h2 className="text-lg font-bold text-slate-900">Order Management</h2>
-                            <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                <input 
-                                    type="text" 
-                                    className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    placeholder="Search order ID, email..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
+                            <div className="flex gap-2 items-center w-full sm:w-auto">
+                                    <div className="relative w-full sm:w-64">
+                                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                        <input 
+                                            type="text" 
+                                            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="Search order ID, email..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <input
+                                        type="date"
+                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                        value={orderDateFrom}
+                                        onChange={e => setOrderDateFrom(e.target.value)}
+                                        title="From date"
+                                    />
+                                    <input
+                                        type="date"
+                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                        value={orderDateTo}
+                                        onChange={e => setOrderDateTo(e.target.value)}
+                                        title="To date"
+                                    />
+                                    <select
+                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                        value={orderStatusFilter}
+                                        onChange={e => setOrderStatusFilter(e.target.value as any)}
+                                    >
+                                        <option value="ALL">All Status</option>
+                                        <option value="PAID">Paid</option>
+                                        <option value="FAILED">Failed</option>
+                                        <option value="REFUNDED">Refunded</option>
+                                    </select>
+                                    <select
+                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                        value={orderModeFilter}
+                                        onChange={e => setOrderModeFilter(e.target.value as any)}
+                                    >
+                                        <option value="ALL">All Modes</option>
+                                        <option value="ONLINE">Online</option>
+                                        <option value="CASH">Cash</option>
+                                        <option value="CHARITY">Charity</option>
+                                    </select>
+                                </div>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -395,6 +457,7 @@ const EventAnalytics: React.FC = () => {
                                 <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order ID</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Received</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Items</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total (Net)</th>
@@ -406,7 +469,7 @@ const EventAnalytics: React.FC = () => {
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredOrders.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
                                                 No orders found matching criteria.
                                             </td>
                                         </tr>
@@ -414,6 +477,7 @@ const EventAnalytics: React.FC = () => {
                                         filteredOrders.map(order => (
                                             <tr key={order.id} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-6 py-4 text-sm font-mono text-slate-600">{order.id}</td>
+                                                <td className="px-6 py-4 text-sm text-slate-600">{formatDateInTimeZone(order.date, event.timezone)}</td>
                                                 <td className="px-6 py-4">
                                                     <p className="text-sm font-medium text-slate-900">{order.customerName}</p>
                                                     <p className="text-xs text-slate-500">{order.customerEmail}</p>
@@ -691,6 +755,12 @@ const EventAnalytics: React.FC = () => {
                             <div>
                                 <h3 className="font-bold text-lg text-slate-900">Order Details</h3>
                                 <p className="text-sm text-slate-500 font-mono">{selectedOrder.id}</p>
+                                <p className="text-sm text-slate-500">Received: {formatDateInTimeZone(selectedOrder.date, event.timezone)}</p>
+                            </div>
+                            <div className="text-right hidden sm:block">
+                                <div className="text-sm text-slate-500">Event</div>
+                                <div className="font-medium text-slate-900">{event?.title}</div>
+                                <div className="text-xs text-slate-500">{event ? formatDateInTimeZone(event.startTime, event.timezone) : ''}</div>
                             </div>
                             <button 
                                 onClick={() => setSelectedOrder(null)} 
