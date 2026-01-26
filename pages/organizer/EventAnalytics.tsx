@@ -139,6 +139,43 @@ const EventAnalytics: React.FC = () => {
         return 0;
     });
 
+    // --- Export Handler (CSV) ---
+    const handleExport = () => {
+        try {
+            const headers = ['Ticket ID','Order ID','Customer Name','Customer Email','Seat','Ticket Type','Checked In','Check-In Time'];
+            const rows = filteredTickets.map(t => ([
+                t.id,
+                t.orderId,
+                t.customerName,
+                t.customerEmail,
+                t.seatLabel,
+                t.ticketType || '',
+                t.checkedIn ? 'Yes' : 'No',
+                t.checkInDate ? new Date(t.checkInDate).toISOString() : ''
+            ]));
+
+            const escapeCell = (v: any) => {
+                if (v === null || v === undefined) return '';
+                return `"${String(v).replace(/"/g, '""')}"`;
+            };
+
+            const csv = [headers, ...rows].map(r => r.map(escapeCell).join(',')).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${event?.id || 'event'}-checkin-report.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Export failed', err);
+            alert('Export failed. Check console for details.');
+        }
+    };
+
 
     const isReserved = event.seatingType === SeatingType.RESERVED;
 
@@ -222,7 +259,7 @@ const EventAnalytics: React.FC = () => {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg flex items-center hover:bg-slate-50 text-sm font-medium">
+                    <button onClick={handleExport} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg flex items-center hover:bg-slate-50 text-sm font-medium">
                         <Download className="w-4 h-4 mr-2"/> Export
                     </button>
                     <button onClick={() => navigate('/organizer/scanner')} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-indigo-700 text-sm font-medium">
