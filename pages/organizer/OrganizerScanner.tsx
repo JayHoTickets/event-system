@@ -190,6 +190,14 @@ const OrganizerScanner: React.FC = () => {
         }
     };
 
+    // Format seat label for display: hide noisy GA placeholder values
+    const formatSeatLabel = (label?: string) => {
+        if (!label) return '—';
+        const normalized = label.trim().toLowerCase();
+        if (/^gaany$/i.test(normalized) || /^ga$/i.test(normalized) || /general admission/i.test(normalized)) return '—';
+        return label;
+    };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
        <button onClick={() => navigate('/organizer')} className="flex items-center text-slate-500 hover:text-slate-800 mb-6">
@@ -279,7 +287,7 @@ const OrganizerScanner: React.FC = () => {
                                 </div>
                                 <div>
                                     <span className="block text-slate-500">Seat</span>
-                                    <span className="font-bold text-xl text-slate-900">{scanResult.ticket.seatLabel}</span>
+                                        <span className="font-bold text-xl text-slate-900">{formatSeatLabel(scanResult.ticket.seatLabel)}</span>
                                 </div>
                                 <div>
                                     <span className="block text-slate-500">Ticket Type</span>
@@ -318,7 +326,7 @@ const OrganizerScanner: React.FC = () => {
                                  {scanResult.order.tickets.map(t => (
                                      <div key={t.id} className={`flex items-center justify-between p-3 rounded-lg border ${t.id === scanResult.ticket.id ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-300' : 'bg-white border-slate-200'}`}>
                                          <div>
-                                             <div className="font-bold text-slate-800">{t.seatLabel}</div>
+                                             <div className="font-bold text-slate-800">{formatSeatLabel(t.seatLabel)}</div>
                                              <div className="text-xs text-slate-500">{t.ticketType}</div>
                                          </div>
                                          {t.checkedIn ? (
