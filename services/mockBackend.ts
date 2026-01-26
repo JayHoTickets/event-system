@@ -1,7 +1,7 @@
 
 import { Event, Seat, SeatStatus, User, UserRole, Coupon, Order, Venue, Theater, Stage, ServiceCharge, PaymentMode, Ticket } from '../types';
 
-const API_URL = 'https://jayhoshow.com/api';
+const API_URL = 'http://10.238.186.178:5000/api';
 
 const fetchJson = async (url: string, options?: RequestInit) => {
     try {

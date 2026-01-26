@@ -5,6 +5,7 @@ import { Event, Seat, SeatingType, SeatStatus, EventStatus } from '../types';
 import { fetchEventById, holdSeat, lockSeats } from '../services/mockBackend';
 import SeatGrid, { CELL_SIZE } from '../components/SeatGrid';
 import { ArrowLeft, Clock, ShoppingCart, Tag, ZoomIn, ZoomOut, Maximize, Minus, Plus } from 'lucide-react';
+import { formatDateInTimeZone, formatTimeInTimeZone, formatInTimeZone } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
 
@@ -263,7 +264,7 @@ return (
                 <h1 className="text-2xl font-bold leading-tight">{event.title}</h1>
                 <p className="mt-2 text-sm text-white/90 flex items-center">
                     <Clock className="w-4 h-4 mr-2" />
-                    {new Date(event.startTime).toLocaleDateString()} &bull; {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatDateInTimeZone(event.startTime, event.timezone)} &bull; {formatTimeInTimeZone(event.startTime, event.timezone)}
                 </p>
                 <p className="text-white/90 text-sm mt-1">{event.location}</p>
             </div>
@@ -307,17 +308,9 @@ return (
             <p className="text-slate-600 flex items-center">
               <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
               <span className="flex-1">
-                {new Date(event.startTime).toLocaleDateString([], { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
+                {formatInTimeZone(event.startTime, event.timezone, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 <br />
-                {new Date(event.startTime).toLocaleTimeString([], { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
+                {formatTimeInTimeZone(event.startTime, event.timezone)}
               </span>
             </p>
             
@@ -507,7 +500,7 @@ return (
           <h2 className="text-lg font-bold text-slate-900">{event.title}</h2>
           <p className="text-slate-500 mt-1 text-sm flex items-center">
             <Clock className="w-4 h-4 mr-2" />
-            {new Date(event.startTime).toLocaleDateString()} &bull; {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {formatDateInTimeZone(event.startTime, event.timezone)} &bull; {formatTimeInTimeZone(event.startTime, event.timezone)}
           </p>
           <p className="text-slate-500 text-sm mt-1">{event.location}</p>
           {/* <p className="text-slate-500 text-sm mt-1">{event.seatingType === SeatingType.RESERVED ? 'Reserved Seating' : 'General Admission'}</p> */}

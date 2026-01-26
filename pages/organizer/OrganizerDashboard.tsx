@@ -5,6 +5,7 @@ import { fetchEventsByOrganizer, updateEvent, deleteEvent } from '../../services
 import { Event, User, EventStatus } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { Plus, Calendar, MapPin, Ticket, AlertCircle, Search, Trash2, Edit, Tag, BarChart2 } from 'lucide-react';
+import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
 import clsx from 'clsx';
 
 type TabType = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'CANCELLED' | 'COMPLETED' | 'DELETED';
@@ -171,7 +172,7 @@ const OrganizerDashboard: React.FC = () => {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1 gap-x-4 mb-3">
                                     <p className="text-sm text-slate-500 flex items-center">
                                         <Calendar className="w-4 h-4 mr-2 text-slate-400" />
-                                        {new Date(event.startTime).toLocaleDateString()} at {new Date(event.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        {formatDateInTimeZone(event.startTime, event.timezone)} at {formatTimeInTimeZone(event.startTime, event.timezone)}
                                     </p>
                                     <p className="text-sm text-slate-500 flex items-center">
                                         <MapPin className="w-4 h-4 mr-2 text-slate-400" />

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { fetchVenues, fetchTheatersByVenue, createEvent, fetchTheaterById, fetchEventById, updateEvent } from '../../services/mockBackend';
 import { Venue, Theater, EventCategory, SeatingType, EventStatus, TicketType } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { toLocalDatetimeInput } from '../../utils/date';
 import { ArrowLeft, Building2, Calendar, Globe, FileText, Banknote, Plus, Trash2, Map, Check, Grid, CheckSquare, ZoomIn, ZoomOut, Maximize, Armchair, Users } from 'lucide-react';
 import SeatGrid, { CELL_SIZE } from '../../components/SeatGrid';
 
@@ -54,19 +55,7 @@ const CreateEvent: React.FC = () => {
         terms: '',
     });
 
-    // Helper: convert ISO datetime -> local `datetime-local` input value (YYYY-MM-DDTHH:mm)
-    const toLocalDatetimeInput = (iso?: string) => {
-        if (!iso) return '';
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return '';
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        const yyyy = d.getFullYear();
-        const MM = pad(d.getMonth() + 1);
-        const dd = pad(d.getDate());
-        const hh = pad(d.getHours());
-        const mm = pad(d.getMinutes());
-        return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
-    };
+    // `toLocalDatetimeInput` imported from utils/date — preserves event timezone when editing
 
     // Ticket Types State
     const [ticketTypes, setTicketTypes] = useState<TicketType[]>([
@@ -97,9 +86,9 @@ const CreateEvent: React.FC = () => {
                         venueId: event.venueId,
                         theaterId: event.theaterId || '',
                         // Convert stored ISO datetimes into the format expected by <input type="datetime-local" />
-                        startTime: toLocalDatetimeInput(event.startTime as any),
-                        endTime: toLocalDatetimeInput(event.endTime as any),
-                        timezone: event.timezone,
+                            startTime: toLocalDatetimeInput(event.startTime as any, event.timezone),
+                            endTime: toLocalDatetimeInput(event.endTime as any, event.timezone),
+                            timezone: event.timezone || 'UTC',
                         imageUrl: event.imageUrl,
                         category: event.category,
                         seatingType: event.seatingType,
@@ -325,12 +314,12 @@ const CreateEvent: React.FC = () => {
         
         setLoading(true);
         try {
-            if (isEditMode && id) {
+                if (isEditMode && id) {
                  await updateEvent(id, {
                     ...formData,
-                    // Convert datetime-local back to ISO for storage/backend
-                    startTime: formData.startTime ? new Date(formData.startTime).toISOString() : '',
-                    endTime: formData.endTime ? new Date(formData.endTime).toISOString() : '',
+                    // Send the datetime-local wall time and timezone; backend will parse into UTC
+                    startTime: formData.startTime ? formData.startTime : '',
+                    endTime: formData.endTime ? formData.endTime : '',
                     ticketTypes,
                     seatMappings
                 });
@@ -338,9 +327,9 @@ const CreateEvent: React.FC = () => {
             } else {
                 await createEvent({
                     ...formData,
-                    // Ensure backend receives ISO timestamps
-                    startTime: formData.startTime ? new Date(formData.startTime).toISOString() : '',
-                    endTime: formData.endTime ? new Date(formData.endTime).toISOString() : '',
+                    // Send wall-clock datetime-local and timezone; backend will interpret with timezone
+                    startTime: formData.startTime ? formData.startTime : '',
+                    endTime: formData.endTime ? formData.endTime : '',
                     organizerId: user.id,
                     ticketTypes,
                     seatMappings

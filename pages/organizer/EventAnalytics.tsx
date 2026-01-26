@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment } from '../../services/mockBackend';
 import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
+import { formatDateInTimeZone } from '../../utils/date';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import SeatGrid, { CELL_SIZE } from '../../components/SeatGrid';
 import clsx from 'clsx';
@@ -217,7 +218,7 @@ const EventAnalytics: React.FC = () => {
                     <h1 className="text-3xl font-bold text-slate-900">{event.title} <span className="text-slate-400 font-normal">| Analytics</span></h1>
                     <p className="text-slate-500 mt-1 flex items-center">
                         <Calendar className="w-4 h-4 mr-1"/>
-                        {new Date(event.startTime).toLocaleDateString()}
+                        {formatDateInTimeZone(event.startTime, event.timezone)}
                     </p>
                 </div>
                 <div className="flex gap-2">

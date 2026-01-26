@@ -4,6 +4,7 @@ import { Event } from '../types';
 import { fetchEvents } from '../services/mockBackend';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin } from 'lucide-react';
+import { formatDateInTimeZone, formatTimeInTimeZone } from '../utils/date';
 
 const EventsList: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -37,7 +38,7 @@ const EventsList: React.FC = () => {
               <h2 className="text-xl font-bold text-slate-900 mb-2">{event.title}</h2>
               <div className="flex items-center text-slate-500 mb-2">
                 <Calendar className="w-4 h-4 mr-2" />
-                <span className="text-sm">{new Date(event.startTime).toLocaleDateString()} at {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-sm">{formatDateInTimeZone(event.startTime, event.timezone)} at {formatTimeInTimeZone(event.startTime, event.timezone)}</span>
               </div>
               <div className="flex items-center text-slate-500 mb-6">
                 <MapPin className="w-4 h-4 mr-2" />

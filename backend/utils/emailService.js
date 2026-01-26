@@ -1,5 +1,6 @@
 
 const SibApiV3Sdk = require('sib-api-v3-sdk');
+const { DateTime } = require('luxon');
 
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const apiKey = defaultClient.authentications['api-key'];
@@ -30,8 +31,21 @@ const sendEmail = async (to, subject, htmlContent) => {
 const formatCurrency = (amount) => `$${amount.toFixed(2)}`;
 
 exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, organizerEmail, adminEmail }) => {
-    const dateStr = new Date(event.startTime).toLocaleDateString();
-    const timeStr = new Date(event.startTime).toLocaleTimeString();
+    let dateStr = '';
+    let timeStr = '';
+    try {
+        if (event.timezone) {
+            const dt = DateTime.fromJSDate(new Date(event.startTime)).setZone(event.timezone);
+            dateStr = dt.toLocaleString(DateTime.DATE_MED);
+            timeStr = dt.toLocaleString(DateTime.TIME_SIMPLE);
+        } else {
+            dateStr = new Date(event.startTime).toLocaleDateString();
+            timeStr = new Date(event.startTime).toLocaleTimeString();
+        }
+    } catch (e) {
+        dateStr = new Date(event.startTime).toLocaleDateString();
+        timeStr = new Date(event.startTime).toLocaleTimeString();
+    }
 
     // Generate Ticket List with QR Codes
     const ticketsHtml = order.tickets.map(t => {

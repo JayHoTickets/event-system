@@ -1,7 +1,33 @@
 
+const { DateTime } = require('luxon');
 const Event = require('../models/Event');
 const Venue = require('../models/Venue');
 const Theater = require('../models/Theater');
+
+// Parse incoming date/time values from the client. The frontend sends
+// the wall-clock value (e.g. "2026-01-26T18:00") together with an
+// IANA timezone (e.g. "America/New_York"). Use Luxon to interpret that
+// wall-clock time in the provided zone and produce a JS Date (UTC
+// instant) suitable for storing in MongoDB.
+const parseEventDate = (value, timezone) => {
+    if (!value) return undefined;
+    try {
+        // Recognize a plain datetime-local (no offset) like 2026-01-26T18:00
+        const localMatch = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value);
+        if (localMatch && timezone) {
+            const dt = DateTime.fromFormat(value, "yyyy-MM-dd'T'HH:mm", { zone: timezone });
+            if (dt.isValid) return dt.toJSDate();
+        }
+        // Otherwise, try ISO parsing — this will handle strings with offsets
+        const dtIso = DateTime.fromISO(value, { zone: timezone || 'utc' });
+        if (dtIso.isValid) return dtIso.toJSDate();
+    } catch (err) {
+        console.warn('parseEventDate failed for', value, timezone, err && err.message);
+    }
+    // Fallback: let JS parse it (may be interpreted as local timezone)
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? undefined : d;
+};
 
 const formatVenueLocation = (v) => {
     if (!v) return '';
@@ -179,8 +205,14 @@ exports.createEvent = async (req, res) => {
             return parts.join(', ');
         };
 
+        // Parse provided start/end times using the provided timezone (if any)
+        const parsedStart = parseEventDate(data.startTime, data.timezone);
+        const parsedEnd = parseEventDate(data.endTime, data.timezone);
+
         const event = await Event.create({
             ...data,
+            startTime: parsedStart || data.startTime,
+            endTime: parsedEnd || data.endTime,
             seats,
             stage,
             rows,
@@ -200,6 +232,15 @@ exports.updateEvent = async (req, res) => {
         if (!event) return res.status(404).json({ message: 'Not found' });
 
         let updateData = { ...data };
+        // If the caller provided start/end times (as wall-clock strings),
+        // parse them with the supplied timezone or fallback to the
+        // existing event.timezone so we preserve the correct instant.
+        if (data.startTime) {
+            updateData.startTime = parseEventDate(data.startTime, data.timezone || event.timezone);
+        }
+        if (data.endTime) {
+            updateData.endTime = parseEventDate(data.endTime, data.timezone || event.timezone);
+        }
         const formatVenueLocation = (v) => {
             if (!v) return '';
             const parts = [];

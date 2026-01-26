@@ -7,6 +7,7 @@ import { Event, Seat, Coupon, ServiceCharge, PaymentMode, SeatingType } from '..
 import { validateCoupon, processPayment, fetchServiceCharges, createPaymentIntent, releaseSeats, releaseSeatsKeepAlive, fetchBestCoupon } from '../services/mockBackend';
 import { useAuth } from '../context/AuthContext';
 import { TicketCheck, CreditCard, Tag, Info, AlertTriangle, Timer, ArrowLeft } from 'lucide-react';
+import { formatInTimeZone } from '../utils/date';
 import clsx from 'clsx';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Npw4pKUXa8cL1IH4peMAyX0L2VQZfdd3geTwYivtTZUDtCE83NcGuP3vibkB8ndW6vhOzzDOLTtNTfGbzeJFC1600s4Jkldwa');
@@ -448,7 +449,7 @@ useEffect(() => {
             </h2>
             <div className="mb-6">
                 <h3 className="font-semibold text-slate-900">{event.title}</h3>
-                <p className="text-sm text-slate-500">{new Date(event.startTime).toLocaleString()}</p>
+                <p className="text-sm text-slate-500">{formatInTimeZone(event.startTime, event.timezone, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 <p className="text-sm text-slate-500">{event.location}</p>
             </div>
             <div className="space-y-3 mb-6 max-h-48 overflow-y-auto pr-2">
