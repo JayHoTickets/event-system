@@ -4,6 +4,8 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useLocation, Link } from 'react-router-dom';
 import { Order } from '../types';
+import { formatDateInTimeZone, formatTimeInTimeZone } from '../utils/date';
+import { fetchEventById } from '../services/mockBackend';
 import { QRCodeSVG } from 'qrcode.react';
 import { CheckCircle, Mail, Download } from 'lucide-react';
 
@@ -11,16 +13,21 @@ const Confirmation: React.FC = () => {
   const { state } = useLocation();
   const order = (state as any)?.order as Order;
     const [seatingType, setSeatingType] = useState<string | null>(null);
+    const [eventStart, setEventStart] = useState<string | null>(null);
+    const [eventTimezone, setEventTimezone] = useState<string | null>(null);
+    const [venueName, setVenueName] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchEvent = async () => {
             try {
                 if (!order || !order.tickets || order.tickets.length === 0) return;
                 const eventId = order.tickets[0].eventId;
-                const res = await fetch(`/api/events/${eventId}`);
-                if (!res.ok) return;
-                const data = await res.json();
+                const data = await fetchEventById(eventId);
+                if (!data) return;
                 setSeatingType(data.seatingType || null);
+                setEventStart(data.startTime || null);
+                setEventTimezone(data.timezone || null);
+                setVenueName((data as any).venueName || data.location || null);
             } catch (err) {
                 // ignore
             }
@@ -87,12 +94,18 @@ const Confirmation: React.FC = () => {
                         </div>
                         <div className="flex-1 text-center sm:text-left">
                             <h3 className="text-lg font-bold text-slate-900">{ticket.eventTitle}</h3>
-                            {ticket.color && (
-                                <div className="mt-2">
-                                    <span className="inline-block w-4 h-4 rounded-sm mr-2 align-middle" style={{ backgroundColor: ticket.color, border: '1px solid rgba(0,0,0,0.06)' }} />
-                                    <span className="text-sm text-slate-600">{ticket.ticketType}</span>
+                            {eventStart && (
+                                <div className="text-sm text-slate-500 mt-1">
+                                    <div>{formatDateInTimeZone(eventStart, eventTimezone)} {eventTimezone ? `• ${formatTimeInTimeZone(eventStart, eventTimezone)}` : ''}</div>
+                                    <div className="font-medium text-slate-700">{venueName || 'Unknown Venue'}</div>
                                 </div>
                             )}
+                            <div className="mt-2">
+                                {ticket.color && (
+                                    <span className="inline-block w-4 h-4 rounded-sm mr-2 align-middle" style={{ backgroundColor: ticket.color, border: '1px solid rgba(0,0,0,0.06)' }} />
+                                )}
+                                <span className="text-sm text-slate-600">{ticket.ticketType || 'Standard'}</span>
+                            </div>
                             <div className="mt-2 text-slate-600 space-y-1">
                                 {seatingType === 'RESERVED' && (
                                     <p><span className="font-semibold text-slate-800">Seat:</span> {ticket.seatLabel}</p>
