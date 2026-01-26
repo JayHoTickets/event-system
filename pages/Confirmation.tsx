@@ -39,6 +39,44 @@ const Confirmation: React.FC = () => {
         try {
             const el = document.getElementById(`ticket-${ticket.id}`);
             if (!el) return;
+
+            // Try to inline images (convert to data URLs) when possible so html2canvas captures them.
+            const inlineImagesInElement = async (container: HTMLElement) => {
+                const imgs = Array.from(container.getElementsByTagName('img')) as HTMLImageElement[];
+                await Promise.all(imgs.map(async (img) => {
+                    const src = img.getAttribute('src') || '';
+                    if (!src || src.startsWith('data:')) return;
+                    try {
+                        // Try to inline by fetching through our backend proxy to avoid CORS blocking
+                        const apiBase = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : 'http://localhost:5000';
+                        const proxyUrl = `${apiBase.replace(/\/$/, '')}/image-proxy?url=${encodeURIComponent(src)}`;
+                        const resp = await fetch(proxyUrl);
+                        if (!resp.ok) throw new Error('proxy-failed');
+                        const blob = await resp.blob();
+                        const dataUrl = await new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result as string);
+                            reader.readAsDataURL(blob);
+                        });
+                        img.src = dataUrl;
+                    } catch (e) {
+                        // Couldn't inline (likely CORS); leave original src so it still displays in-browser.
+                    }
+                }));
+            };
+
+            await inlineImagesInElement(el);
+
+            // Wait for any (now inlined or original) images inside the ticket element to finish loading
+            const imgs = Array.from(el.getElementsByTagName('img')) as HTMLImageElement[];
+            await Promise.all(imgs.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise<void>(resolve => {
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve();
+                });
+            }));
+
             const canvas = await html2canvas(el, { scale: 2, useCORS: true });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');

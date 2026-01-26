@@ -5,7 +5,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const seedData = require('./config/seeder');
 const path = require('path');
-
+const fetch = require('node-fetch');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -41,6 +41,26 @@ app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/coupons', require('./routes/couponRoutes'));
 app.use('/api/service-charges', require('./routes/serviceChargeRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
+
+// Image proxy to avoid cross-origin issues when generating PDFs
+
+app.get('/image-proxy', async (req, res) => {
+    const url = req.query.url;
+    if (!url) return res.status(400).send('Missing url');
+    try {
+        const response = await fetch(url);
+        if (!response.ok) return res.status(502).send('Failed to fetch image');
+        const contentType = response.headers.get('content-type') || 'image/png';
+        const buffer = await response.arrayBuffer();
+        res.set('Content-Type', contentType);
+        // Allow all origins so the frontend can fetch this image
+        res.set('Access-Control-Allow-Origin', '*');
+        res.send(Buffer.from(buffer));
+    } catch (err) {
+        console.error('Proxy error', err);
+        res.status(500).send('Proxy error');
+    }
+});
 
 // Specific seat route mapping
 app.post('/api/seats/hold', require('./controllers/eventController').holdSeat);
