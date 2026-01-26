@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, AlertCircle } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { UserRole } from '../types';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -19,7 +20,9 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      await loginWithEmailPassword(email, password);
+            // Normalize email to lowercase so login is case-insensitive
+            const emailLower = email.trim().toLowerCase();
+            await loginWithEmailPassword(emailLower, password);
       // Determine where to go based on user, but since we can't easily peek 'user' 
       // synchronously after async dispatch in this specific context setup without a useEffect,
       // we can assume if successful we might want to go to dashboard if admin.
@@ -27,7 +30,7 @@ const Login: React.FC = () => {
       // Or better:
       // Note: In a real app, we'd check the decoded token or user object.
       // For this mock, we know the admin email.
-      if (email === 'admin@jayhoticket.com') {
+      if (email.toLowerCase() === 'admin@jayhoticket.com') {
           navigate('/admin');
       } else {
           navigate('/');
@@ -78,13 +81,16 @@ const Login: React.FC = () => {
                 <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input 
-                        type="password" 
+                        type={showPassword ? 'text' : 'password'} 
                         required
                         className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
                         placeholder="••••••••"
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                     />
+                    <button type="button" onClick={() => setShowPassword(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 p-1">
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                 </div>
             </div>
 

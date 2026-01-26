@@ -2,8 +2,9 @@
 const User = require('../models/User');
 
 exports.login = async (req, res) => {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
     try {
+        if (typeof email === 'string') email = email.trim().toLowerCase();
         const user = await User.findOne({ email });
         // In a real app, use bcrypt.compare(password, user.password)
         if (user && user.password === password) {
