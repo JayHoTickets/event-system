@@ -54,6 +54,9 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
         
         return `
             <div style="border: 2px dashed #ccc; padding: 20px; margin-bottom: 20px; border-radius: 8px; display: flex; align-items: center;">
+                <div style="margin-right: 12px;">
+                    <img class="stub-img" src="https://events.jay-ho.com/wp-content/uploads/2026/01/white_90-degree-98x300.png" alt="Ticket stub" width="98" height="300" style="object-fit:cover; display:block;" />
+                </div>
                 <div style="margin-right: 20px;">
                     <img src="${qrUrl}" alt="QR Code" width="120" height="120" />
                 </div>
@@ -73,6 +76,12 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
 
     // Shared renderer to produce the same formatted email for any recipient
     const renderCommonHtml = ({ headline, introHtml = '', includeCustomerInfo = false, showCoupon = true }) => `
+        <style>
+            /* Rotate stub image on narrow screens (mobile) */
+            @media only screen and (max-width:600px){
+                .stub-img { width:300px !important; height:98px !important; transform: rotate(90deg) !important; -webkit-transform: rotate(90deg) !important; display:block !important; margin:0 auto 12px auto !important; }
+            }
+        </style>
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 680px; margin: 0 auto;">
             <div style="background:#16a34a;padding:28px 18px;text-align:center;color:#fff;border-top-left-radius:8px;border-top-right-radius:8px;">
                 <div style="font-size:44px;line-height:1;margin-bottom:6px;">✅</div>

@@ -87,12 +87,20 @@ const Confirmation: React.FC = () => {
             
             <div className="space-y-6">
                     {order.tickets.map(ticket => (
-                        <div id={`ticket-${ticket.id}`} key={ticket.id} className="flex flex-col sm:flex-row border-2 border-dashed border-slate-300 rounded-lg p-6 items-center gap-6">
-                        <div className="bg-white p-2 rounded border border-slate-200 shadow-sm">
-                            {/* Value is ticket.id which acts as QR data */}
-                            <QRCodeSVG value={ticket.id} size={120} />
-                        </div>
-                        <div className="flex-1 text-center sm:text-left">
+                        <div id={`ticket-${ticket.id}`} key={ticket.id} className="flex flex-col sm:flex-row border-2 rounded-lg overflow-hidden shadow-sm">
+                            {/* Left stub column */}
+                            <div className="flex items-center justify-center bg-[#4f46e5] p-3">
+                                <img src="https://events.jay-ho.com/wp-content/uploads/2026/01/white_90-degree-98x300.png" alt="Ticket stub" className="w-40 h-16 sm:w-16 sm:h-40 object-contain rotate-90 sm:rotate-0" />
+                            </div>
+                            {/* Vertical dashed separator */}
+                            <div className="hidden sm:block border-r-2 border-dashed border-slate-200" />
+                            {/* QR and details area */}
+                            <div className="flex flex-1 flex-col sm:flex-row items-center sm:items-start gap-6 p-6 bg-white">
+                                <div className="bg-white p-2 rounded border border-slate-200 shadow-sm flex-shrink-0">
+                                    {/* Value is ticket.id which acts as QR data */}
+                                    <QRCodeSVG value={ticket.id} size={120} />
+                                </div>
+                                <div className="flex-1 text-center sm:text-left">
                             <h3 className="text-lg font-bold text-slate-900">{ticket.eventTitle}</h3>
                             {eventStart && (
                                 <div className="text-sm text-slate-500 mt-1">
@@ -118,6 +126,7 @@ const Confirmation: React.FC = () => {
                             <Download className="w-6 h-6" />
                         </button>
                     </div>
+                </div>
                 ))}
             </div>
 

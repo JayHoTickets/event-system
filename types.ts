@@ -174,6 +174,7 @@ export interface Ticket {
   seatLabel: string;
   price: number;
   ticketType?: string;
+  color?: string;
   qrCodeData: string;
   purchaseDate: string;
   checkedIn?: boolean;
