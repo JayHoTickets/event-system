@@ -1,7 +1,7 @@
 
 import { Event, Seat, SeatStatus, User, UserRole, Coupon, Order, Venue, Theater, Stage, ServiceCharge, PaymentMode, Ticket } from '../types';
 
-const API_URL = 'http://10.238.186.178:5000/api';
+const API_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const fetchJson = async (url: string, options?: RequestInit) => {
     try {
