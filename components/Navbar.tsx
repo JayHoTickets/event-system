@@ -22,12 +22,12 @@ const Navbar: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}
             >
-              <img src="https://events.jay-ho.com/wp-content/uploads/2026/01/white_logo-scaled.png" alt="Jay-Ho Logo" className="h-8 w-auto object-contain" />
+              <img src="https://events.jay-ho.com/wp-content/uploads/2026/01/white_logo-scaled.png" alt="Jay-Ho Logo" className="h-10 w-auto object-contain" />
             </div>
           </div>
 
           {/* Center: search (hidden on mobile) */}
-          <div className="flex-1 hidden sm:flex justify-center px-4">
+          {/* <div className="flex-1 hidden sm:flex justify-center px-4">
             <div className="w-full max-w-2xl">
               <div className="relative">
                 <input
@@ -39,7 +39,7 @@ const Navbar: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Right: auth/actions */}
           <div className="flex items-center gap-4">
