@@ -1,11 +1,19 @@
 export const formatInTimeZone = (iso?: string | null, timeZone?: string, options: Intl.DateTimeFormatOptions = {}) => {
   if (!iso) return '';
   const d = new Date(iso);
-  if (!timeZone) return d.toLocaleString();
   try {
-    return new Intl.DateTimeFormat(undefined, { timeZone, ...options }).format(d as any);
+    // If a timezone is provided, include it in options; otherwise let Intl use the runtime default.
+    const opts: Intl.DateTimeFormatOptions = { ...options };
+    if (timeZone) (opts as any).timeZone = timeZone;
+    return new Intl.DateTimeFormat(undefined, opts).format(d as any);
   } catch (e) {
-    return d.toLocaleString();
+    // Fallback: respect the requested options when possible, otherwise use toLocaleString
+    try {
+      const opts: Intl.DateTimeFormatOptions = { ...options };
+      return new Intl.DateTimeFormat(undefined, opts).format(d as any);
+    } catch (e2) {
+      return d.toLocaleString();
+    }
   }
 };
 

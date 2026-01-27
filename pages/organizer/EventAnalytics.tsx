@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment } from '../../services/mockBackend';
 import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
-import { formatDateInTimeZone } from '../../utils/date';
+import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import SeatGrid, { CELL_SIZE } from '../../components/SeatGrid';
 import clsx from 'clsx';
@@ -477,7 +477,7 @@ const EventAnalytics: React.FC = () => {
                                         filteredOrders.map(order => (
                                             <tr key={order.id} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-6 py-4 text-sm font-mono text-slate-600">{order.id}</td>
-                                                <td className="px-6 py-4 text-sm text-slate-600">{formatDateInTimeZone(order.date, event.timezone)}</td>
+                                                <td className="px-6 py-4 text-sm text-slate-600">{formatDateInTimeZone(order.date, event.timezone)} at {formatTimeInTimeZone(order.date, event.timezone)}</td>
                                                 <td className="px-6 py-4">
                                                     <p className="text-sm font-medium text-slate-900">{order.customerName}</p>
                                                     <p className="text-xs text-slate-500">{order.customerEmail}</p>
@@ -755,7 +755,7 @@ const EventAnalytics: React.FC = () => {
                             <div>
                                 <h3 className="font-bold text-lg text-slate-900">Order Details</h3>
                                 <p className="text-sm text-slate-500 font-mono">{selectedOrder.id}</p>
-                                <p className="text-sm text-slate-500">Received: {formatDateInTimeZone(selectedOrder.date, event.timezone)}</p>
+                                <p className="text-sm text-slate-500">Received: {formatDateInTimeZone(selectedOrder.date, event.timezone)} at {formatTimeInTimeZone(selectedOrder.date, event.timezone)}</p>
                             </div>
                             <div className="text-right hidden sm:block">
                                 <div className="text-sm text-slate-500">Event</div>

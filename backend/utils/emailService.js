@@ -34,17 +34,38 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
     let dateStr = '';
     let timeStr = '';
     try {
-        if (event.timezone) {
-            const dt = DateTime.fromJSDate(new Date(event.startTime)).setZone(event.timezone);
+        // Try to create a Luxon DateTime from the stored value. The
+        // event.startTime may be a string or a Date; handle both.
+        let dt = null;
+        const jsDate = event.startTime ? new Date(event.startTime) : null;
+        if (jsDate && !isNaN(jsDate.getTime())) {
+            dt = DateTime.fromJSDate(jsDate);
+        } else if (event.startTime) {
+            const iso = DateTime.fromISO(String(event.startTime));
+            if (iso.isValid) dt = iso;
+        }
+
+        // If a timezone was provided, attempt to apply it but only
+        // accept the result if it's valid — otherwise fall back to
+        // the parsed DateTime (or JS Date below).
+        if (dt && event.timezone) {
+            const withZone = dt.setZone(event.timezone);
+            if (withZone.isValid) dt = withZone;
+        }
+
+        if (dt && dt.isValid) {
             dateStr = dt.toLocaleString(DateTime.DATE_MED);
             timeStr = dt.toLocaleString(DateTime.TIME_SIMPLE);
         } else {
-            dateStr = new Date(event.startTime).toLocaleDateString();
-            timeStr = new Date(event.startTime).toLocaleTimeString();
+            // Final fallback to plain JS Date formatting
+            const fallback = new Date(event.startTime);
+            dateStr = isNaN(fallback.getTime()) ? 'Unknown date' : fallback.toLocaleDateString();
+            timeStr = isNaN(fallback.getTime()) ? 'Unknown time' : fallback.toLocaleTimeString();
         }
     } catch (e) {
-        dateStr = new Date(event.startTime).toLocaleDateString();
-        timeStr = new Date(event.startTime).toLocaleTimeString();
+        const fallback = new Date(event.startTime);
+        dateStr = isNaN(fallback.getTime()) ? 'Unknown date' : fallback.toLocaleDateString();
+        timeStr = isNaN(fallback.getTime()) ? 'Unknown time' : fallback.toLocaleTimeString();
     }
 
     // Generate Ticket List with QR Codes
