@@ -1,5 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
+// Import local ticket stub so bundler serves it from same-origin
+import ticketStub from '../assets/white_90 degree.png';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useLocation, Link } from 'react-router-dom';
@@ -128,7 +130,7 @@ const Confirmation: React.FC = () => {
                         <div id={`ticket-${ticket.id}`} key={ticket.id} className="flex flex-col sm:flex-row border-2 rounded-lg overflow-hidden shadow-sm">
                             {/* Left stub column */}
                             <div className="flex items-center justify-center bg-[#4f46e5] p-3">
-                                <img src="https://events.jay-ho.com/wp-content/uploads/2026/01/white_90-degree-98x300.png" alt="Ticket stub" className="w-40 h-16 sm:w-16 sm:h-40 object-contain rotate-90 sm:rotate-0" />
+                                <img src={ticketStub} alt="Ticket stub" className="w-40 h-16 sm:w-16 sm:h-40 object-contain rotate-90 sm:rotate-0" />
                             </div>
                             {/* Vertical dashed separator */}
                             <div className="hidden sm:block border-r-2 border-dashed border-slate-200" />
