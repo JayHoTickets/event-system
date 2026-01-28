@@ -46,6 +46,7 @@ jobs:
           echo "📦 Installing frontend dependencies..."
           npm install
           echo "📦 Building frontend..."
+          export VITE_API_BASE_URL=https://jayhoshow.com/api
           npm run build
           echo "🔄 Restarting frontend PM2 process..."
           pm2 restart frontend
