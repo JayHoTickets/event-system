@@ -52,15 +52,15 @@ jobs:
           echo "✅ Frontend deployed successfully!"
 
           # ---------- Backend Deployment ----------
-          echo "🧹 Cleaning previous backend build..."
-          cd ~/version-2/backend
-          git reset --hard
-          git pull origin master
-          echo "📦 Installing backend dependencies..."
-          npm install
-          echo "🔄 Restarting backend PM2 process..."
-          pm2 restart backend
-          echo "✅ Backend deployed successfully!"
+          # echo "🧹 Cleaning previous backend build..."
+          # cd ~/version-2/backend
+          # git reset --hard
+          # git pull origin master
+          # echo "📦 Installing backend dependencies..."
+          # npm install
+          # echo "🔄 Restarting backend PM2 process..."
+          # pm2 restart backend
+          # echo "✅ Backend deployed successfully!"
 
           # ---------- Restart Nginx ----------
           echo "🔁 Restarting Nginx..."
