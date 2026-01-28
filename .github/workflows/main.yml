@@ -1,0 +1,60 @@
+name: Build and Deploy React App
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Install dependencies
+        run: npm install --force
+
+      - name: ⚙️ Build React App (using env.dev)
+        run: |
+          echo "🛠️ Building with DEV environment..."
+          npx env-cmd -f .env.dev npm run build
+
+      - name: 🚀 Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_SSH_KEY" > ec2_key.pem
+          chmod 600 ec2_key.pem
+          
+          echo "🧹 Cleaning previous build folder on EC2..."
+          ssh -i ec2_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "rm -rf /tmp/dist"
+
+          echo "📤 Copying new build folder to EC2..."
+          scp -r -i ec2_key.pem -o StrictHostKeyChecking=no dist $EC2_USER@$EC2_HOST:/tmp/
+
+          echo "🚀 Deploying on EC2 server..."
+          ssh -i ec2_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            echo "🧹 Removing ALL previous files from Nginx HTML root..."
+            sudo rm -rf /usr/share/nginx/html/theater-app
+
+            echo "📁 Creating fresh react-app directory..."
+            sudo mkdir -p /usr/share/nginx/html/theater-app
+
+            echo "📦 Copying new build files to react-app directory..."
+            sudo cp -r /tmp/dist/* /usr/share/nginx/html/theater-app/
+
+            echo "🧼 Cleaning up temp files..."
+            rm -rf /tmp/dist
+
+            echo "🔁 Restarting Nginx..."
+            sudo systemctl restart nginx
+          EOF
