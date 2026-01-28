@@ -50,23 +50,23 @@ jobs:
 
           # Deploy on EC2 in a single SSH session
           echo "🚀 Deploying React app on EC2..."
-          ssh -i ec2_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
-            set -e  # Exit immediately if any command fails
+          ssh -i ec2_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST <<EOF
+          set -e  # Exit immediately if any command fails
+          
+          echo "🧹 Cleaning previous Nginx build..."
+          sudo rm -rf /usr/share/nginx/html/theater-app
+          
+          echo "📁 Creating fresh directory..."
+          sudo mkdir -p /usr/share/nginx/html/theater-app
+          
+          echo "📦 Moving new build files..."
+          sudo cp -r /tmp/dist/* /usr/share/nginx/html/theater-app/
+          
+          echo "🧼 Cleaning up temp folder..."
+          rm -rf /tmp/dist
+          
+          echo "🔁 Restarting Nginx..."
+          sudo systemctl restart nginx
+          
+          echo "✅ Deployment complete!"
 
-            echo "🧹 Cleaning previous Nginx build..."
-            sudo rm -rf /usr/share/nginx/html/theater-app
-
-            echo "📁 Creating fresh directory..."
-            sudo mkdir -p /usr/share/nginx/html/theater-app
-
-            echo "📦 Moving new build files..."
-            sudo cp -r /tmp/dist/* /usr/share/nginx/html/theater-app/
-
-            echo "🧼 Cleaning up temp folder..."
-            rm -rf /tmp/dist
-
-            echo "🔁 Restarting Nginx..."
-            sudo systemctl restart nginx
-
-            echo "✅ Deployment complete!"
-EOF
