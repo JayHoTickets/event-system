@@ -32,29 +32,49 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
+          # Write SSH key to a file
           echo "$EC2_SSH_KEY" > ec2_key.pem
           chmod 600 ec2_key.pem
-          
-          echo "🧹 Cleaning previous build folder on EC2..."
-          ssh -i ec2_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "rm -rf /tmp/dist"
 
-          echo "📤 Copying new build folder to EC2..."
-          scp -r -i ec2_key.pem -o StrictHostKeyChecking=no dist $EC2_USER@$EC2_HOST:/tmp/
+          # Test SSH connection first
+          echo "🔌 Testing SSH connection to EC2..."
+          ssh -i ec2_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=10 $EC2_USER@$EC2_HOST "echo '✅ SSH connection successful!'"
 
-          echo "🚀 Deploying on EC2 server..."
+          # Exit if SSH test failed
+          if [ $? -ne 0 ]; then
+            echo "❌ SSH connection failed. Exiting."
+            exit 1
+          fi
+
+          # Run deployment commands in a single SSH session
+          echo "🚀 Deploying React app to EC2..."
           ssh -i ec2_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
-            echo "🧹 Removing ALL previous files from Nginx HTML root..."
+            set -e  # Exit immediately if any command fails
+
+            echo "🧹 Cleaning previous build folder..."
+            rm -rf /tmp/dist
+
+            echo "📤 Copying new build from GitHub Actions..."
+
+          # Copy build folder to EC2
+          scp -i ec2_key.pem -o StrictHostKeyChecking=no -r dist $EC2_USER@$EC2_HOST:/tmp/dist
+
+          # Continue deployment on EC2
+          ssh -i ec2_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            echo "🧹 Removing old files from Nginx HTML root..."
             sudo rm -rf /usr/share/nginx/html/theater-app
 
-            echo "📁 Creating fresh react-app directory..."
+            echo "📁 Creating fresh directory..."
             sudo mkdir -p /usr/share/nginx/html/theater-app
 
-            echo "📦 Copying new build files to react-app directory..."
+            echo "📦 Moving new build files..."
             sudo cp -r /tmp/dist/* /usr/share/nginx/html/theater-app/
 
-            echo "🧼 Cleaning up temp files..."
+            echo "🧼 Cleaning up temp build folder..."
             rm -rf /tmp/dist
 
             echo "🔁 Restarting Nginx..."
             sudo systemctl restart nginx
-          EOF
+
+            echo "✅ Deployment complete!"
+
