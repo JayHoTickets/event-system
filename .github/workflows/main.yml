@@ -54,13 +54,13 @@ jobs:
           set -e  # Exit immediately if any command fails
           
           echo "🧹 Cleaning previous Nginx build..."
-          sudo rm -rf /usr/share/nginx/html/theater-app
+          sudo rm -rf /usr/share/nginx/html/react-app
           
           echo "📁 Creating fresh directory..."
-          sudo mkdir -p /usr/share/nginx/html/theater-app
+          sudo mkdir -p /usr/share/nginx/html/react-app
           
           echo "📦 Moving new build files..."
-          sudo cp -r /tmp/dist/* /usr/share/nginx/html/theater-app/
+          sudo cp -r /tmp/build/* /usr/share/nginx/html/react-app/
           
           echo "🧼 Cleaning up temp folder..."
           rm -rf /tmp/dist
