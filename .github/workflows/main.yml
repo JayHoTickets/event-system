@@ -60,7 +60,7 @@ jobs:
           sudo mkdir -p /usr/share/nginx/html/react-app
           
           echo "📦 Moving new build files..."
-          sudo cp -r /tmp/build/* /usr/share/nginx/html/react-app/
+          sudo cp -r /tmp/dist/* /usr/share/nginx/html/react-app/
           
           echo "🧼 Cleaning up temp folder..."
           rm -rf /tmp/dist
