@@ -66,4 +66,4 @@ jobs:
           echo "🔁 Restarting Nginx..."
           sudo systemctl restart nginx
           echo "✅ Deployment complete!"
-EOF
+
