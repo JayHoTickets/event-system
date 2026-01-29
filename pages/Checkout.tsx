@@ -9,8 +9,9 @@ import { useAuth } from '../context/AuthContext';
 import { TicketCheck, CreditCard, Tag, Info, AlertTriangle, Timer, ArrowLeft } from 'lucide-react';
 import { formatInTimeZone } from '../utils/date';
 import clsx from 'clsx';
+import.meta.env
 
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Npw4pKUXa8cL1IH4peMAyX0L2VQZfdd3geTwYivtTZUDtCE83NcGuP3vibkB8ndW6vhOzzDOLTtNTfGbzeJFC1600s4Jkldwa');
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Npw4pKUXa8cL1IH4peMAyX0L2VQZfdd3geTwYivtTZUDtCE83NcGuP3vibkB8ndW6vhOzzDOLTtNTfGbzeJFC1600s4Jkldwa');
 
 const CheckoutForm: React.FC<{
     event: Event,

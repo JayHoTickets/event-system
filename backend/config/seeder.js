@@ -10,8 +10,8 @@ const seedData = async () => {
         if (!adminExists) {
             await User.create({
                 name: 'System Admin',
-                email: 'admin@jayhoticket.com',
-                password: 'admin123', // In prod, use bcrypt
+                email: 'jayho@jay-ho.com',
+                password: 'Jay-Ho!123', // In prod, use bcrypt
                 role: 'ADMIN'
             });
             console.log('Admin user created');
@@ -21,9 +21,9 @@ const seedData = async () => {
         if (!orgExists) {
             await User.create({
                 id: 'o1',
-                name: 'Demo Organizer',
-                email: 'organizer@demo.com',
-                password: 'org123',
+                name: 'Raj',
+                email: 'raj@jayhoshow.com',
+                password: 'Jay-Ho!123',
                 role: 'ORGANIZER'
             });
             console.log('Organizer user created');
