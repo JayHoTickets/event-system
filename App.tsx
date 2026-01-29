@@ -18,6 +18,7 @@ import CreateEvent from './pages/organizer/CreateEvent';
 import OrganizerCoupons from './pages/organizer/OrganizerCoupons';
 import EventAnalytics from './pages/organizer/EventAnalytics';
 import OrganizerScanner from './pages/organizer/OrganizerScanner';
+import PublicOrganizerGuide from './pages/PublicOrganizerGuide';
 import { AuthProvider } from './context/AuthContext';
 import { UserRole } from './types';
 import PublicLayout from './components/PublicLayout';
@@ -31,6 +32,7 @@ function App() {
             {/* PUBLIC ROUTES (With Navbar) */}
             <Route element={<PublicLayout />}>
                 <Route path="/" element={<EventsList />} />
+                <Route path="/organizer-guide" element={<PublicOrganizerGuide />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/event/:id" element={<EventBooking />} />
                 <Route path="/terms" element={<TermsAndConditions />} />

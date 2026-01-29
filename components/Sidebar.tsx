@@ -15,7 +15,8 @@ import {
   Tag, 
   Menu,
   X,
-  Scan
+  Scan,
+  BookOpen
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -104,6 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     <NavItem to="/organizer/scanner" icon={Scan} label="Scan Tickets" />
                     <NavItem to="/organizer/create-event" icon={PlusCircle} label="Create Event" />
                     <NavItem to="/organizer/coupons" icon={Tag} label="Coupons" />
+                    <NavItem to="/organizer-guide" icon={BookOpen} label="Organizer Guide" />
                 </>
             )}
         </div>
