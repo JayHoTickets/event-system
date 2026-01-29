@@ -14,7 +14,7 @@ let memoryServerInstance = null;
 
 const connectDB = async () => {
     try {
-        let uri = (process.env.MONGO_URI || 'mongodb+srv://root:Sid222324@cluster0.umir5jk.mongodb.net/?appName=Cluster0').trim();
+        let uri = (process.env.MONGO_URI).trim();
         let usedMemory = false;
 
         if (!uri) {
