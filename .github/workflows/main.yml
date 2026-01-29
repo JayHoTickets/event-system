@@ -54,7 +54,7 @@ jobs:
 
           # ---------- Backend Deployment ----------
           echo "🧹 Cleaning previous backend build..."
-          cd ~/version-2/backend
+          cd backend
           echo "📦 Installing backend dependencies..."
           npm install
           echo "🔄 Restarting backend PM2 process..."
