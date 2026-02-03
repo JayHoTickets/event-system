@@ -13,6 +13,7 @@ import AdminTheaters from './pages/admin/AdminTheaters';
 import AdminTheaterBuilder from './pages/admin/AdminTheaterBuilder';
 import AdminOrganizers from './pages/admin/AdminOrganizers';
 import AdminServiceCharges from './pages/admin/AdminServiceCharges';
+import AdminEvents from './pages/admin/AdminEvents';
 import OrganizerDashboard from './pages/organizer/OrganizerDashboard';
 import CreateEvent from './pages/organizer/CreateEvent';
 import OrganizerCoupons from './pages/organizer/OrganizerCoupons';
@@ -44,6 +45,7 @@ function App() {
             <Route path="/admin" element={<DashboardLayout allowedRoles={[UserRole.ADMIN]} />}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="venues" element={<AdminVenues />} />
+                <Route path="events" element={<AdminEvents />} />
                 <Route path="theaters" element={<AdminTheaters />} />
                 <Route path="theaters/:id/builder" element={<AdminTheaterBuilder />} />
                 <Route path="organizers" element={<AdminOrganizers />} />

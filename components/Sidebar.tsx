@@ -93,6 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 <>
                     <NavItem to="/admin" end icon={LayoutDashboard} label="Dashboard" />
                     <NavItem to="/admin/venues" icon={Building2} label="Venues" />
+                    <NavItem to="/admin/events" icon={Ticket} label="Events" />
                     <NavItem to="/admin/theaters" icon={Armchair} label="Theaters" />
                     <NavItem to="/admin/charges" icon={Receipt} label="Service Charges" />
                     <NavItem to="/admin/organizers" icon={Users} label="Organizers" />
