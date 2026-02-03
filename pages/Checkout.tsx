@@ -187,6 +187,112 @@ const CheckoutForm: React.FC<{
     );
 };
 
+const FreeBookingPanel: React.FC<{
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    event: Event;
+    selectedSeats: Seat[];
+    appliedCoupon: Coupon | null;
+    calculatedFee: number;
+    onSuccess: (transactionId: string, termsAccepted: boolean) => Promise<void>
+}> = ({ customerName, customerEmail, customerPhone, event, selectedSeats, appliedCoupon, calculatedFee, onSuccess }) => {
+    const [processing, setProcessing] = useState(false);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [termsError, setTermsError] = useState<string | null>(null);
+    const [showTermsModal, setShowTermsModal] = useState(false);
+
+    const handleFree = async () => {
+        setTermsError(null);
+        if (!customerName.trim() || !customerEmail.trim()) {
+            setTermsError('Please provide your full name and email address.');
+            return;
+        }
+        if (!termsAccepted) {
+            setTermsError('Please accept the Terms & Conditions before proceeding.');
+            return;
+        }
+        setProcessing(true);
+        try {
+            // Call parent onSuccess with a sentinel transaction id 'FREE'
+            await onSuccess('FREE', true);
+        } catch (err: any) {
+            console.error(err);
+            alert(err?.message || 'Failed to complete booking.');
+            setProcessing(false);
+        }
+    };
+
+    return (
+        <div>
+            {termsError && (
+                <div className="flex items-center text-red-600 bg-red-50 p-3 rounded-md text-sm mb-3">
+                    {termsError}
+                </div>
+            )}
+            <div className="flex items-start gap-3 mb-3">
+                <input id="free-terms" type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="mt-1" />
+                <label htmlFor="free-terms" className="text-sm text-slate-700">
+                    I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="text-indigo-600 underline">Terms &amp; Conditions</button>
+                </label>
+            </div>
+
+            <button
+                onClick={handleFree}
+                disabled={processing}
+                className="w-full mt-2 bg-green-600 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-green-700 transition-colors flex justify-center items-center disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+                {processing ? (
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                    `Book Now` 
+                )}
+            </button>
+
+            {showTermsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="fixed inset-0 bg-black/50" onClick={() => setShowTermsModal(false)} />
+                    <div className="relative w-full max-w-lg md:max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden max-h-[90vh]">
+                        <div className="flex items-center justify-between p-4 border-b bg-slate-50">
+                            <h3 className="text-lg font-bold">Terms &amp; Conditions</h3>
+                            <button onClick={() => setShowTermsModal(false)} className="text-slate-500 hover:text-slate-800 p-2 rounded">Close</button>
+                        </div>
+                        <div className="p-4 overflow-y-auto max-h-[72vh] text-sm text-slate-700">
+                            <section className="mb-4">
+                                <h4 className="font-semibold mb-2">Important Instructions</h4>
+                                <ul className="list-disc pl-5 space-y-1">
+                                    <li>Please arrive 30 minutes before the event starts</li>
+                                    <li>Bring a valid photo ID along with this confirmation</li>
+                                    <li>Screenshots of this email are acceptable for entry</li>
+                                    <li>Contact support if you need to make any changes</li>
+                                </ul>
+                            </section>
+                            <section>
+                                <h4 className="font-semibold mb-2">Terms and Conditions</h4>
+                                <p className="mb-3">Please carefully read and understand these terms and conditions before purchasing tickets for this event. By purchasing tickets, you acknowledge and agree to adhere to the following terms and conditions:</p>
+                                <div className="space-y-4">
+                                    <div>
+                                        <h5 className="font-semibold">Ticket Modifications, Cancellations, and Refunds</h5>
+                                        <p>Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. In case of Event cancellation, refunds will be initiated for the face value of the ticket only. Booking or transaction fees are non-refundable.</p>
+                                    </div>
+                                    <div>
+                                        <h5 className="font-semibold">Payment Gateway Charges</h5>
+                                        <p>Payment gateways apply a booking fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.</p>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                        <div className="p-4 border-t bg-white flex items-center gap-3 justify-end">
+                            <button onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Accept</button>
+                            <button onClick={() => setShowTermsModal(false)} className="px-4 py-2 border rounded-lg">Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const Checkout: React.FC = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -399,14 +505,15 @@ useEffect(() => {
   const handleOrderSuccess = async (transactionId: string, termsAccepted?: boolean) => {
     isPaidRef.current = true; // Prevents the cleanup releaser from running
     try {
+        const paymentModeToUse = transactionId === 'FREE' ? PaymentMode.CASH : PaymentMode.ONLINE;
         const order = await processPayment(
-                { name: customerName, email: customerEmail, phone: customerPhone, id: user?.id, termsAccepted: !!termsAccepted }, 
-            event, 
-            selectedSeats, 
-            calculatedFee, 
+                { name: customerName, email: customerEmail, phone: customerPhone, id: user?.id, termsAccepted: !!termsAccepted },
+            event,
+            selectedSeats,
+            calculatedFee,
             appliedCoupon?.id,
-            PaymentMode.ONLINE,
-            transactionId
+            paymentModeToUse,
+            transactionId === 'FREE' ? null : transactionId
         );
         // Use replace: true so they can't go back to checkout
         navigate('/confirmation', { state: { order }, replace: true });
@@ -537,10 +644,29 @@ useEffect(() => {
                 {appliedCoupon && <p className="text-green-600 text-xs mt-1 flex items-center"><Tag className="w-3 h-3 mr-1"/> Code applied successfully!</p>}
             </div>
             <div className="mt-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Credit Card</label>
-                <Elements stripe={stripePromise} >
-                    <CheckoutForm event={event} selectedSeats={selectedSeats} customerName={customerName} customerEmail={customerEmail}  customerPhone={customerPhone} appliedCoupon={appliedCoupon} calculatedFee={calculatedFee} finalTotal={finalTotal} onSuccess={handleOrderSuccess} />
-                </Elements>
+                {finalTotal <= 0 ? (
+                    // Free / zero-amount booking: show direct booking button and no card UI
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Booking</label>
+                        <FreeBookingPanel
+                            customerName={customerName}
+                            customerEmail={customerEmail}
+                            customerPhone={customerPhone}
+                            event={event}
+                            selectedSeats={selectedSeats}
+                            appliedCoupon={appliedCoupon}
+                            calculatedFee={calculatedFee}
+                            onSuccess={handleOrderSuccess}
+                        />
+                    </div>
+                ) : (
+                    <>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Credit Card</label>
+                        <Elements stripe={stripePromise} >
+                            <CheckoutForm event={event} selectedSeats={selectedSeats} customerName={customerName} customerEmail={customerEmail}  customerPhone={customerPhone} appliedCoupon={appliedCoupon} calculatedFee={calculatedFee} finalTotal={finalTotal} onSuccess={handleOrderSuccess} />
+                        </Elements>
+                    </>
+                )}
             </div>
         </div>
       </div>
