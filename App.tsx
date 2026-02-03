@@ -46,6 +46,7 @@ function App() {
                 <Route index element={<AdminDashboard />} />
                 <Route path="venues" element={<AdminVenues />} />
                 <Route path="events" element={<AdminEvents />} />
+                <Route path="events/:id/edit" element={<CreateEvent />} />
                 <Route path="theaters" element={<AdminTheaters />} />
                 <Route path="theaters/:id/builder" element={<AdminTheaterBuilder />} />
                 <Route path="organizers" element={<AdminOrganizers />} />
