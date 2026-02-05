@@ -1,10 +1,11 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment } from '../../services/mockBackend';
+import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus } from '../../services/mockBackend';
 import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
 import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
+import { useAuth } from '../../context/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import SeatGrid, { CELL_SIZE } from '../../components/SeatGrid';
 import clsx from 'clsx';
@@ -15,11 +16,12 @@ const EventAnalytics: React.FC = () => {
     
     const [event, setEvent] = useState<Event | null>(null);
     const [orders, setOrders] = useState<Order[]>([]);
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [orderDateFrom, setOrderDateFrom] = useState('');
     const [orderDateTo, setOrderDateTo] = useState('');
-    const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL'|'PAID'|'FAILED'|'REFUNDED'>('ALL');
+    const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL'|'PAID'|'FAILED'|'REFUNDED'|'CANCELLED'>('ALL');
     const [orderModeFilter, setOrderModeFilter] = useState<'ALL' | PaymentMode>('ALL');
     
     // View State
@@ -35,6 +37,12 @@ const EventAnalytics: React.FC = () => {
     // Modal State
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [showBoxOffice, setShowBoxOffice] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelRefundAmount, setCancelRefundAmount] = useState<number>(0);
+    const [cancelNotes, setCancelNotes] = useState<string>('');
+    const [cancelRefundStatus, setCancelRefundStatus] = useState<'PENDING'|'PROCESSED'|'FAILED'>('PENDING');
+    const [cancelProcessing, setCancelProcessing] = useState<boolean>(false);
+    const [refundStatusProcessing, setRefundStatusProcessing] = useState<boolean>(false);
 
     // Box Office Form
     const [boName, setBoName] = useState('');
@@ -64,6 +72,8 @@ const EventAnalytics: React.FC = () => {
         }
     }
 
+    
+
     // Auto-fit map when switching to MAP view
     useEffect(() => {
         if (activeView === 'MAP' && event && event.seatingType === SeatingType.RESERVED && mapContainerRef.current) {
@@ -80,9 +90,10 @@ const EventAnalytics: React.FC = () => {
     if (!event) return <div className="p-10 text-center text-red-500">Event not found</div>;
 
     // --- Stats Calculation ---
-    // Subtract service fees from total amount to show net revenue to organizer
-    const totalRevenue = orders.reduce((acc, o) => acc + (o.totalAmount - (o.serviceFee || 0)), 0);
-    const totalTicketsSold = orders.reduce((acc, o) => acc + o.tickets.length, 0);
+    // Exclude cancelled orders from revenue and ticket counts
+    const activeOrders = orders.filter(o => o.status !== 'CANCELLED');
+    const totalRevenue = activeOrders.reduce((acc, o) => acc + (o.totalAmount - (o.serviceFee || 0)), 0);
+    const totalTicketsSold = activeOrders.reduce((acc, o) => acc + o.tickets.length, 0);
     const totalCapacity = event.seats.length;
     const percentageSold = totalCapacity > 0 ? Math.round((totalTicketsSold / totalCapacity) * 100) : 0;
     
@@ -199,6 +210,42 @@ const EventAnalytics: React.FC = () => {
         } catch (err) {
             console.error('Export failed', err);
             alert('Export failed. Check console for details.');
+        }
+    };
+
+    // Open cancel form prefilled for selected order
+    const handleCancelOrder = (order: Order) => {
+        setSelectedOrder(order);
+        setCancelRefundAmount(order.refundAmount || 0);
+        setCancelNotes(order.cancellationNotes || '');
+        setCancelRefundStatus((order.refundStatus as any) || 'PENDING');
+        setShowCancelModal(true);
+    };
+
+    const confirmCancelOrder = async () => {
+        if (!selectedOrder) return;
+        setCancelProcessing(true);
+        try {
+            const payload = {
+                organizerId: user?.id,
+                refundAmount: Number(cancelRefundAmount) || 0,
+                notes: cancelNotes,
+                refundStatus: cancelRefundStatus
+            };
+            const res = await cancelOrder(selectedOrder.id, payload);
+            if (res && res.success) {
+                // Update local orders state
+                setOrders(prev => prev.map(o => o.id === res.order.id ? res.order : o));
+                setSelectedOrder(res.order);
+                setShowCancelModal(false);
+            } else {
+                alert('Failed to cancel order');
+            }
+        } catch (err: any) {
+            console.error('Cancel failed', err);
+            alert('Cancel failed: ' + (err.message || err));
+        } finally {
+            setCancelProcessing(false);
         }
     };
 
@@ -438,6 +485,7 @@ const EventAnalytics: React.FC = () => {
                                         <option value="PAID">Paid</option>
                                         <option value="FAILED">Failed</option>
                                         <option value="REFUNDED">Refunded</option>
+                                        <option value="CANCELLED">Cancelled</option>
                                     </select>
                                     <select
                                         className="border rounded-lg px-3 py-2 text-sm bg-white"
@@ -463,6 +511,7 @@ const EventAnalytics: React.FC = () => {
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total (Net)</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Mode</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Status</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Refund Status</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -501,6 +550,18 @@ const EventAnalytics: React.FC = () => {
                                                     }`}>
                                                         {order.status}
                                                     </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {order.status === 'CANCELLED' ? (
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                            (order.refundStatus || 'PENDING') === 'PROCESSED' ? 'bg-green-100 text-green-800' : 
+                                                            (order.refundStatus || 'PENDING') === 'FAILED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                                                        }`}>
+                                                            {(order.refundStatus || 'PENDING')}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-sm text-slate-400">—</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <button 
@@ -762,12 +823,23 @@ const EventAnalytics: React.FC = () => {
                                 <div className="font-medium text-slate-900">{event?.title}</div>
                                 <div className="text-xs text-slate-500">{event ? formatDateInTimeZone(event.startTime, event.timezone) : ''}</div>
                             </div>
-                            <button 
-                                onClick={() => setSelectedOrder(null)} 
-                                className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"
-                            >
-                                <X className="w-6 h-6"/>
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {user && String(user.id) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
+                                    <button
+                                        onClick={() => handleCancelOrder(selectedOrder)}
+                                        className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                        title="Cancel Order"
+                                    >
+                                        Cancel Order
+                                    </button>
+                                )}
+                                <button 
+                                    onClick={() => setSelectedOrder(null)} 
+                                    className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"
+                                >
+                                    <X className="w-6 h-6"/>
+                                </button>
+                            </div>
                         </div>
                         <div className="p-6 overflow-y-auto max-h-[70vh]">
                             {/* Customer Info */}
@@ -800,6 +872,77 @@ const EventAnalytics: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Cancellation Details (if cancelled) */}
+                            {selectedOrder.status === 'CANCELLED' && (
+                                <div className="bg-red-50 rounded-lg p-4 mb-6 border border-red-100">
+                                    <h4 className="text-sm font-bold text-red-700 mb-2">Cancellation Details</h4>
+                                    <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                                        <div>
+                                            <span className="text-slate-500 block mb-1">Refund Amount</span>
+                                            <span className="font-medium">${(selectedOrder.refundAmount || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-500 block mb-1">Refund Status</span>
+                                                    {user && String(user.id) === String(event.organizerId) ? (
+                                                <div className="flex items-center gap-2">
+                                                    <select
+                                                        className="w-full border rounded-lg px-3 py-2"
+                                                        value={(selectedOrder.refundStatus || 'PENDING') as any}
+                                                        onChange={async (e) => {
+                                                            const newStatus = e.target.value as 'PENDING'|'PROCESSED'|'FAILED';
+                                                            try {
+                                                                setRefundStatusProcessing(true);
+                                                                const payload = {
+                                                                    organizerId: user?.id,
+                                                                    refundStatus: newStatus
+                                                                };
+                                                                const res = await updateRefundStatus(selectedOrder.id, payload);
+                                                                if (res && res.success) {
+                                                                    setOrders(prev => prev.map(o => o.id === res.order.id ? res.order : o));
+                                                                    setSelectedOrder(res.order);
+                                                                } else {
+                                                                    alert('Failed to update refund status');
+                                                                }
+                                                            } catch (err: any) {
+                                                                console.error('Failed to update refund status', err);
+                                                                alert('Update failed: ' + (err.message || err));
+                                                            } finally {
+                                                                setRefundStatusProcessing(false);
+                                                            }
+                                                        }}
+                                                        disabled={refundStatusProcessing}
+                                                    >
+                                                        <option value="PENDING">Pending</option>
+                                                        <option value="PROCESSED">Processed</option>
+                                                        <option value="FAILED">Failed</option>
+                                                    </select>
+                                                    {refundStatusProcessing && (
+                                                        <svg className="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="font-medium">{selectedOrder.refundStatus || 'PENDING'}</span>
+                                            )}
+                                        </div>
+                                        <div className="col-span-2">
+                                            <span className="text-slate-500 block mb-1">Notes</span>
+                                            <div className="text-sm text-slate-700">{selectedOrder.cancellationNotes || '—'}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-500 block mb-1">Cancelled By</span>
+                                            <div className="text-sm text-slate-700">{selectedOrder.cancelledBy || 'Organizer'}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-500 block mb-1">Date</span>
+                                            <div className="text-sm text-slate-700">{selectedOrder.cancelledAt ? new Date(selectedOrder.cancelledAt).toLocaleString() : '—'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Ticket List */}
                             <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
@@ -854,6 +997,59 @@ const EventAnalytics: React.FC = () => {
                                         <span>${selectedOrder.totalAmount.toFixed(2)}</span>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Order Modal */}
+            {showCancelModal && selectedOrder && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-4 border-b flex justify-between items-center bg-slate-50">
+                            <h3 className="font-bold text-lg text-slate-900">Cancel Order</h3>
+                            <button onClick={() => setShowCancelModal(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"><X className="w-5 h-5"/></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-600">You are cancelling Order <span className="font-mono text-slate-700">{selectedOrder.id}</span>. This action will mark the order as <strong>CANCELLED</strong> and block tickets from scanning.</p>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Refund Amount</label>
+                                <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2" value={cancelRefundAmount} onChange={e => setCancelRefundAmount(Number(e.target.value))} />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Refund Status</label>
+                                <select className="w-full border rounded-lg px-3 py-2" value={cancelRefundStatus} onChange={e => setCancelRefundStatus(e.target.value as any)}>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="PROCESSED">Processed</option>
+                                    <option value="FAILED">Failed</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Cancellation Notes</label>
+                                <textarea className="w-full border rounded-lg px-3 py-2" rows={4} value={cancelNotes} onChange={e => setCancelNotes(e.target.value)} />
+                            </div>
+
+                            <div className="flex justify-end gap-2">
+                                <button onClick={() => setShowCancelModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
+                                <button 
+                                    onClick={confirmCancelOrder} 
+                                    className="px-4 py-2 rounded-lg bg-red-600 text-white disabled:opacity-60 flex items-center gap-2"
+                                    disabled={cancelProcessing}
+                                >
+                                    {cancelProcessing ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                            </svg>
+                                            Processing...
+                                        </>
+                                    ) : 'Confirm Cancel'}
+                                </button>
                             </div>
                         </div>
                     </div>

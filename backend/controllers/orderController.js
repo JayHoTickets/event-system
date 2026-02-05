@@ -6,6 +6,8 @@ const User = require('../models/User');
 const { sendOrderEmails } = require('../utils/emailService');
 const { computeCouponDiscount } = require('../utils/discountService');
 
+const { sendCancellationEmails } = require('../utils/emailService');
+
 exports.getOrders = async (req, res) => {
     try {
         const query = req.query.eventId ? { 'tickets.eventId': req.query.eventId } : {};
@@ -208,6 +210,11 @@ exports.verifyTicket = async (req, res) => {
             return res.status(404).json({ message: 'Invalid Ticket QR Code' });
         }
 
+        // Block tickets belonging to cancelled orders
+        if (order.status === 'CANCELLED') {
+            return res.status(400).json({ message: 'This ticket has been cancelled' });
+        }
+
         const ticket = order.tickets.find(t => t.id === qrCode);
         
         // Return ticket + full order context (for group check-in)
@@ -228,7 +235,9 @@ exports.checkInTicket = async (req, res) => {
         if (!order) {
             return res.status(404).json({ message: 'Ticket not found' });
         }
-
+        if (order.status === 'CANCELLED') {
+            return res.status(400).json({ message: 'This ticket has been cancelled' });
+        }
         const ticket = order.tickets.find(t => t.id === ticketId);
         ticket.checkedIn = checkedIn;
         if (checkedIn) {
@@ -239,6 +248,111 @@ exports.checkInTicket = async (req, res) => {
 
         await order.save();
         res.json({ success: true, ticket });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Organizer cancels an order for their event
+exports.cancelOrder = async (req, res) => {
+    const { id } = req.params; // order id
+    const { organizerId, refundAmount = 0, notes = '', refundStatus = 'PENDING' } = req.body;
+    try {
+        const order = await Order.findById(id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+
+        // Determine eventId from first ticket
+        const eventId = order.tickets && order.tickets.length ? order.tickets[0].eventId : null;
+        if (!eventId) return res.status(400).json({ message: 'Order has no event context' });
+
+        const event = await Event.findById(eventId);
+        if (!event) return res.status(404).json({ message: 'Event not found' });
+
+        // Only organizer of the event can cancel
+        if (!organizerId || String(event.organizerId) !== String(organizerId)) {
+            return res.status(403).json({ message: 'Only the event organizer can cancel this order' });
+        }
+
+        // If already cancelled, allow updating refund fields/notes/status.
+        const allowed = ['PENDING', 'PROCESSED', 'FAILED'];
+        const normalizedRefundStatus = allowed.includes(String(refundStatus).toUpperCase()) ? String(refundStatus).toUpperCase() : 'PENDING';
+
+        if (order.status === 'CANCELLED') {
+            // Update refund fields and notes
+            order.refundAmount = Number(refundAmount) || 0;
+            order.refundStatus = normalizedRefundStatus;
+            order.cancellationNotes = notes || order.cancellationNotes;
+            // Record update in history
+            const now = new Date();
+            order.cancellationHistory = order.cancellationHistory || [];
+            order.cancellationHistory.push({ organizerId, timestamp: now, refundAmount: order.refundAmount, notes });
+            order.cancelledBy = organizerId; // maintain/overwrite who performed latest action
+            order.cancelledAt = order.cancelledAt || now;
+        } else {
+            // Mark order cancelled and record refund, notes and refund status
+            order.status = 'CANCELLED';
+            order.refundAmount = Number(refundAmount) || 0;
+            order.refundStatus = normalizedRefundStatus;
+            order.cancellationNotes = notes;
+            order.cancelledBy = organizerId;
+            order.cancelledAt = new Date();
+            order.cancellationHistory = order.cancellationHistory || [];
+            order.cancellationHistory.push({ organizerId, timestamp: order.cancelledAt, refundAmount: order.refundAmount, notes });
+        }
+
+        await order.save();
+
+        // Send notification emails (async)
+        try {
+            const organizer = await User.findById(event.organizerId);
+            const admin = await User.findOne({ role: 'ADMIN' });
+            await sendCancellationEmails({ order, event, organizerEmail: organizer ? organizer.email : null, adminEmail: admin ? admin.email : 'admin@jayhoticket.com' });
+        } catch (emailErr) {
+            console.error('Failed to send cancellation emails', emailErr);
+        }
+
+        res.json({ success: true, order });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Update only the refund status of a cancelled order
+exports.updateRefundStatus = async (req, res) => {
+    const { id } = req.params;
+    const { organizerId, refundStatus } = req.body;
+    try {
+        const order = await Order.findById(id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+
+        // Determine eventId from first ticket
+        const eventId = order.tickets && order.tickets.length ? order.tickets[0].eventId : null;
+        if (!eventId) return res.status(400).json({ message: 'Order has no event context' });
+
+        const event = await Event.findById(eventId);
+        if (!event) return res.status(404).json({ message: 'Event not found' });
+
+        // Only organizer of the event can update refund status
+        if (!organizerId || String(event.organizerId) !== String(organizerId)) {
+            return res.status(403).json({ message: 'Only the event organizer can update refund status' });
+        }
+
+        const allowed = ['PENDING', 'PROCESSED', 'FAILED'];
+        const normalized = allowed.includes(String(refundStatus).toUpperCase()) ? String(refundStatus).toUpperCase() : null;
+        if (!normalized) return res.status(400).json({ message: 'Invalid refundStatus' });
+
+        // Only allow updating refund status if order is cancelled (business rule)
+        if (order.status !== 'CANCELLED') {
+            return res.status(400).json({ message: 'Order must be cancelled to update refund status' });
+        }
+
+        order.refundStatus = normalized;
+        // append to history
+        order.cancellationHistory = order.cancellationHistory || [];
+        order.cancellationHistory.push({ organizerId, timestamp: new Date(), refundAmount: order.refundAmount || 0, notes: `Refund status set to ${normalized}` });
+        await order.save();
+
+        res.json({ success: true, order });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
