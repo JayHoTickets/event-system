@@ -61,10 +61,36 @@ exports.createOrder = async (req, res) => {
         if (eventDoc) {
             if (event.seatingType === 'RESERVED') {
                 const soldIds = new Set(seats.map(s => s.id));
-                // Only transition seats that were temporarily held (BOOKING_IN_PROGRESS)
-                // or still AVAILABLE to SOLD. Do not accidentally overwrite other states.
+
+                // Pre-check: ensure all requested seats are available (or held but expired).
+                // Reject the order if any seat is already SOLD/HELD/UNAVAILABLE or actively held by another booking.
+                const now = new Date();
+                const conflicts = [];
+                for (const sid of soldIds) {
+                    const existingSeat = eventDoc.seats.find(x => x.id === sid);
+                    if (!existingSeat) {
+                        conflicts.push({ id: sid, reason: 'NOT_FOUND' });
+                        continue;
+                    }
+                    const st = existingSeat.status;
+                    if (st === 'SOLD' || st === 'HELD' || st === 'UNAVAILABLE') {
+                        conflicts.push({ id: sid, reason: st });
+                        continue;
+                    }
+                    // If seat is BOOKING_IN_PROGRESS and holdUntil is in the future, consider it held
+                    if (st === 'BOOKING_IN_PROGRESS' && existingSeat.holdUntil && new Date(existingSeat.holdUntil) > now) {
+                        conflicts.push({ id: sid, reason: 'HELD' });
+                        continue;
+                    }
+                }
+
+                if (conflicts.length > 0) {
+                    return res.status(409).json({ message: 'Some seats are not available', conflicts });
+                }
+
+                // All seats passed pre-check: mark them as SOLD (or clear expired holds)
                 eventDoc.seats = eventDoc.seats.map(s => {
-                    if (soldIds.has(s.id) && (s.status === 'BOOKING_IN_PROGRESS' || s.status === 'AVAILABLE')) {
+                    if (soldIds.has(s.id) && (s.status === 'BOOKING_IN_PROGRESS' || s.status === 'AVAILABLE' || (s.status === 'BOOKING_IN_PROGRESS' && (!s.holdUntil || new Date(s.holdUntil) < now)))) {
                         return { ...s, status: 'SOLD', holdUntil: null };
                     }
                     return s;
