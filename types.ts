@@ -198,7 +198,12 @@ export interface Order {
   serviceFee: number; // Platform fee charged
   discountApplied: number;
   couponCode?: string;
-  status: 'PAID' | 'FAILED' | 'REFUNDED';
+  status: 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
+  refundAmount?: number;
+  refundStatus?: 'PENDING' | 'PROCESSED' | 'FAILED';
+  cancellationNotes?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
   paymentMode: PaymentMode;
   date: string;
 }

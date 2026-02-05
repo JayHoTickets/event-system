@@ -290,3 +290,17 @@ export const checkInTicket = (ticketId: string, checkedIn: boolean): Promise<{ s
         body: JSON.stringify({ ticketId, checkedIn }) 
     });
 };
+
+export const cancelOrder = (orderId: string, payload: { organizerId: string, refundAmount?: number, notes?: string }): Promise<{ success: boolean, order: Order }> => {
+    return fetchJson(`/orders/${orderId}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    });
+};
+
+export const updateRefundStatus = (orderId: string, payload: { organizerId: string, refundStatus: 'PENDING' | 'PROCESSED' | 'FAILED' }): Promise<{ success: boolean, order: Order }> => {
+    return fetchJson(`/orders/${orderId}/refund-status`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    });
+};
