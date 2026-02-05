@@ -1,90 +1,48 @@
-import React, { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import {
-  fetchEventById,
-  fetchEventOrders,
-  updateSeatStatus,
-  processPayment,
-} from "../../services/mockBackend";
-import {
-  Event,
-  Order,
-  SeatingType,
-  SeatStatus,
-  PaymentMode,
-  Seat,
-} from "../../types";
-import {
-  ArrowLeft,
-  DollarSign,
-  Ticket,
-  Calendar,
-  Search,
-  Filter,
-  Download,
-  Eye,
-  X,
-  Map as MapIcon,
-  BarChart2,
-  ZoomIn,
-  ZoomOut,
-  Maximize,
-  Ban,
-  CheckCircle,
-  CreditCard,
-  User as UserIcon,
-  UserCheck,
-  PieChart as PieChartIcon,
-} from "lucide-react";
-import { formatDateInTimeZone, formatTimeInTimeZone } from "../../utils/date";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-  Legend,
-} from "recharts";
-import SeatGrid, { CELL_SIZE } from "../../components/SeatGrid";
-import clsx from "clsx";
+
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus } from '../../services/mockBackend';
+import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
+import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
+import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
+import { useAuth } from '../../context/AuthContext';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import SeatGrid, { CELL_SIZE } from '../../components/SeatGrid';
+import clsx from 'clsx';
 
 const EventAnalytics: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-
-  const [event, setEvent] = useState<Event | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [orderDateFrom, setOrderDateFrom] = useState("");
-  const [orderDateTo, setOrderDateTo] = useState("");
-  const [orderStatusFilter, setOrderStatusFilter] = useState<
-    "ALL" | "PAID" | "FAILED" | "REFUNDED"
-  >("ALL");
-  const [orderModeFilter, setOrderModeFilter] = useState<"ALL" | PaymentMode>(
-    "ALL",
-  );
-
-  // View State
-  const [activeView, setActiveView] = useState<"STATS" | "MAP" | "CHECKIN">(
-    "STATS",
-  );
-
-  // Map Zoom State
-  const [zoom, setZoom] = useState(1);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    
+    const [event, setEvent] = useState<Event | null>(null);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const { user } = useAuth();
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [orderDateFrom, setOrderDateFrom] = useState('');
+    const [orderDateTo, setOrderDateTo] = useState('');
+    const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL'|'PAID'|'FAILED'|'REFUNDED'|'CANCELLED'>('ALL');
+    const [orderModeFilter, setOrderModeFilter] = useState<'ALL' | PaymentMode>('ALL');
+    
+    // View State
+    const [activeView, setActiveView] = useState<'STATS' | 'MAP' | 'CHECKIN'>('STATS');
+    
+    // Map Zoom State
+    const [zoom, setZoom] = useState(1);
+    const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Selection State
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
 
-  // Modal State
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showBoxOffice, setShowBoxOffice] = useState(false);
+    // Modal State
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [showBoxOffice, setShowBoxOffice] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelRefundAmount, setCancelRefundAmount] = useState<number>(0);
+    const [cancelNotes, setCancelNotes] = useState<string>('');
+    const [cancelRefundStatus, setCancelRefundStatus] = useState<'PENDING'|'PROCESSED'|'FAILED'>('PENDING');
+    const [cancelProcessing, setCancelProcessing] = useState<boolean>(false);
+    const [refundStatusProcessing, setRefundStatusProcessing] = useState<boolean>(false);
 
   // Box Office Form
   const [boName, setBoName] = useState("");
@@ -103,17 +61,20 @@ const EventAnalytics: React.FC = () => {
     loadData();
   }, [id]);
 
-  const loadData = () => {
-    if (id) {
-      Promise.all([fetchEventById(id), fetchEventOrders(id)]).then(
-        ([eData, oData]) => {
-          setEvent(eData || null);
-          setOrders(oData);
-          setLoading(false);
-        },
-      );
+    const loadData = () => {
+        if (id) {
+            Promise.all([
+                fetchEventById(id),
+                fetchEventOrders(id)
+            ]).then(([eData, oData]) => {
+                setEvent(eData || null);
+                setOrders(oData);
+                setLoading(false);
+            });
+        }
     }
-  };
+
+    
 
   // Auto-fit map when switching to MAP view
   useEffect(() => {
@@ -141,28 +102,17 @@ const EventAnalytics: React.FC = () => {
   if (!event)
     return <div className="p-10 text-center text-red-500">Event not found</div>;
 
-  // --- Stats Calculation ---
-  // Subtract service fees from total amount to show net revenue to organizer
-  const totalRevenue = orders.reduce(
-    (acc, o) => acc + (o.totalAmount - (o.serviceFee || 0)),
-    0,
-  );
-  const totalTicketsSold = orders.reduce((acc, o) => acc + o.tickets.length, 0);
-  const totalCapacity = event.seats.length;
-  const percentageSold =
-    totalCapacity > 0
-      ? Math.round((totalTicketsSold / totalCapacity) * 100)
-      : 0;
-
-  // Check-in Stats
-  const totalCheckedIn = orders.reduce(
-    (acc, o) => acc + o.tickets.filter((t) => t.checkedIn).length,
-    0,
-  );
-  const percentageCheckedIn =
-    totalTicketsSold > 0
-      ? Math.round((totalCheckedIn / totalTicketsSold) * 100)
-      : 0;
+    // --- Stats Calculation ---
+    // Exclude cancelled orders from revenue and ticket counts
+    const activeOrders = orders.filter(o => o.status !== 'CANCELLED');
+    const totalRevenue = activeOrders.reduce((acc, o) => acc + (o.totalAmount - (o.serviceFee || 0)), 0);
+    const totalTicketsSold = activeOrders.reduce((acc, o) => acc + o.tickets.length, 0);
+    const totalCapacity = event.seats.length;
+    const percentageSold = totalCapacity > 0 ? Math.round((totalTicketsSold / totalCapacity) * 100) : 0;
+    
+    // Check-in Stats
+    const totalCheckedIn = orders.reduce((acc, o) => acc + o.tickets.filter(t => t.checkedIn).length, 0);
+    const percentageCheckedIn = totalTicketsSold > 0 ? Math.round((totalCheckedIn / totalTicketsSold) * 100) : 0;
 
   // --- Chart Data Preparation ---
   const salesByType: Record<string, number> = {};
@@ -288,20 +238,57 @@ const EventAnalytics: React.FC = () => {
         .map((r) => r.map(escapeCell).join(","))
         .join("\n");
 
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${event?.id || "event"}-checkin-report.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Export failed", err);
-      alert("Export failed. Check console for details.");
-    }
-  };
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${event?.id || 'event'}-checkin-report.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Export failed', err);
+            alert('Export failed. Check console for details.');
+        }
+    };
+
+    // Open cancel form prefilled for selected order
+    const handleCancelOrder = (order: Order) => {
+        setSelectedOrder(order);
+        setCancelRefundAmount(order.refundAmount || 0);
+        setCancelNotes(order.cancellationNotes || '');
+        setCancelRefundStatus((order.refundStatus as any) || 'PENDING');
+        setShowCancelModal(true);
+    };
+
+    const confirmCancelOrder = async () => {
+        if (!selectedOrder) return;
+        setCancelProcessing(true);
+        try {
+            const payload = {
+                organizerId: user?.id,
+                refundAmount: Number(cancelRefundAmount) || 0,
+                notes: cancelNotes,
+                refundStatus: cancelRefundStatus
+            };
+            const res = await cancelOrder(selectedOrder.id, payload);
+            if (res && res.success) {
+                // Update local orders state
+                setOrders(prev => prev.map(o => o.id === res.order.id ? res.order : o));
+                setSelectedOrder(res.order);
+                setShowCancelModal(false);
+            } else {
+                alert('Failed to cancel order');
+            }
+        } catch (err: any) {
+            console.error('Cancel failed', err);
+            alert('Cancel failed: ' + (err.message || err));
+        } finally {
+            setCancelProcessing(false);
+        }
+    };
+
 
   const isReserved = event.seatingType === SeatingType.RESERVED;
 
@@ -552,171 +539,140 @@ const EventAnalytics: React.FC = () => {
             </div>
           </div>
 
-          {/* Orders Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <h2 className="text-lg font-bold text-slate-900">
-                Order Management
-              </h2>
-              <div className="flex gap-2 items-center w-full sm:w-auto">
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Search order ID, email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <input
-                  type="date"
-                  className="border rounded-lg px-3 py-2 text-sm bg-white"
-                  value={orderDateFrom}
-                  onChange={(e) => setOrderDateFrom(e.target.value)}
-                  title="From date"
-                />
-                <input
-                  type="date"
-                  className="border rounded-lg px-3 py-2 text-sm bg-white"
-                  value={orderDateTo}
-                  onChange={(e) => setOrderDateTo(e.target.value)}
-                  title="To date"
-                />
-                <select
-                  className="border rounded-lg px-3 py-2 text-sm bg-white"
-                  value={orderStatusFilter}
-                  onChange={(e) => setOrderStatusFilter(e.target.value as any)}
-                >
-                  <option value="ALL">All Status</option>
-                  <option value="PAID">Paid</option>
-                  <option value="FAILED">Failed</option>
-                  <option value="REFUNDED">Refunded</option>
-                </select>
-                <select
-                  className="border rounded-lg px-3 py-2 text-sm bg-white"
-                  value={orderModeFilter}
-                  onChange={(e) => setOrderModeFilter(e.target.value as any)}
-                >
-                  <option value="ALL">All Modes</option>
-                  <option value="ONLINE">Online</option>
-                  <option value="CASH">Cash</option>
-                  <option value="CHARITY">Charity</option>
-                </select>
-              </div>
-            </div>
+                    {/* Orders Table */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <h2 className="text-lg font-bold text-slate-900">Order Management</h2>
+                            <div className="flex gap-2 items-center w-full sm:w-auto">
+                                    <div className="relative w-full sm:w-64">
+                                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                        <input 
+                                            type="text" 
+                                            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="Search order ID, email..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <input
+                                        type="date"
+                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                        value={orderDateFrom}
+                                        onChange={e => setOrderDateFrom(e.target.value)}
+                                        title="From date"
+                                    />
+                                    <input
+                                        type="date"
+                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                        value={orderDateTo}
+                                        onChange={e => setOrderDateTo(e.target.value)}
+                                        title="To date"
+                                    />
+                                    <select
+                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                        value={orderStatusFilter}
+                                        onChange={e => setOrderStatusFilter(e.target.value as any)}
+                                    >
+                                        <option value="ALL">All Status</option>
+                                        <option value="PAID">Paid</option>
+                                        <option value="FAILED">Failed</option>
+                                        <option value="REFUNDED">Refunded</option>
+                                        <option value="CANCELLED">Cancelled</option>
+                                    </select>
+                                    <select
+                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                        value={orderModeFilter}
+                                        onChange={e => setOrderModeFilter(e.target.value as any)}
+                                    >
+                                        <option value="ALL">All Modes</option>
+                                        <option value="ONLINE">Online</option>
+                                        <option value="CASH">Cash</option>
+                                        <option value="CHARITY">Charity</option>
+                                    </select>
+                                </div>
+                        </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                      Order ID
-                    </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                      Received
-                    </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                      Customer
-                    </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                      Items
-                    </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                      Total (Net)
-                    </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                      Mode
-                    </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-slate-700">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-slate-700 text-right">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredOrders.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-6 py-12 text-center text-slate-400"
-                      >
-                        No orders found matching criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredOrders.map((order) => (
-                      <tr
-                        key={order.id}
-                        className="hover:bg-slate-50 transition-colors"
-                      >
-                        <td className="px-6 py-4 text-sm font-mono text-slate-600">
-                          {order.id}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatDateInTimeZone(order.date, event.timezone)} at{" "}
-                          {formatTimeInTimeZone(order.date, event.timezone)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm font-medium text-slate-900">
-                            {order.customerName}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {order.customerEmail}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {order.tickets.length} Tickets
-                          {order.couponCode && (
-                            <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">
-                              {order.couponCode}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                          $
-                          {(
-                            order.totalAmount - (order.serviceFee || 0)
-                          ).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                            {order.paymentMode || "ONLINE"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              order.status === "PAID"
-                                ? "bg-green-100 text-green-800"
-                                : order.status === "REFUNDED"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => setSelectedOrder(order)}
-                            className="text-slate-500 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-lg transition"
-                            title="View Details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order ID</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Received</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Items</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total (Net)</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Mode</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Status</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Refund Status</th>
+                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredOrders.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                                                No orders found matching criteria.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredOrders.map(order => (
+                                            <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-6 py-4 text-sm font-mono text-slate-600">{order.id}</td>
+                                                <td className="px-6 py-4 text-sm text-slate-600">{formatDateInTimeZone(order.date, event.timezone)} at {formatTimeInTimeZone(order.date, event.timezone)}</td>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm font-medium text-slate-900">{order.customerName}</p>
+                                                    <p className="text-xs text-slate-500">{order.customerEmail}</p>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-slate-600">
+                                                    {order.tickets.length} Tickets
+                                                    {order.couponCode && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">{order.couponCode}</span>}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                                                    ${(order.totalAmount - (order.serviceFee || 0)).toFixed(2)}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                                        {order.paymentMode || 'ONLINE'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                        order.status === 'PAID' ? 'bg-green-100 text-green-800' : 
+                                                        order.status === 'REFUNDED' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                                                    }`}>
+                                                        {order.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {order.status === 'CANCELLED' ? (
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                            (order.refundStatus || 'PENDING') === 'PROCESSED' ? 'bg-green-100 text-green-800' : 
+                                                            (order.refundStatus || 'PENDING') === 'FAILED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                                                        }`}>
+                                                            {(order.refundStatus || 'PENDING')}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-sm text-slate-400">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <button 
+                                                        onClick={() => setSelectedOrder(order)}
+                                                        className="text-slate-500 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-lg transition"
+                                                        title="View Details"
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </>
+            )}
 
       {activeView === "CHECKIN" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -1015,179 +971,253 @@ const EventAnalytics: React.FC = () => {
         </div>
       )}
 
-      {/* Order Details Modal */}
-      {selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b flex justify-between items-center bg-slate-50">
-              <div>
-                <h3 className="font-bold text-lg text-slate-900">
-                  Order Details
-                </h3>
-                <p className="text-sm text-slate-500 font-mono">
-                  {selectedOrder.id}
-                </p>
-                <p className="text-sm text-slate-500">
-                  Received:{" "}
-                  {formatDateInTimeZone(selectedOrder.date, event.timezone)} at{" "}
-                  {formatTimeInTimeZone(selectedOrder.date, event.timezone)}
-                </p>
-              </div>
-              <div className="text-right hidden sm:block">
-                <div className="text-sm text-slate-500">Event</div>
-                <div className="font-medium text-slate-900">{event?.title}</div>
-                <div className="text-xs text-slate-500">
-                  {event
-                    ? formatDateInTimeZone(event.startTime, event.timezone)
-                    : ""}
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
-              {/* Customer Info */}
-              <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                  Customer Information
-                </h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-slate-500 block mb-1">Name</span>
-                    <span className="font-medium text-slate-900">
-                      {selectedOrder.customerName}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block mb-1">Email</span>
-                    <span className="font-medium text-slate-900">
-                      {selectedOrder.customerEmail}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block mb-1">Phone</span>
-                    <span className="font-medium text-slate-900">
-                      {selectedOrder.customerPhone}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block mb-1">
-                      Payment Mode
-                    </span>
-                    <span className="font-bold text-slate-900">
-                      {selectedOrder.paymentMode || "ONLINE"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block mb-1">Status</span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                        selectedOrder.status === "PAID"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {selectedOrder.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
+            {/* Order Details Modal */}
+            {selectedOrder && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b flex justify-between items-center bg-slate-50">
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-900">Order Details</h3>
+                                <p className="text-sm text-slate-500 font-mono">{selectedOrder.id}</p>
+                                <p className="text-sm text-slate-500">Received: {formatDateInTimeZone(selectedOrder.date, event.timezone)} at {formatTimeInTimeZone(selectedOrder.date, event.timezone)}</p>
+                            </div>
+                            <div className="text-right hidden sm:block">
+                                <div className="text-sm text-slate-500">Event</div>
+                                <div className="font-medium text-slate-900">{event?.title}</div>
+                                <div className="text-xs text-slate-500">{event ? formatDateInTimeZone(event.startTime, event.timezone) : ''}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {user && String(user.id) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
+                                    <button
+                                        onClick={() => handleCancelOrder(selectedOrder)}
+                                        className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                        title="Cancel Order"
+                                    >
+                                        Cancel Order
+                                    </button>
+                                )}
+                                <button 
+                                    onClick={() => setSelectedOrder(null)} 
+                                    className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"
+                                >
+                                    <X className="w-6 h-6"/>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-6 overflow-y-auto max-h-[70vh]">
+                            {/* Customer Info */}
+                            <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Customer Information</h4>
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span className="text-slate-500 block mb-1">Name</span>
+                                        <span className="font-medium text-slate-900">{selectedOrder.customerName}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 block mb-1">Email</span>
+                                        <span className="font-medium text-slate-900">{selectedOrder.customerEmail}</span>
+                                    </div>
+                                       <div>
+                                        <span className="text-slate-500 block mb-1">Phone</span>
+                                        <span className="font-medium text-slate-900">{selectedOrder.customerPhone}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 block mb-1">Payment Mode</span>
+                                        <span className="font-bold text-slate-900">{selectedOrder.paymentMode || 'ONLINE'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 block mb-1">Status</span>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                            selectedOrder.status === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                        }`}>
+                                            {selectedOrder.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
 
-              {/* Ticket List */}
-              <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
-                <span>Purchased Tickets ({selectedOrder.tickets.length})</span>
-                {selectedOrder.couponCode && (
-                  <span className="text-xs text-green-600 font-normal bg-green-50 px-2 py-1 rounded border border-green-100">
-                    Coupon Applied: {selectedOrder.couponCode}
-                  </span>
-                )}
-              </h4>
-              <div className="border rounded-lg mb-6 max-h-[20vh] overflow-y-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 font-medium text-slate-600">
-                        Ticket Type
-                      </th>
-                      <th className="px-4 py-2 font-medium text-slate-600">
-                        Seat / Label
-                      </th>
-                      <th className="px-4 py-2 font-medium text-slate-600 text-right">
-                        Price
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {selectedOrder.tickets.map((t) => (
-                      <tr key={t.id}>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Ticket className="w-4 h-4 text-slate-400" />
-                            <span className="font-medium text-slate-900">
-                              {t.ticketType || "Standard"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 font-mono text-xs">
-                          {t.seatLabel}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-slate-900">
-                          ${t.price.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            {/* Cancellation Details (if cancelled) */}
+                            {selectedOrder.status === 'CANCELLED' && (
+                                <div className="bg-red-50 rounded-lg p-4 mb-6 border border-red-100">
+                                    <h4 className="text-sm font-bold text-red-700 mb-2">Cancellation Details</h4>
+                                    <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                                        <div>
+                                            <span className="text-slate-500 block mb-1">Refund Amount</span>
+                                            <span className="font-medium">${(selectedOrder.refundAmount || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-500 block mb-1">Refund Status</span>
+                                                    {user && String(user.id) === String(event.organizerId) ? (
+                                                <div className="flex items-center gap-2">
+                                                    <select
+                                                        className="w-full border rounded-lg px-3 py-2"
+                                                        value={(selectedOrder.refundStatus || 'PENDING') as any}
+                                                        onChange={async (e) => {
+                                                            const newStatus = e.target.value as 'PENDING'|'PROCESSED'|'FAILED';
+                                                            try {
+                                                                setRefundStatusProcessing(true);
+                                                                const payload = {
+                                                                    organizerId: user?.id,
+                                                                    refundStatus: newStatus
+                                                                };
+                                                                const res = await updateRefundStatus(selectedOrder.id, payload);
+                                                                if (res && res.success) {
+                                                                    setOrders(prev => prev.map(o => o.id === res.order.id ? res.order : o));
+                                                                    setSelectedOrder(res.order);
+                                                                } else {
+                                                                    alert('Failed to update refund status');
+                                                                }
+                                                            } catch (err: any) {
+                                                                console.error('Failed to update refund status', err);
+                                                                alert('Update failed: ' + (err.message || err));
+                                                            } finally {
+                                                                setRefundStatusProcessing(false);
+                                                            }
+                                                        }}
+                                                        disabled={refundStatusProcessing}
+                                                    >
+                                                        <option value="PENDING">Pending</option>
+                                                        <option value="PROCESSED">Processed</option>
+                                                        <option value="FAILED">Failed</option>
+                                                    </select>
+                                                    {refundStatusProcessing && (
+                                                        <svg className="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="font-medium">{selectedOrder.refundStatus || 'PENDING'}</span>
+                                            )}
+                                        </div>
+                                        <div className="col-span-2">
+                                            <span className="text-slate-500 block mb-1">Notes</span>
+                                            <div className="text-sm text-slate-700">{selectedOrder.cancellationNotes || '—'}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-500 block mb-1">Cancelled By</span>
+                                            <div className="text-sm text-slate-700">{selectedOrder.cancelledBy || 'Organizer'}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-500 block mb-1">Date</span>
+                                            <div className="text-sm text-slate-700">{selectedOrder.cancelledAt ? new Date(selectedOrder.cancelledAt).toLocaleString() : '—'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
-              {/* Totals */}
-              <div className="flex justify-end mb-6">
-                <div className="w-64 space-y-2">
-                  {selectedOrder.discountApplied > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Discount</span>
-                      <span>-${selectedOrder.discountApplied.toFixed(2)}</span>
+                            {/* Ticket List */}
+                            <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
+                                <span>Purchased Tickets ({selectedOrder.tickets.length})</span>
+                                {selectedOrder.couponCode && (
+                                    <span className="text-xs text-green-600 font-normal bg-green-50 px-2 py-1 rounded border border-green-100">
+                                        Coupon Applied: {selectedOrder.couponCode}
+                                    </span>
+                                )}
+                            </h4>
+                            <div className="border rounded-lg mb-6 max-h-[20vh] overflow-y-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 border-b">
+                                        <tr>
+                                            <th className="px-4 py-2 font-medium text-slate-600">Ticket Type</th>
+                                            <th className="px-4 py-2 font-medium text-slate-600">Seat / Label</th>
+                                            <th className="px-4 py-2 font-medium text-slate-600 text-right">Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {selectedOrder.tickets.map(t => (
+                                            <tr key={t.id}>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Ticket className="w-4 h-4 text-slate-400" />
+                                                        <span className="font-medium text-slate-900">{t.ticketType || 'Standard'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600 font-mono text-xs">
+                                                    {t.seatLabel}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium text-slate-900">
+                                                    ${t.price.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {/* Totals - Show simplified view to Organizer */}
+                            <div className="flex justify-end">
+                                <div className="w-64 space-y-2">
+                                    {selectedOrder.discountApplied > 0 && (
+                                        <div className="flex justify-between text-sm text-green-600">
+                                            <span>Discount</span>
+                                            <span>-${selectedOrder.discountApplied.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-center font-bold text-xl text-slate-900 border-t pt-3 mt-2">
+                                        <span>Total Paid</span>
+                                        <span>${selectedOrder.totalAmount.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                  )}
-                  <div className="flex justify-between items-center font-bold text-xl text-slate-900 border-t pt-3 mt-2">
-                    <span>Total Paid</span>
-                    <span>${selectedOrder.totalAmount.toFixed(2)}</span>
-                  </div>
                 </div>
-              </div>
+            )}
 
-              {/* Cancel Order Button - Placed below totals */}
-              <div className="border-t pt-6">
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => {
-                      // Add your cancel order logic here
-                      alert("Cancel order functionality to be implemented");
-                    }}
-                    disabled={selectedOrder.status !== "PAID"}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm ${
-                      selectedOrder.status !== "PAID"
-                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                        : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                    }`}
-                  >
-                    Cancel Order & Refund
-                  </button>
+            {/* Cancel Order Modal */}
+            {showCancelModal && selectedOrder && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-4 border-b flex justify-between items-center bg-slate-50">
+                            <h3 className="font-bold text-lg text-slate-900">Cancel Order</h3>
+                            <button onClick={() => setShowCancelModal(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"><X className="w-5 h-5"/></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-600">You are cancelling Order <span className="font-mono text-slate-700">{selectedOrder.id}</span>. This action will mark the order as <strong>CANCELLED</strong> and block tickets from scanning.</p>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Refund Amount</label>
+                                <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2" value={cancelRefundAmount} onChange={e => setCancelRefundAmount(Number(e.target.value))} />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Refund Status</label>
+                                <select className="w-full border rounded-lg px-3 py-2" value={cancelRefundStatus} onChange={e => setCancelRefundStatus(e.target.value as any)}>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="PROCESSED">Processed</option>
+                                    <option value="FAILED">Failed</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Cancellation Notes</label>
+                                <textarea className="w-full border rounded-lg px-3 py-2" rows={4} value={cancelNotes} onChange={e => setCancelNotes(e.target.value)} />
+                            </div>
+
+                            <div className="flex justify-end gap-2">
+                                <button onClick={() => setShowCancelModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
+                                <button 
+                                    onClick={confirmCancelOrder} 
+                                    className="px-4 py-2 rounded-lg bg-red-600 text-white disabled:opacity-60 flex items-center gap-2"
+                                    disabled={cancelProcessing}
+                                >
+                                    {cancelProcessing ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                            </svg>
+                                            Processing...
+                                        </>
+                                    ) : 'Confirm Cancel'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {selectedOrder.status !== "PAID" && (
-                  <p className="text-xs text-slate-500 text-right mt-2">
-                    Only PAID orders can be cancelled
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+            )}
 
       {/* Box Office Modal */}
       {showBoxOffice && (
