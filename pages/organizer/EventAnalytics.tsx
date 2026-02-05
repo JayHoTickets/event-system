@@ -987,15 +987,7 @@ const EventAnalytics: React.FC = () => {
                                 <div className="text-xs text-slate-500">{event ? formatDateInTimeZone(event.startTime, event.timezone) : ''}</div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {user && String(user.id) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
-                                    <button
-                                        onClick={() => handleCancelOrder(selectedOrder)}
-                                        className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
-                                        title="Cancel Order"
-                                    >
-                                        Cancel Order
-                                    </button>
-                                )}
+                                
                                 <button 
                                     onClick={() => setSelectedOrder(null)} 
                                     className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"
@@ -1161,6 +1153,15 @@ const EventAnalytics: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+                            {user && String(user.id) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
+                                    <button
+                                        onClick={() => handleCancelOrder(selectedOrder)}
+                                        className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                        title="Cancel Order"
+                                    >
+                                        Cancel Order
+                                    </button>
+                                )}
                         </div>
                     </div>
                 </div>
