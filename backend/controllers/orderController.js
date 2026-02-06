@@ -278,7 +278,8 @@ exports.cancelOrder = async (req, res) => {
         const allowed = ['PENDING', 'PROCESSED', 'FAILED'];
         const normalizedRefundStatus = allowed.includes(String(refundStatus).toUpperCase()) ? String(refundStatus).toUpperCase() : 'PENDING';
 
-        if (order.status === 'CANCELLED') {
+        const wasAlreadyCancelled = order.status === 'CANCELLED';
+        if (wasAlreadyCancelled) {
             // Update refund fields and notes
             order.refundAmount = Number(refundAmount) || 0;
             order.refundStatus = normalizedRefundStatus;
@@ -299,6 +300,44 @@ exports.cancelOrder = async (req, res) => {
             order.cancelledAt = new Date();
             order.cancellationHistory = order.cancellationHistory || [];
             order.cancellationHistory.push({ organizerId, timestamp: order.cancelledAt, refundAmount: order.refundAmount, notes });
+        }
+
+        // If this is the first time we're cancelling the order, release seats
+        // or decrement sold counts on the related Event so those tickets become available again.
+        if (!wasAlreadyCancelled) {
+            try {
+                if (event.seatingType === 'RESERVED') {
+                    // Release individual seats back to AVAILABLE
+                    const seatIdsToRelease = order.tickets.map(t => t.seatId).filter(Boolean);
+                    const seatSet = new Set(seatIdsToRelease);
+                    event.seats = event.seats.map(s => {
+                        if (seatSet.has(s.id) && (s.status === 'SOLD' || s.status === 'BOOKING_IN_PROGRESS')) {
+                            return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
+                        }
+                        return s;
+                    });
+                    await event.save();
+                } else {
+                    // General admission: decrement sold counts by ticket type name
+                    const countsByTypeName = {};
+                    order.tickets.forEach(t => {
+                        const typeName = t.ticketType || t.ticketTypeName || null;
+                        if (typeName) countsByTypeName[typeName] = (countsByTypeName[typeName] || 0) + 1;
+                    });
+                    if (Object.keys(countsByTypeName).length > 0) {
+                        event.ticketTypes = event.ticketTypes.map(tt => {
+                            const dec = countsByTypeName[tt.name] || 0;
+                            if (dec > 0) {
+                                return { ...tt, sold: Math.max(0, (tt.sold || 0) - dec) };
+                            }
+                            return tt;
+                        });
+                        await event.save();
+                    }
+                }
+            } catch (relErr) {
+                console.error('Failed to release seats/update ticket counts on cancellation', relErr);
+            }
         }
 
         await order.save();
