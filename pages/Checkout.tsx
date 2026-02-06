@@ -518,7 +518,9 @@ useEffect(() => {
         // Use replace: true so they can't go back to checkout
         navigate('/confirmation', { state: { order }, replace: true });
     } catch (error) {
-        alert("Payment successful but failed to record order. Please contact support with Transaction ID: " + transactionId);
+        console.error('Order recording failed', error);
+        const errMsg = error && (error as any).message ? (error as any).message : String(error);
+        alert("Payment successful but failed to record order. Please contact support with Transaction ID: " + transactionId + "\nError: " + errMsg);
     }
   };
 
