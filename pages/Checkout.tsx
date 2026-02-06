@@ -98,7 +98,7 @@ const CheckoutForm: React.FC<{
             <div className="flex items-start gap-3">
                 <input id="terms" type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="mt-1" />
                 <label htmlFor="terms" className="text-sm text-slate-700">
-                    I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="text-indigo-600 underline">Terms &amp; Conditions</button>
+                    I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="text-black underline">Terms &amp; Conditions</button>
                 </label>
             </div>
             {termsError && <p className="text-red-500 text-xs mt-2">{termsError}</p>}
@@ -106,7 +106,7 @@ const CheckoutForm: React.FC<{
             <button
                 type="submit"
                 disabled={!stripe || processing || !termsAccepted}
-                className="w-full mt-4 bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-indigo-700 transition-colors flex justify-center items-center disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full mt-4 bg-black text-white py-3 rounded-lg font-bold shadow-lg hover:bg-[#d7ae4b] hover:text-black transition-colors flex justify-center items-center disabled:opacity-70 disabled:cursor-not-allowed"
             >
                 {processing ? (
                     <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -177,7 +177,7 @@ const CheckoutForm: React.FC<{
                         </section>
                     </div>
                     <div className="p-4 border-t bg-white flex items-center gap-3 justify-end">
-                        <button onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Accept</button>
+                        <button onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }} className="px-4 py-2 bg-black text-white rounded-lg hover:bg-[#d7ae4b] hover:text-black">Accept</button>
                         <button onClick={() => setShowTermsModal(false)} className="px-4 py-2 border rounded-lg">Close</button>
                     </div>
                 </div>
@@ -233,7 +233,7 @@ const FreeBookingPanel: React.FC<{
             <div className="flex items-start gap-3 mb-3">
                 <input id="free-terms" type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="mt-1" />
                 <label htmlFor="free-terms" className="text-sm text-slate-700">
-                    I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="text-indigo-600 underline">Terms &amp; Conditions</button>
+                    I agree to the <button type="button" onClick={() => setShowTermsModal(true)} className="text-black underline">Terms &amp; Conditions</button>
                 </label>
             </div>
 
@@ -283,7 +283,7 @@ const FreeBookingPanel: React.FC<{
                             </section>
                         </div>
                         <div className="p-4 border-t bg-white flex items-center gap-3 justify-end">
-                            <button onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Accept</button>
+                            <button onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }} className="px-4 py-2 bg-black text-white rounded-lg hover:bg-[#d7ae4b] hover:text-black">Accept</button>
                             <button onClick={() => setShowTermsModal(false)} className="px-4 py-2 border rounded-lg">Close</button>
                         </div>
                     </div>
@@ -637,7 +637,7 @@ useEffect(() => {
             <div className="mb-8">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Promo Code</label>
                 <div className="flex gap-2">
-                    <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-200 focus:outline-none" />
+                    <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-[#d7ae4b] focus:outline-none" />
                     <button onClick={handleApplyCoupon} className="px-4 py-2 bg-slate-800 text-white rounded-md text-sm hover:bg-slate-700">Apply</button>
                 </div>
                 {couponError && <p className="text-red-500 text-xs mt-1">{couponError}</p>}

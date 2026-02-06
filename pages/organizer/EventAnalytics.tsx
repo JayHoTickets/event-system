@@ -393,7 +393,7 @@ const EventAnalytics: React.FC = () => {
           </button>
           <button
             onClick={() => navigate("/organizer/scanner")}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-indigo-700 text-sm font-medium"
+            className="bg-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#d7ae4b] hover:text-black text-sm font-medium"
           >
             <UserCheck className="w-4 h-4 mr-2" /> Scan Tickets
           </button>
@@ -407,8 +407,8 @@ const EventAnalytics: React.FC = () => {
           className={clsx(
             "px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap",
             activeView === "STATS"
-              ? "border-indigo-600 text-indigo-600"
-              : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300",
+              ? "border-[#d7ae4b] text-[#d7ae4b]"
+                : "border-transparent text-slate-500 hover:text-[#d7ae4b] hover:border-slate-300",
           )}
         >
           <BarChart2 className="w-4 h-4 mr-2" /> Overview & Sales
@@ -418,8 +418,8 @@ const EventAnalytics: React.FC = () => {
           className={clsx(
             "px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap",
             activeView === "CHECKIN"
-              ? "border-indigo-600 text-indigo-600"
-              : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300",
+              ? "border-[#d7ae4b] text-[#d7ae4b]"
+                : "border-transparent text-slate-500 hover:text-[#d7ae4b] hover:border-slate-300",
           )}
         >
           <PieChartIcon className="w-4 h-4 mr-2" /> Check-in Report
@@ -430,8 +430,8 @@ const EventAnalytics: React.FC = () => {
             className={clsx(
               "px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap",
               activeView === "MAP"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300",
+                ? "border-[#d7ae4b] text-[#d7ae4b]"
+                : "border-transparent text-slate-500 hover:text-[#d7ae4b] hover:border-slate-300",
             )}
           >
             <MapIcon className="w-4 h-4 mr-2" /> Live Seating Map

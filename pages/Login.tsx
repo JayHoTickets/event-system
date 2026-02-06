@@ -11,8 +11,19 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { loginWithEmailPassword } = useAuth();
+    const { loginWithEmailPassword, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+    // If user is already authenticated, redirect to their dashboard
+    React.useEffect(() => {
+        if (isAuthenticated) {
+            if (user?.role === UserRole.ADMIN) {
+                navigate('/admin');
+            } else {
+                navigate('/organizer');
+            }
+        }
+    }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

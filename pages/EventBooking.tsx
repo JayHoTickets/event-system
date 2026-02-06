@@ -506,7 +506,7 @@ return (
             <button
               onClick={handleCheckout}
               disabled={selectedCount === 0}
-              className="bg-indigo-600 text-white py-3 px-8 rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition text-lg"
+              className="bg-black text-white py-3 px-8 rounded-lg font-bold hover:bg-[#d7ae4b] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition text-lg"
             >
               <ShoppingCart className="w-5 h-5 mr-2" />
               Checkout

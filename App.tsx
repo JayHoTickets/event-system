@@ -32,7 +32,7 @@ function App() {
         <Routes>
             {/* PUBLIC ROUTES (With Navbar) */}
             <Route element={<PublicLayout />}>
-                <Route path="/" element={<EventsList />} />
+                <Route path="/" element={<Login />} />
                 <Route path="/organizer-guide" element={<PublicOrganizerGuide />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/event/:id" element={<EventBooking />} />

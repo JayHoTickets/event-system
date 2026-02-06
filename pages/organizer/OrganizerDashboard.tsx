@@ -88,13 +88,13 @@ const OrganizerDashboard: React.FC = () => {
                     </button>
                     <button 
                         onClick={() => navigate('/organizer/create-event')}
-                        className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md hover:bg-indigo-700 transition font-medium"
+                        className="bg-black text-white px-5 py-2.5 rounded-lg flex items-center shadow-md hover:bg-[#d7ae4b] hover:text-black transition font-medium"
                     >
                         <Plus className="w-5 h-5 mr-2" />
                         Create New Event
                     </button>
                 </div>
-            </div>
+            </div> 
 
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

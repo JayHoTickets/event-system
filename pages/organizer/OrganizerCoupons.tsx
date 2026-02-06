@@ -163,7 +163,7 @@ const OrganizerCoupons: React.FC = () => {
                 </div>
                 <button 
                     onClick={openCreateModal}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-indigo-700 transition shadow-md"
+                    className="bg-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#d7ae4b] hover:text-black transition shadow-md"
                 >
                     <Plus className="w-4 h-4 mr-2" />
                     Create Coupon
@@ -382,7 +382,7 @@ const OrganizerCoupons: React.FC = () => {
                                 <button 
                                     type="submit" 
                                     disabled={submitting}
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-70"
+                                    className="px-4 py-2 bg-black text-white rounded-lg hover:bg-[#d7ae4b] hover:text-black disabled:opacity-70"
                                 >
                                     {submitting ? 'Saving...' : (editingCoupon ? 'Update Coupon' : 'Create Coupon')}
                                 </button>

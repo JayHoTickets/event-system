@@ -367,11 +367,11 @@ const CreateEvent: React.FC = () => {
             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden flex flex-col min-h-[600px]">
                 {/* Progress Bar */}
                 <div className="bg-slate-50 border-b p-4 flex gap-4 text-sm font-medium text-slate-500">
-                    <span className={step >= 1 ? "text-indigo-600 font-bold" : ""}>1. Details</span>
+                    <span className={step >= 1 ? "text-[#d7ae4b] font-bold" : ""}>1. Details</span>
                     <span>&rarr;</span>
-                    <span className={step >= 2 ? "text-indigo-600 font-bold" : ""}>2. Schedule</span>
+                    <span className={step >= 2 ? "text-[#d7ae4b] font-bold" : ""}>2. Schedule</span>
                     <span>&rarr;</span>
-                    <span className={step >= 3 ? "text-indigo-600 font-bold" : ""}>3. Tickets {isReserved ? '& Map' : ''}</span>
+                    <span className={step >= 3 ? "text-[#d7ae4b] font-bold" : ""}>3. Tickets {isReserved ? '& Map' : ''}</span>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
@@ -456,7 +456,7 @@ const CreateEvent: React.FC = () => {
                                 type="button" 
                                 disabled={!isStep1Valid}
                                 onClick={() => setStep(2)} 
-                                className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-black text-white px-6 py-2 rounded-lg hover:bg-[#d7ae4b] hover:text-black  disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Next Step
                             </button>
@@ -492,8 +492,8 @@ const CreateEvent: React.FC = () => {
                          </div>
 
                          <div className="flex justify-between mt-auto">
-                            <button type="button" onClick={() => setStep(1)} className="text-slate-600 px-6 py-2 hover:bg-slate-50 rounded-lg">Back</button>
-                            <button type="button" onClick={() => setStep(3)} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">Next: Tickets</button>
+                            <button type="button" onClick={() => setStep(1)} className="text-black px-6 py-2 hover:bg-slate-50 rounded-lg">Back</button>
+                            <button type="button" onClick={() => setStep(3)} className="bg-black text-white px-6 py-2 rounded-lg hover:bg-[#d7ae4b] hover:text-black">Next: Tickets</button>
                         </div>
                     </div>
 
@@ -591,7 +591,7 @@ const CreateEvent: React.FC = () => {
                                             <button 
                                                 type="button"
                                                 onClick={selectAllSeats}
-                                                className="w-full mb-2 bg-white border border-indigo-200 text-indigo-700 py-1.5 rounded text-xs font-medium hover:bg-indigo-50 flex items-center justify-center"
+                                                className="w-full mb-2 bg-white border border-indigo-200 text-black py-1.5 rounded text-xs font-medium hover:bg-[#d7ae4b] hover:opacity-80 flex items-center justify-center"
                                             >
                                                 <CheckSquare className="w-3 h-3 mr-1" />
                                                 {selectedSeatIds.length > 0 ? 'Deselect All' : 'Select All Seats'}
@@ -602,7 +602,7 @@ const CreateEvent: React.FC = () => {
                                                     type="button"
                                                     onClick={assignSelectedSeats}
                                                     disabled={selectedSeatIds.length === 0 || !activeTicketTypeId}
-                                                    className="flex-1 bg-indigo-600 text-white py-2 rounded text-xs font-bold hover:bg-indigo-700 disabled:opacity-50"
+                                                    className="flex-1 bg-black text-white py-2 rounded text-xs font-bold hover:bg-[#d7ae4b] hover:text-black disabled:opacity-50"
                                                 >
                                                     Assign {selectedSeatIds.length} Seats
                                                 </button>
@@ -666,7 +666,7 @@ const CreateEvent: React.FC = () => {
                         </div>
 
                         <div className="p-4 border-t bg-white flex justify-between">
-                            <button type="button" onClick={() => setStep(2)} className="text-slate-600 px-6 py-2 hover:bg-slate-50 rounded-lg">Back</button>
+                            <button type="button" onClick={() => setStep(2)} className="text-black px-6 py-2 hover:bg-slate-50 rounded-lg">Back</button>
                             <button 
                                 type="submit" 
                                 disabled={loading || ticketTypes.length === 0}

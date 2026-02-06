@@ -42,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       className={({ isActive }) => clsx(
         "flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors mb-1",
         isActive
-          ? "bg-gradient-to-r from-blue-500 to-blue-500 text-white shadow-md"
+          ? "bg-black text-white shadow-md"
           : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
       )}
     >
@@ -72,9 +72,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Header */}
-        <div className="h-16 relative px-6 shrink-0 bg-blue-500">
+        <div className="h-20 relative px-6 shrink-0 bg-black">
           <div className="flex-1 flex items-center justify-center cursor-pointer" style={{ paddingTop: "7%"}} onClick={() => navigate('/') }>
-            <img src="https://events.jay-ho.com/wp-content/uploads/2026/01/white_logo-scaled.png" alt="Jay-Ho" className="h-10 w-auto object-contain" />
+            <img src="https://events.jay-ho.com/wp-content/uploads/2026/02/Jay-Ho-Tickets.png" alt="Jay-Ho" className="h-12 w-auto object-contain" />
           </div>
           <div className="absolute right-6 top-1/2 -translate-y-1/2 lg:hidden">
             <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white">

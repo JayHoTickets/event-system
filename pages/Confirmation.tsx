@@ -97,7 +97,7 @@ const Confirmation: React.FC = () => {
       return (
           <div className="text-center pt-20">
               <h2 className="text-2xl font-bold">No Order Found</h2>
-              <Link to="/" className="text-indigo-600 underline mt-4 block">Return Home</Link>
+              <Link to="/" className="text-black underline mt-4 block">Return Home</Link>
           </div>
       )
   }
@@ -113,7 +113,7 @@ const Confirmation: React.FC = () => {
         
         <div className="p-8">
             <div className="flex items-center justify-center gap-2 text-slate-600 bg-slate-50 p-4 rounded-lg mb-8 border border-slate-200">
-                <Mail className="w-5 h-5 text-indigo-500" />
+                <Mail className="w-5 h-5 text-[#d7ae4b]" />
                 <span>Confirmation email sent to your inbox.</span>
             </div>
 
@@ -129,7 +129,7 @@ const Confirmation: React.FC = () => {
                     {order.tickets.map(ticket => (
                         <div id={`ticket-${ticket.id}`} key={ticket.id} className="flex flex-col sm:flex-row border-2 rounded-lg overflow-hidden shadow-sm">
                             {/* Left stub column */}
-                            <div className="flex items-center justify-center bg-[#4f46e5] p-3">
+                            <div className="flex items-center justify-center bg-[#d7ae4b] p-3">
                                 <img src={ticketStub} alt="Ticket stub" className="w-40 h-16 sm:w-16 sm:h-40 object-contain rotate-90 sm:rotate-0" />
                             </div>
                             {/* Vertical dashed separator */}
@@ -162,7 +162,7 @@ const Confirmation: React.FC = () => {
                                 <p><span className="font-semibold text-slate-800">Price:</span> ${ticket.price}</p>
                             </div>
                         </div>
-                        <button onClick={async () => await handleDownload(ticket)} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors" title="Download Ticket">
+                        <button onClick={async () => await handleDownload(ticket)} className="text-black hover:bg-[#d7ae4b] p-2 rounded-full transition-colors" title="Download Ticket">
                             <Download className="w-6 h-6" />
                         </button>
                     </div>
@@ -194,9 +194,9 @@ const Confirmation: React.FC = () => {
             </div>
 
             <div className="mt-10 text-center">
-                <Link to="/" className="bg-slate-900 text-white px-8 py-3 rounded-lg font-medium hover:bg-slate-800 transition">
+                {/* <Link to="/" className="bg-slate-900 text-white px-8 py-3 rounded-lg font-medium hover:bg-slate-800 transition">
                     Browse More Events
-                </Link>
+                </Link> */}
             </div>
 
             {/* Footer Information */}
@@ -258,7 +258,7 @@ const Confirmation: React.FC = () => {
                     <p className="text-sm text-slate-500 mb-4">We're excited to see you at the event. If you have any questions, we're here to help.</p>
                     
                     <div className="flex flex-col sm:flex-row justify-center gap-4 text-sm">
-                        <span className="font-medium text-indigo-600">Support: Jayho@jay-ho.com</span>
+                        <span className="font-medium text-[#d7ae4b">Support: Jayho@jay-ho.com</span>
                         <span className="hidden sm:inline text-slate-300">|</span>
                         <span className="font-medium text-slate-700">Phone: +1 (339) 245-8655</span>
                     </div>
