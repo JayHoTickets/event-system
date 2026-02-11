@@ -50,7 +50,7 @@ const Navbar: React.FC = () => {
                 <span className="hidden md:block text-sm opacity-90">
                   {user?.role === UserRole.ADMIN ? 'Administrator' : user?.role === UserRole.ORGANIZER ? 'Organizer' : `Welcome, ${user?.name}`}
                 </span>
-                {(user?.role === UserRole.ADMIN || user?.role === UserRole.ORGANIZER) && (
+                {(user?.role === UserRole.ADMIN || user?.role === UserRole.ORGANIZER || user?.role === UserRole.STAFF) && (
                   <Link to={user?.role === UserRole.ADMIN ? '/admin' : '/organizer'} className="text-sm font-medium hover:underline">
                     <LayoutDashboard className="inline-block w-4 h-4 mr-1" /> Dashboard
                   </Link>

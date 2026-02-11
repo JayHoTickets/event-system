@@ -24,8 +24,10 @@ const OrganizerDashboard: React.FC = () => {
     const loadEvents = () => {
         if (user) {
             setLoading(true);
+            // If logged in user is a STAFF, use their organizerId to fetch organizer-scoped resources
+            const organizerId = (user.role === 'STAFF') ? (user as any).organizerId : user.id;
             // Always fetch all events (including deleted) so tab counts are accurate
-            fetchEventsByOrganizer(user.id, true).then(data => {
+            fetchEventsByOrganizer(organizerId, true).then(data => {
                 setEvents(data);
                 setLoading(false);
             });

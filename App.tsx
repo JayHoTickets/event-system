@@ -15,10 +15,12 @@ import AdminOrganizers from './pages/admin/AdminOrganizers';
 import AdminServiceCharges from './pages/admin/AdminServiceCharges';
 import AdminEvents from './pages/admin/AdminEvents';
 import OrganizerDashboard from './pages/organizer/OrganizerDashboard';
+import OrganizerProfile from './pages/organizer/OrganizerProfile';
 import CreateEvent from './pages/organizer/CreateEvent';
 import OrganizerCoupons from './pages/organizer/OrganizerCoupons';
 import EventAnalytics from './pages/organizer/EventAnalytics';
 import OrganizerScanner from './pages/organizer/OrganizerScanner';
+import OrganizerStaff from './pages/organizer/OrganizerStaff';
 import PublicOrganizerGuide from './pages/PublicOrganizerGuide';
 import { AuthProvider } from './context/AuthContext';
 import { UserRole } from './types';
@@ -32,7 +34,7 @@ function App() {
         <Routes>
             {/* PUBLIC ROUTES (With Navbar) */}
             <Route element={<PublicLayout />}>
-                <Route path="/" element={<Login />} />
+                <Route path="/" element={<EventsList />} />
                 <Route path="/organizer-guide" element={<PublicOrganizerGuide />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/event/:id" element={<EventBooking />} />
@@ -54,13 +56,15 @@ function App() {
             </Route>
 
             {/* ORGANIZER ROUTES (With Sidebar) */}
-            <Route path="/organizer" element={<DashboardLayout allowedRoles={[UserRole.ORGANIZER]} />}>
-                <Route index element={<OrganizerDashboard />} />
+            <Route path="/organizer" element={<DashboardLayout allowedRoles={[UserRole.ORGANIZER, UserRole.STAFF]} />}>
+               <Route index element={<OrganizerProfile />} />
+               <Route path="events" element={<OrganizerDashboard />} />
                 <Route path="create-event" element={<CreateEvent />} />
                 <Route path="edit-event/:id" element={<CreateEvent />} />
                 <Route path="event/:id/analytics" element={<EventAnalytics />} />
                 <Route path="coupons" element={<OrganizerCoupons />} />
                 <Route path="scanner" element={<OrganizerScanner />} />
+                <Route path="staff" element={<OrganizerStaff />} />
             </Route>
         </Routes>
       </Router>

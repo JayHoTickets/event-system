@@ -46,6 +46,27 @@ export const createOrganizerUser = (name: string, email: string, password: strin
     });
 };
 
+// --- STAFF (Organizer's staff members) ---
+export const fetchStaffByOrganizer = (organizerId: string): Promise<any[]> => {
+    return fetchJson(`/staff?organizerId=${organizerId}`);
+};
+
+export const fetchStaffById = (id: string): Promise<any> => {
+    return fetchJson(`/staff/${id}`);
+};
+
+export const createStaff = (payload: { name: string, email: string, password: string, organizerId: string, permissions?: string[] }): Promise<any> => {
+    return fetchJson('/staff', { method: 'POST', body: JSON.stringify(payload) });
+};
+
+export const updateStaff = (id: string, updates: any): Promise<any> => {
+    return fetchJson(`/staff/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+};
+
+export const deleteStaff = (id: string): Promise<void> => {
+    return fetchJson(`/staff/${id}`, { method: 'DELETE' });
+};
+
 // --- SERVICE CHARGES ---
 export const fetchServiceCharges = (): Promise<ServiceCharge[]> => fetchJson('/service-charges');
 

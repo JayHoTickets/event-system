@@ -101,14 +101,33 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             )}
 
             {user?.role === UserRole.ORGANIZER && (
-                <>
-                    <NavItem to="/organizer" end icon={LayoutDashboard} label="Dashboard" />
-                    <NavItem to="/organizer/scanner" icon={Scan} label="Scan Tickets" />
-                    <NavItem to="/organizer/create-event" icon={PlusCircle} label="Create Event" />
-                    <NavItem to="/organizer/coupons" icon={Tag} label="Coupons" />
-                    <NavItem to="/organizer-guide" icon={BookOpen} label="Organizer Guide" />
-                </>
+              <>
+                <NavItem to="/organizer" end icon={LayoutDashboard} label="Profile" />
+                <NavItem to="/organizer/events" icon={Ticket} label="Events" />
+                <NavItem to="/organizer/scanner" icon={Scan} label="Scan Tickets" />
+                <NavItem to="/organizer/create-event" icon={PlusCircle} label="Create Event" />
+                <NavItem to="/organizer/coupons" icon={Tag} label="Coupons" />
+                <NavItem to="/organizer/staff" icon={Users} label="Staff" />
+                <NavItem to="/organizer-guide" icon={BookOpen} label="Organizer Guide" />
+              </>
             )}
+
+                  {user?.role === UserRole.STAFF && (
+                    <>
+
+                        <NavItem to="/organizer" end icon={LayoutDashboard} label="Profile" />
+                      {/* Show limited actions based on staff permissions provided on login */}
+                      {((user as any)?.permissions || []).includes('scanner') && (
+                        <NavItem to="/organizer/scanner" icon={Scan} label="Scan Tickets" />
+                      )}
+                      {((user as any)?.permissions || []).includes('events') && (
+                        <NavItem to="/organizer/events" icon={LayoutDashboard} label="Events" />
+                      )}
+                      {((user as any)?.permissions || []).includes('coupons') && (
+                        <NavItem to="/organizer/coupons" icon={Tag} label="Coupons" />
+                      )}
+                    </>
+                  )}
         </div>
 
         {/* Footer Actions */}

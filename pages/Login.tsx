@@ -34,18 +34,7 @@ const Login: React.FC = () => {
             // Normalize email to lowercase so login is case-insensitive
             const emailLower = email.trim().toLowerCase();
             await loginWithEmailPassword(emailLower, password);
-      // Determine where to go based on user, but since we can't easily peek 'user' 
-      // synchronously after async dispatch in this specific context setup without a useEffect,
-      // we can assume if successful we might want to go to dashboard if admin.
-      // However, for simplicity, we navigate to root, and if admin, they can click dashboard.
-      // Or better:
-      // Note: In a real app, we'd check the decoded token or user object.
-      // For this mock, we know the admin email.
-      if (email.toLowerCase() === 'admin@jayhoticket.com') {
-          navigate('/admin');
-      } else {
-          navigate('/');
-      }
+      // After successful login, let the AuthContext/useEffect handle redirect
     } catch (err: any) {
       setError(err.message || 'Failed to login');
     } finally {

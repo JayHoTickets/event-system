@@ -42,9 +42,10 @@ const OrganizerCoupons: React.FC = () => {
 
     const loadData = () => {
         if(user) {
+            const organizerId = (user.role === 'STAFF') ? (user as any).organizerId : user.id;
             Promise.all([
-                fetchCouponsByOrganizer(user.id),
-                fetchEventsByOrganizer(user.id)
+                fetchCouponsByOrganizer(organizerId),
+                fetchEventsByOrganizer(organizerId)
             ]).then(([cData, eData]) => {
                 setCoupons(cData);
                 setEvents(eData);

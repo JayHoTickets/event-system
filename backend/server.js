@@ -41,6 +41,7 @@ app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/coupons', require('./routes/couponRoutes'));
 app.use('/api/service-charges', require('./routes/serviceChargeRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/staff', require('./routes/staffRoutes'));
 
 // Image proxy to avoid cross-origin issues when generating PDFs
 
