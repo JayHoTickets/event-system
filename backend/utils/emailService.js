@@ -151,39 +151,25 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                 <div style="margin-top:18px;">
                     <h3 style="font-size:16px;margin:0 0 8px 0;color:#111;font-weight:700;">Terms and Conditions</h3>
                     <div style="font-size:12px;color:#666;line-height:1.5;text-align:justify;background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #eef2f7;">
-                        <p>Please carefully read and understand these terms and conditions before purchasing tickets for this event. By purchasing tickets, you acknowledge and agree to adhere to the following terms and conditions:</p>
-
-                        <div style="margin-top:8px;">
-                            <strong style="display:block;color:#111;margin-bottom:4px;">Ticket Modifications, Cancellations, and Refunds</strong>
-                            Tickets purchased for the Event are non-modifiable and non-cancelable. Refunds will be initiated only in the event of cancellation of the Event. In case of Event cancellation, Jay-Ho! will initiate refunds for the face value of the ticket only. Booking or transaction fees are non-refundable.
-                        </div>
-
-                        <div style="margin-top:10px;">
-                            <strong style="display:block;color:#111;margin-bottom:4px;">Payment Gateway Charges</strong>
-                            Payment gateways apply a booking fee per ticket purchased, and this fee is directed solely to the payment gateway. Ensure you review the total amount including this fee before making payment.
-                        </div>
-
-                        <div style="margin-top:10px;">
-                            <strong style="display:block;color:#111;margin-bottom:4px;">Late Entry and Venue Arrival</strong>
-                            The organizers reserve the right to deny late entry to the Event. To ensure seamless entry, we strongly recommend arriving at the venue at least an hour before the scheduled start time of the Event.
-                        </div>
-
-                        <div style="margin-top:10px;">
-                            <strong style="display:block;color:#111;margin-bottom:4px;">Event Cancellation/Postponement Refunds</strong>
-                            In the event of Event cancellation or postponement, Jay-Ho! will refund only the face value of the ticket. Booking or transaction fees are non-refundable.
-                        </div>
-
-                        <div style="margin-top:10px;">
-                            <strong style="display:block;color:#111;margin-bottom:4px;">Venue Rules and Entry</strong>
-                            Each venue has its own set of rules and regulations. The venue management holds the right to deny entry to individuals who do not comply with these rules.
-                        </div>
-
-                        <div style="margin-top:10px;">
-                            <strong style="display:block;color:#111;margin-bottom:4px;">Modification of Terms and Conditions</strong>
-                            These terms and conditions are subject to change at the sole discretion of the organizer. Any changes will be effective immediately upon being posted on the official website or communicated through official channels.
-                        </div>
-
-                        <p style="margin-top:8px;font-style:italic;">Please note that your ticket purchase signifies your understanding and acceptance of these terms and conditions.</p>
+                        <ul style="margin:0;padding-left:18px;">
+                            <li><strong>No Refunds or Exchanges:</strong> All ticket purchases are final. Tickets are non-refundable and non-transferable unless explicitly stated otherwise by the event organizer.</li>
+                            <li><strong>Service Fees Non-Refundable:</strong> Any service fees or transaction fees charged by Jay-Ho! are non-refundable, even if the event is canceled or rescheduled by the organizer.</li>
+                            <li><strong>Event Changes:</strong> The event organizer reserves the right to alter the schedule, performers, or venue without prior notice. Jay-Ho! is not liable for such changes.</li>
+                            <li><strong>Organizer’s Contact Information:</strong> For questions or concerns related to this event, please contact the event organizer directly at the contact information provided on the event page.</li>
+                            <li><strong>Lost Tickets:</strong> Jay-Ho! and the event organizer are not responsible for lost, stolen, or damaged tickets.</li>
+                            <li><strong>Valid ID Required:</strong> Entry may be subject to verification with a valid government-issued photo ID matching the ticket holder’s name, as required by the event organizer.</li>
+                            <li><strong>Venue Rules:</strong> Venue-specific rules (such as no re-entry, prohibited items, or security checks) will apply and must be followed.</li>
+                            <li><strong>Late Entry:</strong> Late arrivals may be seated at a suitable break in the performance, as determined by the event staff.</li>
+                            <li><strong>Health and Safety:</strong> Attendees must comply with all health and safety protocols required by the event organizer and venue.</li>
+                            <li><strong>Rights of Admission Reserved:</strong> The event organizer and venue reserve the right to refuse admission to anyone without explanation.</li>
+                            <li><strong>Prohibited Items:</strong> Weapons, alcohol, fireworks, and any illegal substances are not permitted on the premises.</li>
+                            <li><strong>Digital Ticket Disclaimer:</strong> Entry is only guaranteed with valid digital or physical tickets issued through Jay-Ho!. Screenshots or altered tickets may be rejected.</li>
+                            <li><strong>Transfer Policy Disclaimer:</strong> Ticket transferability is subject to the event organizer’s policies. Jay-Ho! cannot guarantee the acceptance of transferred tickets at the venue.</li>
+                            <li><strong>Force Majeure Clause:</strong> Jay-Ho! and the event organizer are not responsible for delays, changes, or cancellations caused by circumstances beyond reasonable control, including weather, natural disasters, government actions, or public health emergencies.</li>
+                            <li><strong>Limit of Liability:</strong> Jay-Ho!’s liability is strictly limited to the face value of the ticket purchased, excluding any fees, and only where legally required.</li>
+                            <li><strong>Responsibility for Disputes:</strong> Any disputes regarding the event, its quality, schedule, or artist performance must be resolved directly with the event organizer. Jay-Ho! will not mediate or be involved in such disputes.</li>
+                            <li><strong>Acceptance of Organizer Terms:</strong> By purchasing a ticket, you also agree to abide by the event organizer’s terms and conditions, which may include additional requirements.</li>
+                        </ul>
                     </div>
                 </div>
 
