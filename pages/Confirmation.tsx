@@ -247,6 +247,12 @@ const Confirmation: React.FC = () => {
                         <span className="hidden sm:inline text-slate-300">|</span>
                         <span className="font-medium text-slate-700">Phone: +1 (339) 245-8655</span>
                     </div>
+
+                    <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <Link to={"/event/"+order.tickets[0].eventId} className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-medium">Buy More Tickets</Link>
+                        <button className="bg-slate-200 text-slate-700 px-5 py-2 rounded-lg font-medium cursor-not-allowed" title="Coming soon">Discover More Events</button>
+                        <a href="https://events.jay-ho.com" target="_blank" rel="noreferrer" className="bg-white border border-slate-200 text-slate-800 px-5 py-2 rounded-lg font-medium hover:bg-slate-50">Explore Jay-Ho.com</a>
+                    </div>
                 </div>
             </div>
 
