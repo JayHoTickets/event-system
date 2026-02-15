@@ -9,6 +9,9 @@ import clsx from 'clsx';
 
 const OrganizerCoupons: React.FC = () => {
     const { user } = useAuth();
+    const perms: string[] = (user as any)?.permissions || [];
+    const isStaff = user?.role === 'STAFF';
+    const canManageCoupons = !isStaff || perms.includes('coupons');
     const navigate = useNavigate();
     
     const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -93,12 +96,13 @@ const OrganizerCoupons: React.FC = () => {
         setSubmitting(true);
         try {
             // Build payload including new rule fields
+            const organizerId = (user.role === 'STAFF') ? (user as any).organizerId : user.id;
             const payload: any = {
                 code: formData.code.toUpperCase(),
                 discountType: formData.discountType as 'PERCENTAGE' | 'FIXED',
                 value: Number(formData.value),
                 eventId: formData.eventId || null,
-                organizerId: user.id,
+                organizerId,
                 maxUses: Number(formData.maxUses),
                 expiryDate: formData.expiryDate,
                 ruleType: formData.ruleType || 'CODE',
@@ -165,6 +169,8 @@ const OrganizerCoupons: React.FC = () => {
                 <button 
                     onClick={openCreateModal}
                     className="bg-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#d7ae4b] hover:text-black transition shadow-md"
+                    disabled={!canManageCoupons}
+                    title={!canManageCoupons ? 'You do not have permission to create coupons' : ''}
                 >
                     <Plus className="w-4 h-4 mr-2" />
                     Create Coupon
@@ -232,20 +238,24 @@ const OrganizerCoupons: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button 
-                                                    onClick={() => openEditModal(coupon)}
-                                                    className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"
-                                                    title="Edit Coupon"
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleDelete(coupon)}
-                                                    className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition"
-                                                    title="Delete Coupon"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                {canManageCoupons && (
+                                                  <button 
+                                                      onClick={() => openEditModal(coupon)}
+                                                      className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"
+                                                      title="Edit Coupon"
+                                                  >
+                                                      <Edit2 className="w-4 h-4" />
+                                                  </button>
+                                                )}
+                                                {canManageCoupons && (
+                                                  <button 
+                                                      onClick={() => handleDelete(coupon)}
+                                                      className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition"
+                                                      title="Delete Coupon"
+                                                  >
+                                                      <Trash2 className="w-4 h-4" />
+                                                  </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

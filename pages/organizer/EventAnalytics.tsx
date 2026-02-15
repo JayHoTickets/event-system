@@ -17,6 +17,9 @@ const EventAnalytics: React.FC = () => {
     const [event, setEvent] = useState<Event | null>(null);
     const [orders, setOrders] = useState<Order[]>([]);
     const { user } = useAuth();
+    const currentOrganizerId = user ? ((user.role === 'STAFF') ? (user as any).organizerId : user.id) : null;
+    const perms: string[] = (user as any)?.permissions || [];
+    const isStaff = user?.role === 'STAFF';
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [orderDateFrom, setOrderDateFrom] = useState('');
@@ -77,7 +80,29 @@ const EventAnalytics: React.FC = () => {
     
 
   // Auto-fit map when switching to MAP view
+  // Determine allowed views based on role/permissions and choose sensible default
   useEffect(() => {
+    const perms: string[] = (user as any)?.permissions || [];
+    const isStaff = user?.role === 'STAFF';
+    const canViewStats = !isStaff || perms.includes('revenue');
+    const canViewCheckin = !isStaff || perms.includes('checkin');
+    const canViewMap = !isStaff || perms.includes('live_map');
+
+    // If current activeView is not allowed, pick the first allowed view
+    const allowedOrder: ('STATS'|'CHECKIN'|'MAP')[] = ['STATS','CHECKIN','MAP'];
+    const isAllowed = (v: typeof activeView) => {
+      if (v === 'STATS') return canViewStats;
+      if (v === 'CHECKIN') return canViewCheckin;
+      if (v === 'MAP') return canViewMap;
+      return false;
+    }
+
+    if (!isAllowed(activeView)) {
+      for (const v of allowedOrder) {
+        if (isAllowed(v as any)) { setActiveView(v as any); break; }
+      }
+    }
+
     if (
       activeView === "MAP" &&
       event &&
@@ -91,7 +116,7 @@ const EventAnalytics: React.FC = () => {
       const newScale = Math.min(1, (containerW - 40) / contentW);
       setZoom(Math.max(0.2, newScale));
     }
-  }, [activeView, event]);
+  }, [activeView, event, user]);
 
   if (loading)
     return (
@@ -391,40 +416,51 @@ const EventAnalytics: React.FC = () => {
           >
             <Download className="w-4 h-4 mr-2" /> Export
           </button>
-          <button
+          {/* <button
             onClick={() => navigate("/organizer/scanner")}
             className="bg-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#d7ae4b] hover:text-black text-sm font-medium"
           >
             <UserCheck className="w-4 h-4 mr-2" /> Scan Tickets
-          </button>
+          </button> */}
         </div>
       </div>
 
       {/* VIEW TOGGLE TABS */}
       <div className="flex border-b border-slate-200 mb-8 overflow-x-auto">
-        <button
-          onClick={() => setActiveView("STATS")}
-          className={clsx(
-            "px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap",
-            activeView === "STATS"
-              ? "border-[#d7ae4b] text-[#d7ae4b]"
+        {((user?.role !== 'STAFF') || ((user as any)?.permissions || []).includes('revenue')) && (
+          <button
+            onClick={() => setActiveView("STATS")}
+            className={clsx(
+              "px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap",
+              activeView === "STATS"
+                ? "border-[#d7ae4b] text-[#d7ae4b]"
                 : "border-transparent text-slate-500 hover:text-[#d7ae4b] hover:border-slate-300",
-          )}
-        >
-          <BarChart2 className="w-4 h-4 mr-2" /> Overview & Sales
-        </button>
-        <button
-          onClick={() => setActiveView("CHECKIN")}
-          className={clsx(
-            "px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap",
-            activeView === "CHECKIN"
-              ? "border-[#d7ae4b] text-[#d7ae4b]"
+            )}
+          >
+            <BarChart2 className="w-4 h-4 mr-2" /> Overview & Sales
+          </button>
+        )}
+        {((user?.role !== 'STAFF') || ((user as any)?.permissions || []).includes('checkin')) && (
+          <button
+            onClick={() => setActiveView("CHECKIN")}
+            className={clsx(
+              "px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center whitespace-nowrap",
+              activeView === "CHECKIN"
+                ? "border-[#d7ae4b] text-[#d7ae4b]"
                 : "border-transparent text-slate-500 hover:text-[#d7ae4b] hover:border-slate-300",
-          )}
-        >
-          <PieChartIcon className="w-4 h-4 mr-2" /> Check-in Report
-        </button>
-        {isReserved && (
+            )}
+          >
+            <PieChartIcon className="w-4 h-4 mr-2" /> Check-in Report
+          </button>
+        )}
+        {/* Render tabs only if organizer or staff has specific permission */}
+        {((user?.role !== 'STAFF') || ((user as any)?.permissions || []).includes('revenue')) && (
+          <></>
+        )}
+        {((user?.role !== 'STAFF') || ((user as any)?.permissions || []).includes('checkin')) && (
+          <></>
+        )}
+        {isReserved && ((user?.role !== 'STAFF') || ((user as any)?.permissions || []).includes('live_map')) && (
           <button
             onClick={() => setActiveView("MAP")}
             className={clsx(
@@ -439,7 +475,7 @@ const EventAnalytics: React.FC = () => {
         )}
       </div>
 
-      {activeView === "STATS" && (
+      {activeView === "STATS" && (!isStaff || perms.includes('revenue')) && (
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -674,7 +710,7 @@ const EventAnalytics: React.FC = () => {
                 </>
             )}
 
-      {activeView === "CHECKIN" && (
+      {activeView === "CHECKIN" && (!isStaff || perms.includes('checkin')) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {/* Left Column: Summary */}
           <div className="lg:col-span-1 space-y-6">
@@ -859,7 +895,7 @@ const EventAnalytics: React.FC = () => {
         </div>
       )}
 
-      {activeView === "MAP" && (
+      {activeView === "MAP" && (!isStaff || perms.includes('live_map')) && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col min-h-[600px] relative">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
             <div className="flex items-center gap-4">
@@ -1039,7 +1075,7 @@ const EventAnalytics: React.FC = () => {
                                         </div>
                                         <div>
                                             <span className="text-slate-500 block mb-1">Refund Status</span>
-                                                    {user && String(user.id) === String(event.organizerId) ? (
+                                                    {currentOrganizerId && String(currentOrganizerId) === String(event.organizerId) ? (
                                                 <div className="flex items-center gap-2">
                                                     <select
                                                         className="w-full border rounded-lg px-3 py-2"
@@ -1153,7 +1189,7 @@ const EventAnalytics: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            {user && String(user.id) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
+                                        {currentOrganizerId && String(currentOrganizerId) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
                                     <button
                                         onClick={() => handleCancelOrder(selectedOrder)}
                                         className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"

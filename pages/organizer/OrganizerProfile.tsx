@@ -35,11 +35,11 @@ const OrganizerProfile: React.FC = () => {
             <p className="mt-2">Use this dashboard to quickly access your organizer tools. Your access and available modules depend on your role and assigned permissions.</p>
           </div>
 
-          <div className="mt-4 flex gap-3">
+          {/* <div className="mt-4 flex gap-3">
             <button onClick={() => navigate('/organizer/events')} className="px-4 py-2 rounded bg-slate-900 text-white">Go to Events</button>
             <button onClick={() => navigate('/organizer/staff')} className="px-4 py-2 rounded border">Manage Staff</button>
             <button onClick={() => navigate('/organizer/coupons')} className="px-4 py-2 rounded border">Coupons</button>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

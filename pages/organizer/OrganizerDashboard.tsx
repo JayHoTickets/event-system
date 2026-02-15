@@ -81,13 +81,13 @@ const OrganizerDashboard: React.FC = () => {
                     <p className="text-slate-500 mt-1">Manage your events and ticket sales.</p>
                 </div>
                 <div className="flex gap-3">
-                    <button 
+                    {/* <button 
                         onClick={() => navigate('/organizer/coupons')}
                         className="bg-white border border-slate-300 text-slate-700 px-5 py-2.5 rounded-lg flex items-center shadow-sm hover:bg-slate-50 transition font-medium"
                     >
                         <Tag className="w-5 h-5 mr-2" />
                         Manage Coupons
-                    </button>
+                    </button> */}
                     <button 
                         onClick={() => navigate('/organizer/create-event')}
                         className="bg-black text-white px-5 py-2.5 rounded-lg flex items-center shadow-md hover:bg-[#d7ae4b] hover:text-black transition font-medium"

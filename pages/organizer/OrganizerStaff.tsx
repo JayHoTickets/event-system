@@ -4,10 +4,13 @@ import { fetchStaffByOrganizer, createStaff, updateStaff, deleteStaff } from '..
 
 const AVAILABLE_PERMISSIONS = [
   { key: 'scanner', label: 'Scanner' },
-  { key: 'events', label: 'Events' },
   { key: 'coupons', label: 'Coupons' },
-  { key: 'orders', label: 'Orders' }
+    { key: 'events', label: 'Events' },
+  { key: 'revenue', label: 'Revenue Report' },
+  { key: 'checkin', label: 'Check-in Report' },
+  { key: 'live_map', label: 'Live Seating Map' }
 ];
+const EVENT_SUB_PERMISSIONS = ['revenue', 'checkin', 'live_map'];
 
 const Input = ({ label, value, onChange, type = 'text', placeholder = '' }: any) => (
   <label className="block">
@@ -48,7 +51,15 @@ const OrganizerStaff: React.FC = () => {
   useEffect(() => { load(); }, [organizerId]);
 
   const togglePermission = (key: string) => {
-    setForm(f => ({ ...f, permissions: f.permissions.includes(key) ? f.permissions.filter(p => p !== key) : [...f.permissions, key] }));
+    setForm(f => {
+      const has = f.permissions.includes(key);
+      let newPerms = has ? f.permissions.filter(p => p !== key) : [...f.permissions, key];
+      // if removing 'events', also remove any event sub-permissions
+      if (key === 'events' && has) {
+        newPerms = newPerms.filter(p => !EVENT_SUB_PERMISSIONS.includes(p));
+      }
+      return { ...f, permissions: newPerms };
+    });
   };
 
   const handleCreate = async () => {
@@ -64,7 +75,10 @@ const OrganizerStaff: React.FC = () => {
 
   const handleEdit = (s: any) => {
     setEditingId(s.id);
-    setForm({ name: s.name || '', email: s.email || '', password: '', permissions: s.permissions || [] });
+    // ensure sub-permissions are only present when 'events' permission exists
+    const incoming: string[] = s.permissions || [];
+    const perms = incoming.includes('events') ? incoming : incoming.filter(p => !EVENT_SUB_PERMISSIONS.includes(p));
+    setForm({ name: s.name || '', email: s.email || '', password: '', permissions: perms });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -111,12 +125,14 @@ const OrganizerStaff: React.FC = () => {
           <div className="mt-4">
             <div className="text-sm text-slate-600 mb-2">Permissions</div>
             <div className="flex flex-wrap gap-2">
-              {AVAILABLE_PERMISSIONS.map(p => (
-                <label key={p.key} className="inline-flex items-center gap-2 bg-slate-50 px-3 py-1 rounded border">
-                  <input type="checkbox" checked={form.permissions.includes(p.key)} onChange={() => togglePermission(p.key)} />
-                  <span className="text-sm text-slate-700">{p.label}</span>
-                </label>
-              ))}
+              {AVAILABLE_PERMISSIONS
+                .filter(p => !(EVENT_SUB_PERMISSIONS.includes(p.key) && !form.permissions.includes('events')))
+                .map(p => (
+                  <label key={p.key} className="inline-flex items-center gap-2 bg-slate-50 px-3 py-1 rounded border">
+                    <input type="checkbox" checked={form.permissions.includes(p.key)} onChange={() => togglePermission(p.key)} />
+                    <span className="text-sm text-slate-700">{p.label}</span>
+                  </label>
+                ))}
             </div>
           </div>
 

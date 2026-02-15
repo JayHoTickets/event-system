@@ -23,6 +23,9 @@ const CreateEvent: React.FC = () => {
     const { id } = useParams<{ id: string }>(); // Check for Edit Mode
     const navigate = useNavigate();
     const { user } = useAuth();
+    const perms: string[] = (user as any)?.permissions || [];
+    const isStaff = user?.role === 'STAFF';
+    const canManageEvents = !isStaff || perms.includes('events');
     
     const isEditMode = !!id;
 
@@ -311,10 +314,11 @@ const CreateEvent: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
+        if (!canManageEvents) { alert('You do not have permission to create or update events'); setLoading(false); return; }
         
         setLoading(true);
         try {
-                if (isEditMode && id) {
+            if (isEditMode && id) {
                  await updateEvent(id, {
                     ...formData,
                     // Send the datetime-local wall time and timezone; backend will parse into UTC
@@ -324,13 +328,14 @@ const CreateEvent: React.FC = () => {
                     seatMappings
                 });
                 alert("Event updated successfully!");
-            } else {
+                } else {
+                const organizerId = (user.role === 'STAFF') ? (user as any).organizerId : user.id;
                 await createEvent({
                     ...formData,
                     // Send wall-clock datetime-local and timezone; backend will interpret with timezone
                     startTime: formData.startTime ? formData.startTime : '',
                     endTime: formData.endTime ? formData.endTime : '',
-                    organizerId: user.id,
+                    organizerId,
                     ticketTypes,
                     seatMappings
                 });
