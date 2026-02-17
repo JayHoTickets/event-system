@@ -71,12 +71,15 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
     // Generate Ticket List with QR Codes
     const ticketsHtml = order.tickets.map(t => {
         // Public API for QR Code generation (Use a secure internal service in production)
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(t.id)}`;
-        
+        // Generate a larger source image for crispness, render at a fixed square size in the email
+        const qrSourceSize = 240; // source image size in px (square)
+        const qrRenderSize = 120; // render size in px (square) inside the email
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSourceSize}x${qrSourceSize}&data=${encodeURIComponent(t.id)}`;
+
         return `
             <div style="border: 2px dashed #ccc; padding: 20px; margin-bottom: 20px; border-radius: 8px; display: flex; align-items: center;">
                 <div style="margin-right: 20px;">
-                    <img src="${qrUrl}" alt="QR Code" width="120" height="120" />
+                    <img src="${qrUrl}" alt="QR Code" width="${qrRenderSize}" height="${qrRenderSize}" style="width:${qrRenderSize}px;height:${qrRenderSize}px;max-width:${qrRenderSize}px;min-width:${qrRenderSize}px;display:block;border:0;line-height:0;object-fit:contain;" />
                 </div>
                 <div>
                     <h3 style="margin: 0 0 5px 0; color: #333; display:flex; align-items:center; gap:8px;">
@@ -151,7 +154,11 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                 <div style="margin-top:18px;">
                     <h3 style="font-size:16px;margin:0 0 8px 0;color:#111;font-weight:700;">Terms and Conditions</h3>
                     <div style="font-size:12px;color:#666;line-height:1.5;text-align:justify;background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #eef2f7;">
-                        <ul style="margin:0;padding-left:18px;">
+                    <p>
+                    Important Disclaimer:
+This event is organized and produced by a third party. Jay-Ho! is acting solely as a ticketing platform and is not responsible for any changes, schedule delays, cancellations, or the quality of the event production. All event-related decisions, including refunds or rescheduling, are at the discretion of the event organizer.
+    </p>    
+                    <ul style="margin:0;padding-left:18px;">
                             <li><strong>No Refunds or Exchanges:</strong> All ticket purchases are final. Tickets are non-refundable and non-transferable unless explicitly stated otherwise by the event organizer.</li>
                             <li><strong>Service Fees Non-Refundable:</strong> Any service fees or transaction fees charged by Jay-Ho! are non-refundable, even if the event is canceled or rescheduled by the organizer.</li>
                             <li><strong>Event Changes:</strong> The event organizer reserves the right to alter the schedule, performers, or venue without prior notice. Jay-Ho! is not liable for such changes.</li>
