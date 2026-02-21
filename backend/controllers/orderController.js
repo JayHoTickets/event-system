@@ -7,6 +7,8 @@ const { sendOrderEmails } = require('../utils/emailService');
 const { computeCouponDiscount } = require('../utils/discountService');
 
 const { sendCancellationEmails } = require('../utils/emailService');
+const Stripe = require('stripe');
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 exports.getOrders = async (req, res) => {
     try {
@@ -341,6 +343,31 @@ exports.cancelOrder = async (req, res) => {
         }
 
         await order.save();
+
+        // If a refund amount is specified, attempt to create a Stripe refund now
+        if (order.refundAmount && order.refundAmount > 0) {
+            const amountInCents = Math.round(Number(order.refundAmount) * 100);
+            try {
+                if (!stripe) throw new Error('Stripe not configured (STRIPE_SECRET_KEY missing)');
+
+                // Create refund against the PaymentIntent (Stripe will resolve the charge)
+                const refund = await stripe.refunds.create({ payment_intent: order.transactionId, amount: amountInCents });
+
+                order.refundStatus = 'PROCESSED';
+                order.refundTransactionId = refund.id || (refund && refund.charge) || null;
+                order.cancellationHistory = order.cancellationHistory || [];
+                order.cancellationHistory.push({ organizerId, timestamp: new Date(), refundAmount: order.refundAmount, notes: `Refund issued: ${order.refundTransactionId}` });
+                await order.save();
+                console.log(`Stripe refund created for order ${order.id} refund=${order.refundAmount} id=${order.refundTransactionId}`);
+            } catch (refundErr) {
+                console.error('Stripe refund failed for order', order.id, refundErr);
+                // Mark refund as FAILED but keep the record so admin can retry
+                order.refundStatus = 'FAILED';
+                order.cancellationHistory = order.cancellationHistory || [];
+                order.cancellationHistory.push({ organizerId, timestamp: new Date(), refundAmount: order.refundAmount, notes: `Refund failed: ${refundErr.message || refundErr}` });
+                await order.save();
+            }
+        }
 
         // Send notification emails (async)
         try {

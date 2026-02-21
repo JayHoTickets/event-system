@@ -37,6 +37,7 @@ const OrderSchema = new mongoose.Schema({
     cancellationHistory: [{ organizerId: String, timestamp: Date, refundAmount: Number, notes: String }],
     paymentMode: String,
     transactionId: String, // Stripe Payment Intent ID
+    refundTransactionId: String, // Stripe Refund ID
     date: { type: Date, default: Date.now }
 }, {
     toJSON: {
