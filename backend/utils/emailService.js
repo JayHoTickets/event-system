@@ -77,20 +77,26 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSourceSize}x${qrSourceSize}&data=${encodeURIComponent(t.id)}`;
 
         return `
-            <div style="border: 2px dashed #ccc; padding: 20px; margin-bottom: 20px; border-radius: 8px; display: flex; align-items: center;">
-                <div style="margin-right: 20px;">
-                    <img src="${qrUrl}" alt="QR Code" width="${qrRenderSize}" height="${qrRenderSize}" style="width:${qrRenderSize}px;height:${qrRenderSize}px;max-width:${qrRenderSize}px;min-width:${qrRenderSize}px;display:block;border:0;line-height:0;object-fit:contain;" />
-                </div>
-                <div>
-                    <h3 style="margin: 0 0 5px 0; color: #333; display:flex; align-items:center; gap:8px;">
-                        ${t.color ? `<span style="width:14px;height:14px;display:inline-block;border-radius:3px;background:${t.color};border:1px solid rgba(0,0,0,0.08);"></span>` : ''}
-                        ${t.ticketType || 'Ticket'}
-                    </h3>
-                    <p style="margin: 0 0 6px 0; color: #555;"><strong>Event:</strong> ${event.title}</p>
-                    ${event.seatingType === 'RESERVED' ? `<p style="margin: 0; color: #555;"><strong>Seat:</strong> ${t.seatLabel}</p>` : ''}
-                    <p style="margin: 0; color: #555;"><strong>Price:</strong> ${formatCurrency(t.price)}</p>
-                    <p style="margin: 5px 0 0 0; font-size: 11px; color: #888;">ID: ${t.id}</p>
-                </div>
+            <div style="border: 2px dashed #ccc; padding: 18px; margin-bottom: 18px; border-radius: 8px;">
+                <table role="presentation" style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="text-align:center;padding-bottom:12px;">
+                            <img src="${qrUrl}" alt="QR Code" style="max-width:160px;width:60%;height:auto;display:block;margin:0 auto;border:0;line-height:0;object-fit:contain;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="vertical-align:top;">
+                            <h3 style="margin: 0 0 6px 0; color: #333;font-size:16px;">
+                                ${t.color ? `<span style="width:14px;height:14px;display:inline-block;border-radius:3px;background:${t.color};border:1px solid rgba(0,0,0,0.08);vertical-align:middle;margin-right:8px;"></span>` : ''}
+                                ${t.ticketType || 'Ticket'}
+                            </h3>
+                            <p style="margin:4px 0;color:#555;font-size:14px;"><strong>Event:</strong> ${event.title}</p>
+                            ${event.seatingType === 'RESERVED' ? `<p style="margin:4px 0;color:#555;font-size:14px;"><strong>Seat:</strong> ${t.seatLabel}</p>` : ''}
+                            <p style="margin:4px 0;color:#555;font-size:14px;"><strong>Price:</strong> ${formatCurrency(t.price)}</p>
+                            <p style="margin:6px 0 0 0; font-size:11px; color:#888;">ID: ${t.id}</p>
+                        </td>
+                    </tr>
+                </table>
             </div>
         `;
     }).join('');
@@ -98,22 +104,44 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
     // Shared renderer to produce the same formatted email for any recipient
     const renderCommonHtml = ({ headline, introHtml = '', includeCustomerInfo = false, showCoupon = true }) => `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 680px; margin: 0 auto;">
-            <div style="background:#16a34a;padding:28px 18px;text-align:center;color:#fff;border-top-left-radius:8px;border-top-right-radius:8px;">
-                <div style="font-size:44px;line-height:1;margin-bottom:6px;">✅</div>
-                <h1 style="margin:0;font-size:28px;font-weight:700;">${headline}</h1>
-                <p style="margin:6px 0 0 0;color:rgba(255,255,255,0.9);">Order ID: ${order.id}</p>
+            <!-- Header / Branding -->
+            <div style="background:#111111;padding:18px 16px;text-align:center;color:#ffffff;border-top-left-radius:8px;border-top-right-radius:8px;">
+                <img src="https://events.jay-ho.com/wp-content/uploads/2026/02/Jay-Ho-Tickets.png" alt="Jay-Ho Tickets" style="max-width:260px;width:100%;height:auto;display:block;margin:0 auto;" />
+            </div>
+            <!-- Confirmation Banner -->
+            <div style="background:#16a34a;padding:14px 18px;text-align:left;color:#ffffff;">
+                <p style="margin:0 0 4px 0;font-size:12px;letter-spacing:0.03em;color:rgba(255,255,255,0.9);">Order ID: ${order.id}</p>
+                <h1 style="margin:0;font-size:22px;line-height:1.3;font-weight:700;">${headline}</h1>
             </div>
 
-            <div style="background:#fff;padding:24px;border:1px solid #e6e6e6;border-bottom-left-radius:8px;border-bottom-right-radius:8px;">
+            <!-- Main Body -->
+            <div style="background:#ffffff;padding:20px 18px 24px 18px;border:1px solid #e5e7eb;border-bottom-left-radius:8px;border-bottom-right-radius:8px;">
 
                 ${introHtml}
 
-                ${includeCustomerInfo ? `<p><strong>Customer:</strong> ${customerName} (${customerEmail})</p>` : `<p>Thanks for purchasing tickets to <strong>${event.title}</strong>.</p>`}
+                ${includeCustomerInfo ? `<p style="margin:8px 0 14px 0;font-size:14px;color:#374151;"><strong>Customer:</strong> ${customerName} (${customerEmail})</p>` : `<p style="margin:8px 0 14px 0;font-size:14px;color:#374151;">Thanks for purchasing tickets to <strong>${event.title}</strong>.</p>`}
 
-                <div style="background:#f3f4f6;padding:12px;border-radius:8px;margin:18px 0;">
-                    <p style="margin:6px 0;"><strong>Date:</strong> ${dateStr} at ${timeStr}</p>
-                    <p style="margin:6px 0;"><strong>Location:</strong> ${event.location || 'See event details'}</p>
-                    <p style="margin:6px 0;"><strong>Order ID:</strong> ${order.id}</p>
+                <!-- Event Details Card -->
+                <div style="background:#f3f4f6;border-radius:10px;border:1px solid #e5e7eb;padding:12px 14px;margin:10px 0 20px 0;">
+                    <table role="presentation" style="width:100%;border-collapse:collapse;">
+                        <tr>
+                            ${event.imageUrl ? `<td style="width:90px;padding-right:12px;vertical-align:top;">
+                                <img src="${event.imageUrl}" alt="${event.title}" style="width:90px;max-width:90px;height:auto;display:block;border-radius:6px;border:0;" />
+                            </td>` : ''}
+                            <td style="vertical-align:top;font-size:13px;color:#111827;">
+                                <p style="margin:0 0 4px 0;font-weight:700;font-size:14px;">${event.title}</p>
+                                <p style="margin:0 0 4px 0;font-size:13px;color:#4b5563;">
+                                    <span>${dateStr}</span>
+                                    ${timeStr ? ` &bull; <span>${timeStr}</span>` : ''}
+                                </p>
+                                <p style="margin:0 0 2px 0;font-size:13px;color:#374151;">${event.location || 'See event details'}</p>
+                                ${event.addressLine1 || event.addressLine2 || event.city ? `
+                                <p style="margin:2px 0 0 0;font-size:12px;color:#6b7280;">
+                                    ${[event.addressLine1, event.addressLine2, event.city, event.state, event.postalCode].filter(Boolean).join(', ')}
+                                </p>` : ''}
+                            </td>
+                        </tr>
+                    </table>
                 </div>
 
                 ${showCoupon && order.couponCode && order.discountApplied > 0 ? `<div style="margin-bottom:12px;padding:10px;border-radius:6px;background:#ecfdf5;color:#065f46;border:1px solid #bbf7d0;"><strong>Coupon applied:</strong> ${order.couponCode} — you saved ${formatCurrency(order.discountApplied)}</div>` : ''}
