@@ -47,7 +47,7 @@ const EventsList: React.FC = () => {
               
               <div className="mt-auto">
                 <button
-                  onClick={() => navigate(`/event/${event.id}`)}
+                  onClick={() => navigate(`/event/${event.slug || event.id}`)}
                   className="w-full bg-gradient-to-r from-blue-500 to-blue-400 text-white py-2 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-blue-500 transition-colors focus:ring-4 focus:ring-blue-100"
                 >
                   View Event Details

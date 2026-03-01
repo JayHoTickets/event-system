@@ -17,6 +17,7 @@ const Confirmation: React.FC = () => {
   const [eventStart, setEventStart] = useState<string | null>(null);
   const [eventTimezone, setEventTimezone] = useState<string | null>(null);
   const [venueName, setVenueName] = useState<string | null>(null);
+  const [eventSlug, setEventSlug] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -29,6 +30,7 @@ const Confirmation: React.FC = () => {
         setEventStart(data.startTime || null);
         setEventTimezone(data.timezone || null);
         setVenueName((data as any).venueName || data.location || null);
+        setEventSlug((data as any).slug || (data as any).id || null);
       } catch (err) {
         // ignore
       }
@@ -260,7 +262,7 @@ const Confirmation: React.FC = () => {
           </div>
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              to={"/event/" + order.tickets[0].eventId}
+              to={"/event/" + (eventSlug || order.tickets[0].eventId)}
               className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-medium"
             >
               Buy More Tickets

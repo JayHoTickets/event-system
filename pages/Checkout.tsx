@@ -385,7 +385,7 @@ const Checkout: React.FC = () => {
 
   const handleTimeout = () => {
       alert("Your booking session has expired. The seats have been released.");
-      window.location.href = `/event/${event.id}`;
+      window.location.href = `/event/${event.slug || event.id}`;
   };
 
   const handleManualBack = () => {
@@ -400,13 +400,13 @@ const Checkout: React.FC = () => {
             } catch (err) {
                 console.error('Failed to release seats on manual back', err);
             } finally {
-                window.location.href = `/event/${event.id}`;
+                window.location.href = `/event/${event.slug || event.id}`;
             }
         })();
-      } else if (event) {
-        // For non-reserved events just navigate back without prompts or release logic
-        window.location.href = `/event/${event.id}`;
-      }
+                } else if (event) {
+                // For non-reserved events just navigate back without prompts or release logic
+                window.location.href = `/event/${event.slug || event.id}`;
+            }
   };
 useEffect(() => {
     if (!event || event.seatingType !== SeatingType.RESERVED) return;

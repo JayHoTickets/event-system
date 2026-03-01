@@ -37,7 +37,7 @@ function App() {
                 <Route path="/" element={<Login />} />
                 <Route path="/organizer-guide" element={<PublicOrganizerGuide />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/event/:id" element={<EventBooking />} />
+                <Route path="/event/:slug" element={<EventBooking />} />
                 <Route path="/terms" element={<TermsAndConditions />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/confirmation" element={<Confirmation />} />

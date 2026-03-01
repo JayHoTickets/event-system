@@ -42,6 +42,8 @@ const StageSchema = new mongoose.Schema({
 
 const EventSchema = new mongoose.Schema({
     title: { type: String, required: true },
+    // URL-friendly slug derived from `title` for human-readable event URLs
+    slug: { type: String, index: true, unique: true, sparse: true },
     description: String,
     organizerId: { type: String, required: true },
     startTime: Date,

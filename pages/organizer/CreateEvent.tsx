@@ -44,6 +44,8 @@ const CreateEvent: React.FC = () => {
     // Form State
     const [formData, setFormData] = useState({
         title: '',
+        // Optional human-friendly URL slug. If left empty, backend will generate one from title.
+        slug: '',
         description: '',
         venueId: '',
         theaterId: '',
@@ -85,6 +87,7 @@ const CreateEvent: React.FC = () => {
                     // 1. Set Basic Data
                     setFormData({
                         title: event.title,
+                        slug: (event.slug as any) || '',
                         description: event.description,
                         venueId: event.venueId,
                         theaterId: event.theaterId || '',
@@ -389,6 +392,12 @@ const CreateEvent: React.FC = () => {
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Event Title</label>
                                 <input required name="title" value={formData.title} onChange={handleChange} className="w-full border rounded-lg px-3 py-2" placeholder="e.g. Summer Rock Fest" />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">URL Slug (optional)</label>
+                                <input name="slug" value={formData.slug} onChange={handleChange} className="w-full border rounded-lg px-3 py-2" placeholder="e.g. jay-ho-celebration-party" />
+                                <p className="text-xs text-slate-500 mt-1">If left blank a slug will be generated from the title. Use only letters, numbers and hyphens.</p>
                             </div>
 
                             <div className="md:col-span-2">

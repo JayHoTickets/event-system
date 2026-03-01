@@ -61,7 +61,7 @@ const AdminEvents: React.FC = () => {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => navigate(`/event/${ev.id}`)} className="px-3 py-1 bg-white border rounded text-slate-600 hover:bg-slate-50">
+                    <button onClick={() => navigate(`/event/${ev.slug || ev.id}`)} className="px-3 py-1 bg-white border rounded text-slate-600 hover:bg-slate-50">
                       <Eye className="w-4 h-4 inline-block mr-1" /> View
                     </button>
                     <button onClick={() => navigate(`/admin/events/${ev.id}/edit`)} className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">

@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
 
 const EventBooking: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -28,8 +28,8 @@ const EventBooking: React.FC = () => {
   const [gaSelection, setGaSelection] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (!id) return;
-    fetchEventById(id).then(e => {
+    if (!slug) return;
+    fetchEventById(slug).then(e => {
         setEvent(e || null);
         if (e && e.status && e.status !== EventStatus.PUBLISHED) {
             setBlocked(true);
@@ -37,13 +37,13 @@ const EventBooking: React.FC = () => {
         console.log('Loaded event', e);
         setLoading(false);
     });
-  }, [id]);
+  }, [slug]);
   
   // Handle fetch errors gracefully
   useEffect(() => {
-    if (!id) return;
+    if (!slug) return;
     let mounted = true;
-    fetchEventById(id)
+    fetchEventById(slug)
       .then(e => {
         if (!mounted) return;
         setEvent(e || null);
@@ -60,7 +60,7 @@ const EventBooking: React.FC = () => {
         setError('Failed to load event details. Please try again later.');
       });
     return () => { mounted = false; };
-  }, [id]);
+  }, [slug]);
 
   // Auto-fit map logic
   const fitMapToContainer = () => {

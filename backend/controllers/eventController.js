@@ -1,5 +1,6 @@
 
 const { DateTime } = require('luxon');
+const mongoose = require('mongoose');
 const Event = require('../models/Event');
 const Venue = require('../models/Venue');
 const Theater = require('../models/Theater');
@@ -117,7 +118,19 @@ exports.getEvents = async (req, res) => {
 
 exports.getEventById = async (req, res) => {
     try {
-        const event = await Event.findById(req.params.id);
+        const lookup = req.params.id;
+        let event = null;
+
+        // If the param looks like an ObjectId, try id first
+        if (mongoose.Types.ObjectId.isValid(lookup)) {
+            event = await Event.findById(lookup);
+        }
+
+        // Fallback to slug lookup (human-friendly URLs)
+        if (!event) {
+            event = await Event.findOne({ slug: lookup });
+        }
+
         if (!event || event.deleted) return res.status(404).json(null);
         const venue = await Venue.findById(event.venueId);
         const evObj = { ...event.toObject({ virtuals: true }) };
@@ -209,8 +222,38 @@ exports.createEvent = async (req, res) => {
         const parsedStart = parseEventDate(data.startTime, data.timezone);
         const parsedEnd = parseEventDate(data.endTime, data.timezone);
 
+        const slugify = (t) => {
+            return String(t || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '');
+        };
+
+        // If caller provided a slug, sanitize and use it (ensuring uniqueness).
+        let slug = undefined;
+        if (data.slug) {
+            let candidate = slugify(data.slug);
+            let suffix = 0;
+            while (await Event.findOne({ slug: candidate })) {
+                suffix += 1;
+                candidate = `${candidate}-${suffix}`;
+            }
+            slug = candidate;
+        } else {
+            let baseSlug = slugify(data.title || 'event');
+            slug = baseSlug;
+            let suffix = 0;
+            while (await Event.findOne({ slug })) {
+                suffix += 1;
+                slug = `${baseSlug}-${suffix}`;
+            }
+        }
+
         const event = await Event.create({
             ...data,
+            slug,
             startTime: parsedStart || data.startTime,
             endTime: parsedEnd || data.endTime,
             seats,
@@ -336,6 +379,37 @@ exports.updateEvent = async (req, res) => {
             updateData.stage=null;
             updateData.rows=0;
             updateData.cols=0;  
+        }
+
+        // If caller provided an explicit slug, sanitize and use it (ensure uniqueness)
+        const slugify = (t) => {
+            return String(t || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '');
+        };
+
+        if (data.slug) {
+            let candidate = slugify(data.slug);
+            let suffix = 0;
+            // Ensure we don't collide with other events
+            while (await Event.findOne({ slug: candidate, _id: { $ne: event._id } })) {
+                suffix += 1;
+                candidate = `${candidate}-${suffix}`;
+            }
+            updateData.slug = candidate;
+        } else if (data.title && data.title !== event.title) {
+            // If title changed (and no explicit slug), regenerate slug from title
+            let baseSlug = slugify(data.title || 'event');
+            let candidate = baseSlug;
+            let suffix = 0;
+            while (await Event.findOne({ slug: candidate, _id: { $ne: event._id } })) {
+                suffix += 1;
+                candidate = `${baseSlug}-${suffix}`;
+            }
+            updateData.slug = candidate;
         }
 
         const updatedEvent = await Event.findByIdAndUpdate(req.params.id, updateData, { new: true });
