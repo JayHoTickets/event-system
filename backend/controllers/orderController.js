@@ -281,9 +281,15 @@ exports.cancelOrder = async (req, res) => {
         const normalizedRefundStatus = allowed.includes(String(refundStatus).toUpperCase()) ? String(refundStatus).toUpperCase() : 'PENDING';
 
         const wasAlreadyCancelled = order.status === 'CANCELLED';
+
+        // Cap refund to the total ticket price only (do not refund service fees or extra charges)
+        const ticketTotal = (order.tickets || []).reduce((acc, t) => acc + (Number(t.price) || 0), 0);
+        const requestedRefund = Number(refundAmount) || 0;
+        const allowedRefund = Math.max(0, Math.min(requestedRefund, ticketTotal));
+
         if (wasAlreadyCancelled) {
-            // Update refund fields and notes
-            order.refundAmount = Number(refundAmount) || 0;
+            // Update refund fields and notes (cap refund to ticket total)
+            order.refundAmount = allowedRefund;
             order.refundStatus = normalizedRefundStatus;
             order.cancellationNotes = notes || order.cancellationNotes;
             // Record update in history
@@ -295,7 +301,7 @@ exports.cancelOrder = async (req, res) => {
         } else {
             // Mark order cancelled and record refund, notes and refund status
             order.status = 'CANCELLED';
-            order.refundAmount = Number(refundAmount) || 0;
+            order.refundAmount = allowedRefund;
             order.refundStatus = normalizedRefundStatus;
             order.cancellationNotes = notes;
             order.cancelledBy = organizerId;
