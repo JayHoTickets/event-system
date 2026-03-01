@@ -1,28 +1,33 @@
 
-const SibApiV3Sdk = require('sib-api-v3-sdk');
 const { DateTime } = require('luxon');
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 
-const defaultClient = SibApiV3Sdk.ApiClient.instance;
-const apiKey = defaultClient.authentications['api-key'];
-apiKey.apiKey = process.env.BREVO_API_KEY;
-
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+const REGION = process.env.AWS_REGION || 'us-east-1';
+const sesClient = new SESClient({ region: REGION });
 
 const sendEmail = async (to, subject, htmlContent) => {
-    if (!process.env.BREVO_API_KEY) {
-        console.warn("BREVO_API_KEY is missing. Email not sent.");
+    const fromAddress = process.env.EMAIL_FROM || 'noreply@jayhotickets.com';
+
+    if (!process.env.AWS_REGION || !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+        console.warn('AWS credentials or region missing. Email not sent.');
         return;
     }
 
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail.subject = subject;
-    sendSmtpEmail.htmlContent = htmlContent;
-    sendSmtpEmail.sender = { "name": "Jay-Ho! Tickets", "email": "noreply@jayhotickets.com" };
-    sendSmtpEmail.to = [{ "email": to }];
+    const params = {
+        Source: fromAddress,
+        Destination: { ToAddresses: [to] },
+        Message: {
+            Subject: { Data: subject, Charset: 'UTF-8' },
+            Body: {
+                Html: { Data: htmlContent, Charset: 'UTF-8' }
+            }
+        }
+    };
 
     try {
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log(`Email sent successfully to ${to}`);
+        const cmd = new SendEmailCommand(params);
+        const resp = await sesClient.send(cmd);
+        console.log(`Email sent successfully to ${to}`, resp.MessageId ? `MessageId: ${resp.MessageId}` : '');
     } catch (error) {
         console.error(`Error sending email to ${to}:`, error);
     }
