@@ -906,10 +906,6 @@ const EventAnalytics: React.FC = () => {
                   <span>Sold</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-amber-100 border border-amber-200 rounded"></div>
-                  <span>Held</span>
-                </div>
-                <div className="flex items-center gap-1">
                   <div className="w-3 h-3 bg-amber-200 border border-amber-300 rounded animate-pulse"></div>
                   <span>Booking (In-progress)</span>
                 </div>

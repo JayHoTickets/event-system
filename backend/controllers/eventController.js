@@ -343,7 +343,7 @@ exports.updateEvent = async (req, res) => {
                         
                         let status = 'UNAVAILABLE';
                         // Preserve status if it exists and is a "busy" status
-                        if (existingSeat && ['SOLD', 'BOOKING_IN_PROGRESS', 'HELD'].includes(existingSeat.status)) {
+                        if (existingSeat && ['SOLD', 'BOOKING_IN_PROGRESS'].includes(existingSeat.status)) {
                             status = existingSeat.status;
                         } else if (type) {
                             status = 'AVAILABLE';

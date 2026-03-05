@@ -92,9 +92,6 @@ const SeatGrid: React.FC<SeatGridProps> = ({
     
     // 3. Booking in progress (temporary lock) - make it visually obvious
     if (seat.status === SeatStatus.BOOKING_IN_PROGRESS) return 'bg-amber-200 text-amber-800 cursor-not-allowed border-amber-300 animate-pulse';
-
-    // 4. Held state (Amber)
-    if (seat.status === SeatStatus.HELD) return 'bg-amber-100 text-amber-600 cursor-not-allowed border-amber-200';
     
     // 4. Blocked/Unavailable state (Dark Grey/Black)
     if (seat.status === SeatStatus.UNAVAILABLE) {
@@ -160,7 +157,7 @@ const SeatGrid: React.FC<SeatGridProps> = ({
               // Allow selection of UNAVAILABLE if prop is true
               const isBlockedButSelectable = canSelectUnavailable && seat.status === SeatStatus.UNAVAILABLE;
               
-              if (seat.status !== SeatStatus.SOLD && seat.status !== SeatStatus.HELD && (seat.status !== SeatStatus.UNAVAILABLE || isBlockedButSelectable)) {
+              if (seat.status !== SeatStatus.SOLD && (seat.status !== SeatStatus.UNAVAILABLE || isBlockedButSelectable)) {
                   selectedIds.push(seat.id);
               }
           }
@@ -261,7 +258,7 @@ const SeatGrid: React.FC<SeatGridProps> = ({
                 
                 // Allow clicking UNAVAILABLE if prop is enabled
                 const isBlockedButSelectable = canSelectUnavailable && seat.status === SeatStatus.UNAVAILABLE;
-                const isDisabled = !onSeatClick || seat.status === SeatStatus.SOLD || seat.status === SeatStatus.HELD || seat.status === SeatStatus.BOOKING_IN_PROGRESS || (seat.status === SeatStatus.UNAVAILABLE && !canSelectUnavailable);
+                const isDisabled = !onSeatClick || seat.status === SeatStatus.SOLD || seat.status === SeatStatus.BOOKING_IN_PROGRESS || (seat.status === SeatStatus.UNAVAILABLE && !canSelectUnavailable);
 
                 const styleObj: React.CSSProperties = {
                     left: seat.x !== undefined ? seat.x : seat.col * CELL_SIZE,

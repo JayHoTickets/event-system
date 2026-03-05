@@ -66,8 +66,8 @@ exports.createOrder = async (req, res) => {
             if (event.seatingType === 'RESERVED') {
                 const soldIds = new Set(seats.map(s => s.id));
 
-                // Pre-check: ensure all requested seats are available (or held but expired).
-                // Reject the order if any seat is already SOLD/HELD/UNAVAILABLE or actively held by another booking.
+                // Pre-check: ensure all requested seats are available.
+                // Reject the order if any seat is already SOLD/UNAVAILABLE or actively held by another booking.
                 const now = new Date();
                 const conflicts = [];
                 for (const sid of soldIds) {
@@ -77,13 +77,13 @@ exports.createOrder = async (req, res) => {
                         continue;
                     }
                     const st = existingSeat.status;
-                    // Seats that are already SOLD/HELD/UNAVAILABLE cannot be purchased.
+                    // Seats that are already SOLD/UNAVAILABLE cannot be purchased.
                     // A seat in BOOKING_IN_PROGRESS is a short-term hold placed by
                     // the checkout flow and should be consumable by the purchaser
                     // who holds the booking window. Without ownership metadata we
                     // can't distinguish different holders, so accept BOOKING_IN_PROGRESS
                     // here and allow it to be moved to SOLD below.
-                    if (st === 'SOLD' || st === 'HELD' || st === 'UNAVAILABLE') {
+                    if (st === 'SOLD' || st === 'UNAVAILABLE') {
                         conflicts.push({ id: sid, reason: st });
                         continue;
                     }
