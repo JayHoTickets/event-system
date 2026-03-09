@@ -17,7 +17,8 @@ interface SeatGridProps {
   totalRows?: number;
   totalCols?: number;
   scale?: number;
-  canSelectUnavailable?: boolean; // New prop to allow clicking blocked seats
+    canSelectUnavailable?: boolean; // New prop to allow clicking blocked seats
+    canSelectHold?: boolean; // New prop to allow clicking seats with HOLD status
 }
 
 const SeatGrid: React.FC<SeatGridProps> = ({ 
@@ -32,7 +33,8 @@ const SeatGrid: React.FC<SeatGridProps> = ({
     totalRows,
     totalCols,
     scale = 1,
-    canSelectUnavailable = false
+        canSelectUnavailable = false,
+        canSelectHold = false
 }) => {
   
   // Drag Selection State
@@ -158,9 +160,10 @@ const SeatGrid: React.FC<SeatGridProps> = ({
           // Check if seat rectangle intersects selection box
           if (sX < x2 && sX + sW > x1 && sY < y2 && sY + sH > y1) {
               // Allow selection of UNAVAILABLE if prop is true
-              const isBlockedButSelectable = canSelectUnavailable && seat.status === SeatStatus.UNAVAILABLE;
-              
-              if (seat.status !== SeatStatus.SOLD && (seat.status !== SeatStatus.UNAVAILABLE || isBlockedButSelectable)) {
+                      const isBlockedButSelectable = canSelectUnavailable && seat.status === SeatStatus.UNAVAILABLE;
+                      const isHoldButSelectable = canSelectHold && seat.status === SeatStatus.HOLD;
+
+                      if (seat.status !== SeatStatus.SOLD && (seat.status !== SeatStatus.UNAVAILABLE || isBlockedButSelectable) && (seat.status !== SeatStatus.HOLD || isHoldButSelectable)) {
                   selectedIds.push(seat.id);
               }
           }
@@ -261,7 +264,8 @@ const SeatGrid: React.FC<SeatGridProps> = ({
                 
                 // Allow clicking UNAVAILABLE if prop is enabled
                 const isBlockedButSelectable = canSelectUnavailable && seat.status === SeatStatus.UNAVAILABLE;
-                const isDisabled = !onSeatClick || seat.status === SeatStatus.SOLD || seat.status === SeatStatus.BOOKING_IN_PROGRESS || (seat.status === SeatStatus.UNAVAILABLE && !canSelectUnavailable);
+                const isHoldButSelectable = canSelectHold && seat.status === SeatStatus.HOLD;
+                const isDisabled = !onSeatClick || seat.status === SeatStatus.SOLD || seat.status === SeatStatus.BOOKING_IN_PROGRESS || (seat.status === SeatStatus.UNAVAILABLE && !canSelectUnavailable) || (seat.status === SeatStatus.HOLD && !canSelectHold);
 
                 const styleObj: React.CSSProperties = {
                     left: seat.x !== undefined ? seat.x : seat.col * CELL_SIZE,
