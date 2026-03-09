@@ -42,15 +42,24 @@ const formatVenueLocation = (v) => {
 };
 
 // Cleanup job: find seats where holdUntil has expired and revert them to AVAILABLE
+// Also handles payment pending orders that have expired
 exports.cleanupExpiredHolds = async () => {
     try {
+        const Order = require('../models/Order');
         const now = new Date();
-        // Find events that have at least one seat with holdUntil < now
-        const events = await Event.find({ 'seats.holdUntil': { $lt: now } });
+        
+        // 1. Clean up expired seat holds (both BOOKING_IN_PROGRESS and HOLD status)
+        const events = await Event.find({ $or: [ { 'seats.holdUntil': { $lt: now } }, { 'seats.status': 'HOLD' } ] });
         for (const ev of events) {
             let changed = false;
             ev.seats = ev.seats.map(s => {
+                // Release BOOKING_IN_PROGRESS seats if expired (from customer checkout flow)
                 if (s.status === 'BOOKING_IN_PROGRESS' && s.holdUntil && new Date(s.holdUntil) < now) {
+                    changed = true;
+                    return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
+                }
+                // Release HOLD seats if expired (from organizer hold with pending payment)
+                if (s.status === 'HOLD' && s.holdUntil && new Date(s.holdUntil) < now) {
                     changed = true;
                     return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
                 }
@@ -58,6 +67,36 @@ exports.cleanupExpiredHolds = async () => {
             });
             if (changed) {
                 await ev.save();
+            }
+        }
+
+        // 2. Clean up expired payment pending orders (mark as expired, release seats)
+        const expiredOrders = await Order.find({ 
+            status: 'PAYMENT_PENDING',
+            paymentPendingUntil: { $lt: now }
+        });
+        
+        for (const order of expiredOrders) {
+            // Mark order as expired/cancelled
+            order.status = 'CANCELLED';
+            order.cancellationNotes = 'Order automatically cancelled - payment not received within 24 hours';
+            order.cancelledAt = new Date();
+            await order.save();
+
+            // Release the held seats back to AVAILABLE
+            if (order.tickets && order.tickets.length > 0) {
+                const eventId = order.tickets[0].eventId;
+                const event = await Event.findById(eventId);
+                if (event) {
+                    const seatIds = new Set(order.tickets.map(t => t.seatId).filter(Boolean));
+                    event.seats = event.seats.map(s => {
+                        if (seatIds.has(s.id) && s.status === 'HOLD') {
+                            return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
+                        }
+                        return s;
+                    });
+                    await event.save();
+                }
             }
         }
     } catch (err) {

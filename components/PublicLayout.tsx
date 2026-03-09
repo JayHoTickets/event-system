@@ -5,7 +5,7 @@ import Navbar from './Navbar';
 
 const PublicLayout: React.FC = () => {
     const location = useLocation();
-    const hideNavbar = location.pathname.startsWith('/checkout');
+    const hideNavbar = location.pathname.startsWith('/checkout') || location.pathname.startsWith('/payment');
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-50">

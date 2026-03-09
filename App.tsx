@@ -5,6 +5,7 @@ import EventsList from './pages/EventsList';
 import EventBooking from './pages/EventBooking';
 import Checkout from './pages/Checkout';
 import Confirmation from './pages/Confirmation';
+import PaymentCompletion from './pages/PaymentCompletion';
 import Login from './pages/Login';
 import TermsAndConditions from './pages/TermsAndConditions';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -40,6 +41,7 @@ function App() {
                 <Route path="/event/:slug" element={<EventBooking />} />
                 <Route path="/terms" element={<TermsAndConditions />} />
                 <Route path="/checkout" element={<Checkout />} />
+                <Route path="/payment" element={<PaymentCompletion />} />
                 <Route path="/confirmation" element={<Confirmation />} />
             </Route>
             

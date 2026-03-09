@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus } from '../../services/mockBackend';
+import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder } from '../../services/mockBackend';
 import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
 import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
@@ -53,6 +53,13 @@ const EventAnalytics: React.FC = () => {
   const [boPhone, setBoPhone] = useState("");
   const [boMode, setBoMode] = useState<PaymentMode>(PaymentMode.CASH);
   const [boProcessing, setBoProcessing] = useState(false);
+
+  // Hold Order Form (Pay Later)
+  const [showHoldOrder, setShowHoldOrder] = useState(false);
+  const [holdName, setHoldName] = useState("");
+  const [holdEmail, setHoldEmail] = useState("");
+  const [holdPhone, setHoldPhone] = useState("");
+  const [holdProcessing, setHoldProcessing] = useState(false);
 
   // Check-in Report State
   const [ticketSearch, setTicketSearch] = useState("");
@@ -378,6 +385,44 @@ const EventAnalytics: React.FC = () => {
     } catch (err) {
       alert("Booking failed");
       setBoProcessing(false);
+    }
+  };
+
+  const handleOpenHoldOrder = () => {
+    setHoldName("");
+    setHoldEmail("");
+    setHoldPhone("");
+    setShowHoldOrder(true);
+  };
+
+  const handleHoldOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!event || !currentOrganizerId) return;
+    setHoldProcessing(true);
+
+    try {
+      // Call API to create payment pending order (hold)
+      const order = await createPaymentPendingOrder(
+        event.id,
+        selectedSeatIds,
+        {
+          id: `hold-${Date.now()}`,
+          name: holdName,
+          email: holdEmail,
+          phone: holdPhone
+        },
+        0 // No service fee for holds
+      );
+      
+      setHoldProcessing(false);
+      setShowHoldOrder(false);
+      setSelectedSeatIds([]);
+      loadData();
+      alert(`Hold placed! Payment email sent to ${holdEmail}. Customer has 24 hours to pay.`);
+    } catch (err) {
+      console.error('Hold order failed:', err);
+      alert("Failed to place hold. Please try again.");
+      setHoldProcessing(false);
     }
   };
 
@@ -998,6 +1043,12 @@ const EventAnalytics: React.FC = () => {
               >
                 <Ticket className="w-4 h-4 mr-2" /> Book (Box Office)
               </button>
+              <button
+                onClick={handleOpenHoldOrder}
+                className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-bold hover:bg-yellow-600 transition shadow-sm"
+              >
+                <Ticket className="w-4 h-4 mr-2" /> Hold (Pay Later)
+              </button>
             </div>
           )}
         </div>
@@ -1380,8 +1431,132 @@ const EventAnalytics: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
 
+      {/* Hold Order Modal (Pay Later) */}
+      {showHoldOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-yellow-600 p-4 flex justify-between items-center">
+              <h3 className="font-bold text-white flex items-center">
+                <Ticket className="w-5 h-5 mr-2" /> Hold Order (Pay Later)
+              </h3>
+              <button
+                onClick={() => setShowHoldOrder(false)}
+                className="text-slate-200 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-6 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-xs text-yellow-700 uppercase font-bold">
+                      Selected Seats
+                    </p>
+                    <p className="font-medium text-slate-900">
+                      {selectedSeatIds.length} seats
+                    </p>
+                  </div>
+                  <p className="text-lg font-bold text-yellow-700">
+                    ${selectionTotal.toFixed(2)}
+                  </p>
+                </div>
+                <div className="max-h-32 overflow-y-auto text-sm space-y-1 border-t border-yellow-200 pt-2 mt-2">
+                  {selectedSeatObjs.map((seat) => (
+                    <div
+                      key={seat.id}
+                      className="flex justify-between text-slate-600"
+                    >
+                      <span>
+                        {seat.rowLabel}
+                        {seat.seatNumber}{" "}
+                        <span className="text-xs text-slate-400">
+                          ({seat.tier})
+                        </span>
+                      </span>
+                      <span>${(seat.price || 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Hold Information Box */}
+              <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-900 font-semibold mb-2">⏰ 24-Hour Hold</p>
+                <p className="text-xs text-blue-800">
+                  Seats will be held for 24 hours. Customer receives payment email with payment link. If not paid, seats auto-release.
+                </p>
+              </div>
+
+              <form onSubmit={handleHoldOrderSubmit}>
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Customer Name *
+                    </label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        required
+                        className="w-full border rounded-lg pl-9 pr-3 py-2"
+                        placeholder="e.g. John Smith"
+                        value={holdName}
+                        onChange={(e) => setHoldName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      required
+                      type="email"
+                      className="w-full border rounded-lg px-3 py-2"
+                      placeholder="john@example.com"
+                      value={holdEmail}
+                      onChange={(e) => setHoldEmail(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Phone Number (Optional)
+                    </label>
+                    <input
+                      className="w-full border rounded-lg px-3 py-2"
+                      placeholder="+1 555 123 4567"
+                      value={holdPhone}
+                      onChange={(e) => setHoldPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Hold Process Info */}
+                <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-xs text-green-900 font-semibold mb-2">✓ What Happens Next</p>
+                  <ul className="text-xs text-green-800 space-y-1">
+                    <li>• Payment-pending email sent to {holdEmail || 'customer'}</li>
+                    <li>• Seats reserved for 24 hours</li>
+                    <li>• Auto-release if payment not received</li>
+                  </ul>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={holdProcessing}
+                  className="w-full bg-yellow-600 text-white py-3 rounded-lg font-bold hover:bg-yellow-700 disabled:opacity-70"
+                >
+                  {holdProcessing
+                    ? "Placing Hold..."
+                    : `Place Hold ($${selectionTotal.toFixed(2)})`}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+     </div>
+  );
+}
 export default EventAnalytics;

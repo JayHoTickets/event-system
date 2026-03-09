@@ -281,3 +281,189 @@ exports.sendCancellationEmails = async ({ order, event, organizerEmail, adminEma
         await sendEmail(adminEmail, `Order Cancelled: ${order.id}`, body);
     }
 };
+
+/**
+ * Send "Payment Pending" email when organizer places a hold on seats
+ * This email includes a payment link but NO QR codes or tickets (since payment hasn't been completed)
+ */
+exports.sendPaymentPendingEmail = async ({ order, event, customerName, customerEmail, paymentUrl, paymentDueAt }) => {
+    let dateStr = '';
+    let timeStr = '';
+    try {
+        const { DateTime } = require('luxon');
+        let dt = null;
+        const jsDate = event.startTime ? new Date(event.startTime) : null;
+        if (jsDate && !isNaN(jsDate.getTime())) {
+            dt = DateTime.fromJSDate(jsDate);
+        } else if (event.startTime) {
+            const iso = DateTime.fromISO(String(event.startTime));
+            if (iso.isValid) dt = iso;
+        }
+        if (dt && event.timezone) {
+            const withZone = dt.setZone(event.timezone);
+            if (withZone.isValid) dt = withZone;
+        }
+        if (dt && dt.isValid) {
+            dateStr = dt.toLocaleString(DateTime.DATE_MED);
+            timeStr = dt.toLocaleString(DateTime.TIME_SIMPLE);
+        } else {
+            const fallback = new Date(event.startTime);
+            dateStr = isNaN(fallback.getTime()) ? 'Unknown date' : fallback.toLocaleDateString();
+            timeStr = isNaN(fallback.getTime()) ? 'Unknown time' : fallback.toLocaleTimeString();
+        }
+    } catch (e) {
+        const fallback = new Date(event.startTime);
+        dateStr = isNaN(fallback.getTime()) ? 'Unknown date' : fallback.toLocaleDateString();
+        timeStr = isNaN(fallback.getTime()) ? 'Unknown time' : fallback.toLocaleTimeString();
+    }
+
+    const formatCurrency = (amount) => `$${(amount || 0).toFixed(2)}`;
+    
+    // Format when the hold expires
+    let expiryStr = '';
+    try {
+        const { DateTime } = require('luxon');
+        const expiryDate = new Date(paymentDueAt);
+        const expiryDt = DateTime.fromJSDate(expiryDate);
+        if (expiryDt.isValid) {
+            expiryStr = expiryDt.toLocaleString(DateTime.DATETIME_FULL);
+        } else {
+            expiryStr = expiryDate.toLocaleString();
+        }
+    } catch (e) {
+        expiryStr = new Date(paymentDueAt).toLocaleString();
+    }
+
+    // Build seat list
+    const seatList = order.tickets.map(t => {
+        return `
+            <tr>
+                <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:center;"><strong>${t.seatLabel || 'General Admission'}</strong></td>
+                <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:center;">${t.ticketType || 'Ticket'}</td>
+                <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;"><strong>${formatCurrency(t.price)}</strong></td>
+            </tr>
+        `;
+    }).join('');
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                <h1 style="margin: 0; font-size: 28px;">Payment Required</h1>
+                <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.95;">Complete your booking for ${event.title}</p>
+            </div>
+
+            <!-- Main Content -->
+            <div style="background: #fff; padding: 30px; border: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                <!-- Greeting -->
+                <p style="margin-top: 0; font-size: 16px;">Hi ${customerName},</p>
+                <p style="color: #666; line-height: 1.6;">
+                    Your seats have been held for <strong>${event.title}</strong>. Please complete your payment within <strong>24 hours</strong> to confirm your booking. After that, your seats will be released and may become available to other customers.
+                </p>
+
+                <!-- Event Details -->
+                <div style="background: #f9fafb; padding: 18px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #667eea;">
+                    <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #333;">Event Details</h3>
+                    <table style="width: 100%; font-size: 14px;">
+                        <tr>
+                            <td style="color: #666; width: 120px;">Event:</td>
+                            <td style="font-weight: bold;">${event.title}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #666;">Date:</td>
+                            <td style="font-weight: bold;">${dateStr} at ${timeStr}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #666;">Location:</td>
+                            <td style="font-weight: bold;">${event.location || event.venueName || 'TBD'}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Order Summary -->
+                <div style="margin: 25px 0;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #333;">Your Seats</h3>
+                    <table role="presentation" style="width: 100%; border-collapse: collapse; background: #f9fafb; border-radius: 6px;">
+                        <thead>
+                            <tr style="background: #e5e7eb;">
+                                <th style="padding: 12px; text-align: center; font-weight: bold;">Seat</th>
+                                <th style="padding: 12px; text-align: center; font-weight: bold;">Type</th>
+                                <th style="padding: 12px; text-align: right; font-weight: bold;">Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${seatList}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Price Breakdown -->
+                <div style="background: #f0f9ff; padding: 18px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #0ea5e9;">
+                    <table style="width: 100%; font-size: 14px;">
+                        <tr>
+                            <td style="color: #666;">Subtotal:</td>
+                            <td style="text-align: right; font-weight: bold;">${formatCurrency(order.totalAmount - (order.serviceFee || 0) + (order.discountApplied || 0))}</td>
+                        </tr>
+                        ${order.discountApplied ? `
+                        <tr>
+                            <td style="color: #666;">Discount:</td>
+                            <td style="text-align: right; color: #10b981;">-${formatCurrency(order.discountApplied)}</td>
+                        </tr>
+                        ` : ''}
+                        <tr>
+                            <td style="color: #666;">Service Fee:</td>
+                            <td style="text-align: right;">${formatCurrency(order.serviceFee || 0)}</td>
+                        </tr>
+                        <tr style="border-top: 2px solid #e5e7eb; padding-top: 8px;">
+                            <td style="font-weight: bold; font-size: 16px;">Total:</td>
+                            <td style="text-align: right; font-weight: bold; font-size: 16px; color: #667eea;">${formatCurrency(order.totalAmount)}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Hold Expiration Warning -->
+                <div style="background: #fef2f2; padding: 16px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #ef4444;">
+                    <p style="margin: 0; font-size: 14px; color: #991b1b;">
+                        <strong>⏰ Pay by: ${expiryStr}</strong><br/>
+                        If payment is not received by this time, your seats will be released and available for other customers.
+                    </p>
+                </div>
+
+                <!-- Payment CTA -->
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${paymentUrl}" style="display: inline-block; background: #667eea; color: #fff; padding: 14px 40px; border-radius: 6px; text-decoration: none; font-size: 16px; font-weight: bold; transition: background 0.3s;">
+                        💳 Complete Payment Now
+                    </a>
+                </div>
+
+                <!-- Additional Info -->
+                <div style="background: #fffbeb; padding: 16px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><strong>📌 Important Notes:</strong></p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 14px; color: #92400e;">
+                        <li>Your seats are temporarily reserved for 24 hours</li>
+                        <li>Once payment is complete, you'll receive your tickets with QR codes via email</li>
+                        <li>This hold will automatically be released if payment is not received on time</li>
+                    </ul>
+                </div>
+
+                <!-- Support -->
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #666; font-size: 13px;">
+                    <p style="margin: 0 0 8px 0;">Need help? Contact our support team:</p>
+                    <p style="margin: 0;">
+                        <a href="mailto:support@jayhotickets.com" style="color: #667eea; text-decoration: none;">support@jayhotickets.com</a><br/>
+                        Phone: +1 (339) 245-8655
+                    </p>
+                </div>
+
+                <!-- Footer -->
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #999; font-size: 12px;">
+                    <p style="margin: 0;">© 2026 Jay-Ho Tickets. All rights reserved.</p>
+                    <p style="margin: 6px 0 0 0;">This is an automated email. Please do not reply.</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    await sendEmail(customerEmail, `Payment Required for ${event.title}`, htmlContent);
+};
+

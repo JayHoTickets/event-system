@@ -298,6 +298,29 @@ export const processPayment = (
     });
 };
 
+export const createPaymentPendingOrder = (
+    eventId: string,
+    seatIds: string[],
+    customer: { id?: string, name: string, email: string, phone?: string },
+    serviceFee: number = 0
+): Promise<Order> => {
+    return fetchJson('/orders/payment-pending', {
+        method: 'POST',
+        body: JSON.stringify({ eventId, seatIds, customer, serviceFee })
+    });
+};
+
+export const completePaymentPendingOrder = (
+    orderId: string,
+    paymentMode: PaymentMode = PaymentMode.ONLINE,
+    transactionId?: string
+): Promise<{ success: boolean, order: Order, message: string }> => {
+    return fetchJson(`/orders/${orderId}/complete-payment`, {
+        method: 'POST',
+        body: JSON.stringify({ orderId, paymentMode, transactionId })
+    });
+};
+
 export const verifyTicket = (qrCode: string): Promise<{ valid: boolean, ticket: Ticket, order: Order }> => {
     return fetchJson('/orders/verify', { 
         method: 'POST', 
@@ -324,4 +347,8 @@ export const updateRefundStatus = (orderId: string, payload: { organizerId: stri
         method: 'POST',
         body: JSON.stringify(payload)
     });
+};
+
+export const fetchOrderById = (orderId: string): Promise<Order> => {
+    return fetchJson(`/orders/${orderId}`, { method: 'GET' });
 };

@@ -319,7 +319,7 @@ exports.cancelOrder = async (req, res) => {
                     const seatIdsToRelease = order.tickets.map(t => t.seatId).filter(Boolean);
                     const seatSet = new Set(seatIdsToRelease);
                     event.seats = event.seats.map(s => {
-                        if (seatSet.has(s.id) && (s.status === 'SOLD' || s.status === 'BOOKING_IN_PROGRESS')) {
+                        if (seatSet.has(s.id) && (s.status === 'SOLD' || s.status === 'BOOKING_IN_PROGRESS' || s.status === 'HOLD')) {
                             return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
                         }
                         return s;
@@ -390,6 +390,219 @@ exports.cancelOrder = async (req, res) => {
     }
 };
 
+/**
+ * Complete payment for a payment-pending order
+ * Updates order status from PAYMENT_PENDING to PAID
+ * Updates seat status from HOLD to SOLD
+ * Sends confirmation email with QR codes and tickets
+ */
+exports.completePaymentPendingOrder = async (req, res) => {
+    const { orderId, paymentMode, transactionId } = req.body;
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // Only allow completing PAYMENT_PENDING orders
+        if (order.status !== 'PAYMENT_PENDING') {
+            return res.status(400).json({ message: 'Order is not in payment pending state' });
+        }
+
+        // Check if payment is still valid (hasn't expired)
+        const now = new Date();
+        if (order.paymentPendingUntil && new Date(order.paymentPendingUntil) < now) {
+            return res.status(400).json({ message: 'Payment hold has expired. Please contact support to rebook.' });
+        }
+
+        // 1. Fetch the event
+        const eventId = order.tickets && order.tickets.length ? order.tickets[0].eventId : null;
+        if (!eventId) {
+            return res.status(400).json({ message: 'Order has no event context' });
+        }
+
+        const event = await Event.findById(eventId);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        // 2. Update order status to PAID
+        order.status = 'PAID';
+        order.paymentMode = paymentMode || 'STRIPE';
+        order.transactionId = transactionId || null;
+        order.paymentPendingUntil = null; // Clear the pending deadline
+        order.paymentUrl = null; // Clear the payment URL
+
+        // 3. Generate QR codes for tickets
+        const seatIds = new Set(order.tickets.map(t => t.seatId));
+        event.seats = event.seats.map(s => {
+            if (seatIds.has(s.id) && s.status === 'HOLD') {
+                return { ...s.toObject ? s.toObject() : s, status: 'SOLD', holdUntil: null };
+            }
+            return s;
+        });
+
+        // Update ticket QR codes (now that payment is complete)
+        order.tickets = order.tickets.map(t => ({
+            ...t,
+            qrCodeData: t.id // Add QR code data with ticket ID
+        }));
+
+        await order.save();
+        await event.save();
+
+        // 4. Send order confirmation email with QR codes (async - don't block)
+        try {
+            const organizer = await User.findById(event.organizerId);
+            const admin = await User.findOne({ role: 'ADMIN' });
+
+            await sendOrderEmails({
+                order,
+                event,
+                customerName: order.customerName,
+                customerEmail: order.customerEmail,
+                organizerEmail: organizer ? organizer.email : null,
+                adminEmail: admin ? admin.email : 'admin@jayhoticket.com'
+            });
+        } catch (emailError) {
+            console.error('Failed to send order confirmation email:', emailError);
+            // Don't fail the payment completion if email fails
+        }
+
+        res.json({ success: true, order, message: 'Payment completed successfully. Confirmation email sent.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+/**
+ * Create a payment pending order when organizer places a hold on seats
+ * This creates an order with PAYMENT_PENDING status and sends a payment-pending email
+ * The seats are marked as HOLD status and will auto-release after 24 hours if not paid
+ */
+exports.createPaymentPendingOrder = async (req, res) => {
+    const { eventId, seatIds, customer, serviceFee = 0 } = req.body;
+    try {
+        // 1. Fetch Event
+        const event = await Event.findById(eventId);
+        if (!event) return res.status(404).json({ message: 'Event not found' });
+
+        if (event.seatingType !== 'RESERVED') {
+            return res.status(400).json({ message: 'Payment pending holds only work with reserved seating' });
+        }
+
+        // 2. Verify seats exist and are available
+        const seatIdSet = new Set(seatIds);
+        const conflicts = [];
+        const seatObjects = [];
+
+        for (const seatId of seatIds) {
+            const seat = event.seats.find(s => s.id === seatId);
+            if (!seat) {
+                conflicts.push({ id: seatId, reason: 'NOT_FOUND' });
+                continue;
+            }
+            if (seat.status !== 'AVAILABLE') {
+                conflicts.push({ id: seatId, reason: seat.status });
+                continue;
+            }
+            seatObjects.push(seat);
+        }
+
+        if (conflicts.length > 0) {
+            return res.status(409).json({ message: 'Some seats are not available', conflicts });
+        }
+
+        // 3. Mark seats as HOLD with 24-hour expiry
+        const holdExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        event.seats = event.seats.map(s => {
+            if (seatIdSet.has(s.id)) {
+                return { ...s, status: 'HOLD', holdUntil: holdExpiry };
+            }
+            return s;
+        });
+        await event.save();
+
+        // 4. Calculate subtotal from seats
+        const subtotal = seatObjects.reduce((acc, s) => acc + (s.price || 0), 0);
+        const totalAmount = subtotal + serviceFee;
+
+        // 5. Generate Ticket Objects (without QR codes, as payment hasn't been made yet)
+        const crypto = require('crypto');
+        const TICKET_PREFIX = process.env.TICKET_PREFIX || 'JH';
+        const generateTicketId = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            const coreLen = 8 + Math.floor(Math.random() * 3);
+            const bytes = crypto.randomBytes(coreLen);
+            let core = '';
+            for (let i = 0; i < coreLen; i++) {
+                core += chars[bytes[i] % chars.length];
+            }
+            return `${TICKET_PREFIX}${core}`;
+        };
+
+        const tickets = seatObjects.map(s => {
+            const ticketId = generateTicketId();
+            return {
+                id: ticketId,
+                eventId: event.id,
+                eventTitle: event.title,
+                seatId: s.id,
+                seatLabel: `${s.rowLabel}${s.seatNumber}`,
+                price: s.price,
+                color: s.color || null,
+                ticketType: s.tier,
+                qrCodeData: null, // No QR code yet - payment pending
+                purchaseDate: new Date(),
+                checkedIn: false
+            };
+        });
+
+        // 6. Wait for order creation to get the ID for the payment URL (done below)
+        // First create the order, then generate the payment URL with the actual order ID
+
+        // 7. Create Order with PAYMENT_PENDING status
+        const paymentPendingUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        const order = await Order.create({
+            userId: customer.id || `guest-${Date.now()}`,
+            customerName: customer.name,
+            customerEmail: customer.email,
+            customerPhone: customer.phone || null,
+            tickets: tickets,
+            totalAmount,
+            serviceFee,
+            discountApplied: 0,
+            status: 'PAYMENT_PENDING',
+            paymentPendingUntil,
+            paymentUrl: '' // Will be set below
+        });
+
+        // 8. Now set the payment URL with the actual order ID
+        const paymentUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment?orderId=${order._id.toString()}&eventId=${eventId}`;
+        order.paymentUrl = paymentUrl;
+        await order.save();
+
+        // 9. Send Payment Pending Email (async - don't block response)
+        try {
+            const { sendPaymentPendingEmail } = require('../utils/emailService');
+            await sendPaymentPendingEmail({
+                order,
+                event,
+                customerName: customer.name,
+                customerEmail: customer.email,
+                paymentUrl,
+                paymentDueAt: paymentPendingUntil
+            });
+        } catch (emailError) {
+            console.error('Failed to send payment pending email:', emailError);
+        }
+
+        res.json(order);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
 // Update only the refund status of a cancelled order
 exports.updateRefundStatus = async (req, res) => {
     const { id } = req.params;
@@ -428,5 +641,31 @@ exports.updateRefundStatus = async (req, res) => {
         res.json({ success: true, order });
     } catch (err) {
         res.status(500).json({ message: err.message });
+    }
+};
+/**
+ * Get a single order by ID
+ * Used for payment completion page to load order details
+ */
+exports.getOrderById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Validate ObjectId format
+        const mongoose = require('mongoose');
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid order ID format' });
+        }
+        
+        const order = await Order.findById(id);
+        
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+        
+        res.json(order);
+    } catch (err) {
+        console.error('Error fetching order:', err);
+        res.status(500).json({ message: 'Failed to fetch order details' });
     }
 };

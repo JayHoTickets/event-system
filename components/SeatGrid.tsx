@@ -90,15 +90,18 @@ const SeatGrid: React.FC<SeatGridProps> = ({
     // 2. Sold state (Grey/Light)
     if (seat.status === SeatStatus.SOLD) return 'bg-slate-200 text-slate-400 cursor-not-allowed border-slate-200';
     
-    // 3. Booking in progress (temporary lock) - make it visually obvious
+    // 3. Hold state (Organizer placed hold, awaiting payment) - Yellow
+    if (seat.status === SeatStatus.HOLD) return 'bg-yellow-400 text-yellow-900 cursor-not-allowed border-yellow-500 font-semibold';
+    
+    // 4. Booking in progress (temporary lock from customer) - make it visually obvious
     if (seat.status === SeatStatus.BOOKING_IN_PROGRESS) return 'bg-amber-200 text-amber-800 cursor-not-allowed border-amber-300 animate-pulse';
     
-    // 4. Blocked/Unavailable state (Dark Grey/Black)
+    // 5. Blocked/Unavailable state (Dark Grey/Black)
     if (seat.status === SeatStatus.UNAVAILABLE) {
         return 'bg-slate-800 text-slate-600 border-slate-800 ' + (canSelectUnavailable ? 'cursor-pointer hover:bg-slate-700 hover:text-slate-400' : 'cursor-not-allowed opacity-60');
     }
     
-    // 5. Available (White or Ticket Type Color)
+    // 6. Available (White or Ticket Type Color)
     if (seat.color) {
          return `text-white shadow-sm hover:brightness-90`;
     }

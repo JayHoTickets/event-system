@@ -1,12 +1,18 @@
 
 const express = require('express');
 const router = express.Router();
-const { getOrders, createOrder, verifyTicket, checkInTicket, cancelOrder, updateRefundStatus } = require('../controllers/orderController');
+const { getOrders, getOrderById, createOrder, verifyTicket, checkInTicket, cancelOrder, updateRefundStatus, createPaymentPendingOrder, completePaymentPendingOrder } = require('../controllers/orderController');
 
-router.get('/', getOrders);
-router.post('/', createOrder);
+// Specific routes first (before /:id pattern)
 router.post('/verify', verifyTicket);
 router.post('/check-in', checkInTicket);
+router.post('/payment-pending', createPaymentPendingOrder);
+
+// Generic routes after
+router.get('/', getOrders);
+router.get('/:id', getOrderById);
+router.post('/', createOrder);
+router.post('/:id/complete-payment', completePaymentPendingOrder);
 router.post('/:id/cancel', cancelOrder);
 router.post('/:id/refund-status', updateRefundStatus);
 
