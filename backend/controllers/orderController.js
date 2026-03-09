@@ -578,7 +578,7 @@ exports.createPaymentPendingOrder = async (req, res) => {
         });
 
         // 8. Now set the payment URL with the actual order ID
-        const paymentUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment?orderId=${order._id.toString()}&eventId=${eventId}`;
+        const paymentUrl = `${process.env.FRONTEND_URL || 'https://jayhotickets.com'}/payment?orderId=${order._id.toString()}&eventId=${eventId}`;
         order.paymentUrl = paymentUrl;
         await order.save();
 

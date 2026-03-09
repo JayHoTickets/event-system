@@ -1041,13 +1041,13 @@ const EventAnalytics: React.FC = () => {
                 onClick={handleOpenBoxOffice}
                 className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition shadow-sm"
               >
-                <Ticket className="w-4 h-4 mr-2" /> Book (Box Office)
+                <Ticket className="w-4 h-4 mr-2" /> Book
               </button>
               <button
                 onClick={handleOpenHoldOrder}
                 className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-bold hover:bg-yellow-600 transition shadow-sm"
               >
-                <Ticket className="w-4 h-4 mr-2" /> Hold (Pay Later)
+                <Ticket className="w-4 h-4 mr-2" /> Held
               </button>
             </div>
           )}
@@ -1306,7 +1306,7 @@ const EventAnalytics: React.FC = () => {
       {/* Box Office Modal */}
       {showBoxOffice && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="bg-slate-900 p-4 flex justify-between items-center">
               <h3 className="font-bold text-white flex items-center">
                 <Ticket className="w-5 h-5 mr-2" /> Box Office Booking
@@ -1318,7 +1318,7 @@ const EventAnalytics: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto max-h-[66vh]">
               <div className="mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200">
                 <div className="flex justify-between items-start mb-2">
                   <div>
@@ -1438,7 +1438,7 @@ const EventAnalytics: React.FC = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="bg-yellow-600 p-4 flex justify-between items-center">
               <h3 className="font-bold text-white flex items-center">
-                <Ticket className="w-5 h-5 mr-2" /> Hold Order (Pay Later)
+                <Ticket className="w-5 h-5 mr-2" /> Held Order (Pay Later)
               </h3>
               <button
                 onClick={() => setShowHoldOrder(false)}
