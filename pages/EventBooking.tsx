@@ -370,7 +370,7 @@ return (
                       <div className="w-2 h-px bg-slate-500 rotate-45 transform absolute"></div>
                       <div className="w-2 h-px bg-slate-500 -rotate-45 transform absolute"></div>
                     </div>
-                    <span>Blocked</span>
+                    <span>Unavailable</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-sm bg-amber-200 border border-amber-300"></div>
@@ -565,7 +565,7 @@ return (
                   <div className="w-2 h-px bg-slate-500 rotate-45 transform absolute"></div>
                   <div className="w-2 h-px bg-slate-500 -rotate-45 transform absolute"></div>
                 </div>
-                <span>Blocked</span>
+                <span>Unavailable</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-amber-200 border border-amber-300"></div>
