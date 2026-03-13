@@ -277,7 +277,7 @@ return (
       <div className="w-1/3 flex flex-col">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col">
           <button 
-            onClick={() => navigate('/')} 
+            onClick={() => navigate('https://events.jay-ho.com')} 
             className="text-slate-600 flex items-center mb-4 text-sm hover:text-slate-900 self-start"
           >
             <ArrowLeft className="w-4 h-4 mr-1" /> Back to Events
