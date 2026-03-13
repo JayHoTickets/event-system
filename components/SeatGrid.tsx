@@ -179,12 +179,12 @@ const SeatGrid: React.FC<SeatGridProps> = ({
 
   return (
     <div 
-        className="w-full overflow-auto bg-slate-50 rounded-xl border border-slate-200 shadow-inner relative flex items-center justify-center" 
+        className="w-full overflow-auto bg-slate-50 rounded-xl border border-slate-200 shadow-inner relative" 
         style={{ minHeight: '400px', maxHeight: '80vh', cursor: allowDragSelect ? 'crosshair' : 'default' }}
         onMouseLeave={() => { setIsDragging(false); setSelectionBox(null); }}
     >
       {/* Spacer to force scrollbars based on scaled size */}
-      <div style={{ width: width * scale + 120, height: height * scale + 120, position: 'relative' }}>
+      <div style={{ width: width * scale + 120, height: height * scale + 120, position: 'relative' }} className="mx-auto">
           <div 
             ref={containerRef}
             className="bg-white shadow-xl transition-transform duration-150 ease-linear origin-top-left"
@@ -195,6 +195,7 @@ const SeatGrid: React.FC<SeatGridProps> = ({
                 top: 60,
                 left: 60,
                 transform: `scale(${scale})`,
+                transformOrigin: 'top left',
                 backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 1px)',
                 backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`
             }}
