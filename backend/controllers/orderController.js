@@ -31,15 +31,25 @@ exports.createOrder = async (req, res) => {
         const subtotal = seats.reduce((acc, s) => acc + (s.price || 0), 0);
 
         if (couponId) {
-            const coupon = await Coupon.findById(couponId);
-            if (coupon) {
-                // Validate and compute discount for this explicit coupon
-                const resCompute = computeCouponDiscount(coupon, { subtotal, seats, seatsCount: seats.length, requestedCode: coupon.code, eventId: event.id });
-                if (resCompute.discount > 0) {
-                    discount = resCompute.discount;
-                    appliedCoupon = { doc: coupon, usedInc: resCompute.usedCountIncrement };
-                    couponCode = coupon.code;
+            // Only attempt to lookup coupon if couponId looks like a valid ObjectId
+            const mongoose = require('mongoose');
+            try {
+                if (mongoose.Types.ObjectId.isValid(String(couponId))) {
+                    const coupon = await Coupon.findById(couponId);
+                    if (coupon) {
+                        // Validate and compute discount for this explicit coupon
+                        const resCompute = computeCouponDiscount(coupon, { subtotal, seats, seatsCount: seats.length, requestedCode: coupon.code, eventId: event.id });
+                        if (resCompute.discount > 0) {
+                            discount = resCompute.discount;
+                            appliedCoupon = { doc: coupon, usedInc: resCompute.usedCountIncrement };
+                            couponCode = coupon.code;
+                        }
+                    }
+                } else {
+                    console.warn('createOrder - couponId provided but not a valid ObjectId:', couponId);
                 }
+            } catch (e) {
+                console.error('createOrder - coupon lookup failed', e);
             }
         } else {
             // auto-apply best coupon for this event/organizer
