@@ -273,8 +273,15 @@ export const fetchBestCoupon = (eventId: string, seats: Seat[]): Promise<{ coupo
 };
 
 // --- ORDERS & TICKETS & PAYMENTS ---
-export const createPaymentIntent = (seats: Seat[], couponId?: string, eventId?: string): Promise<{ clientSecret: string, totalAmount: number }> => {
+export const createPaymentIntent = (seats: Seat[], couponId?: string, eventId?: string): Promise<{ clientSecret: string, totalAmount: number, serviceFee?: number, appliedCharges?: any[] }> => {
     return fetchJson('/payments/create-intent', {
+        method: 'POST',
+        body: JSON.stringify({ seats, couponId, eventId })
+    });
+};
+
+export const fetchChargesQuote = (seats: Seat[], couponId?: string, eventId?: string): Promise<{ subtotal: number, discount: number, discountedSubtotal: number, serviceFee: number, appliedCharges: any[], totalAmount: number }> => {
+    return fetchJson('/payments/quote', {
         method: 'POST',
         body: JSON.stringify({ seats, couponId, eventId })
     });
@@ -288,13 +295,40 @@ export const processPayment = (
     event: Event, 
     seats: Seat[], 
     serviceFee: number, 
+    appliedCharges?: any[],
     couponId?: string,
     paymentMode: PaymentMode = PaymentMode.ONLINE,
     transactionId?: string
 ): Promise<Order> => {
-    return fetchJson('/orders', { 
-        method: 'POST', 
-        body: JSON.stringify({ customer, event, seats, serviceFee, couponId, paymentMode, transactionId }) 
+    const normalizeAppliedCharges = (ac: any) => {
+        if (!ac) return undefined;
+        try {
+            let cur = ac as any;
+            // If string, attempt to parse repeatedly
+            let attempts = 0;
+            while (typeof cur === 'string' && attempts < 4) {
+                try { cur = JSON.parse(cur); break; } catch (e) {
+                    try { cur = JSON.parse((cur as string).replace(/'/g, '"')); break; } catch (e2) { break; }
+                }
+            }
+            // If array with a single string element that is JSON, parse it
+            if (Array.isArray(cur) && cur.length === 1 && typeof cur[0] === 'string') {
+                try { cur = JSON.parse(cur[0]); } catch (e) { try { cur = JSON.parse(cur[0].replace(/'/g, '"')); } catch (e2) { /* ignore */ } }
+            }
+            if (Array.isArray(cur)) return cur;
+        } catch (e) {
+            // ignore and fallthrough
+        }
+        return undefined;
+    };
+
+    const safeAppliedCharges = normalizeAppliedCharges(appliedCharges);
+    const payload: any = { customer, event, seats, serviceFee, couponId, paymentMode, transactionId };
+    if (safeAppliedCharges !== undefined) payload.appliedCharges = safeAppliedCharges;
+
+    return fetchJson('/orders', {
+        method: 'POST',
+        body: JSON.stringify(payload)
     });
 };
 

@@ -167,6 +167,15 @@ export interface ServiceCharge {
   active: boolean;
 }
 
+// Service charge scoping
+export type ServiceChargeLevel = 'DEFAULT' | 'ORGANIZER' | 'EVENT';
+
+export interface ServiceChargeScoped extends ServiceCharge {
+  level: ServiceChargeLevel;
+  organizerId?: string | null;
+  eventId?: string | null;
+}
+
 export interface Ticket {
   id: string;
   eventId: string;
@@ -197,6 +206,13 @@ export interface Order {
   tickets: Ticket[];
   totalAmount: number;
   serviceFee: number; // Platform fee charged
+  appliedCharges?: Array<{
+    name: string;
+    type: 'PERCENTAGE' | 'FIXED';
+    value: number;
+    level?: 'DEFAULT' | 'ORGANIZER' | 'EVENT';
+    amount: number;
+  }>;
   discountApplied: number;
   couponCode?: string;
   status: 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';

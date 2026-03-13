@@ -249,11 +249,20 @@ const Confirmation: React.FC = () => {
                 <span>-${order.discountApplied.toFixed(2)}</span>
               </div>
             )}
-            {order.serviceFee > 0 && (
-              <div className="flex justify-between text-slate-500 text-sm mb-1">
-                <span>Booking Fee</span>
-                <span>${order.serviceFee.toFixed(2)}</span>
-              </div>
+            {order.appliedCharges && order.appliedCharges.length > 0 ? (
+              order.appliedCharges.map((c:any, idx:number) => (
+                <div key={idx} className="flex justify-between text-slate-500 text-sm mb-1">
+                  <span>{c.name}</span>
+                  <span>${(c.amount || 0).toFixed(2)}</span>
+                </div>
+              ))
+            ) : (
+              order.serviceFee > 0 && (
+                <div className="flex justify-between text-slate-500 text-sm mb-1">
+                  <span>Booking Fee</span>
+                  <span>${order.serviceFee.toFixed(2)}</span>
+                </div>
+              )
             )}
             <div className="flex justify-between font-bold text-lg text-slate-900 mt-2">
               <span>Total Paid</span>

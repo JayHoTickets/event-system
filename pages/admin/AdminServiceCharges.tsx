@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { ServiceCharge } from '../../types';
-import { fetchServiceCharges, createServiceCharge, updateServiceCharge, deleteServiceCharge } from '../../services/mockBackend';
+import { ServiceChargeScoped as ServiceCharge, ServiceChargeLevel, User, Event as EventType } from '../../types';
+import { fetchServiceCharges, createServiceCharge, updateServiceCharge, deleteServiceCharge, fetchUsersByRole, fetchEvents } from '../../services/mockBackend';
 import { Receipt, Plus, Trash2, Edit2, CheckCircle, XCircle } from 'lucide-react';
 
 const AdminServiceCharges: React.FC = () => {
@@ -17,10 +17,32 @@ const AdminServiceCharges: React.FC = () => {
     const [type, setType] = useState<'FIXED' | 'PERCENTAGE'>('FIXED');
     const [value, setValue] = useState(0);
     const [active, setActive] = useState(true);
+    const [level, setLevel] = useState<ServiceChargeLevel>('DEFAULT');
+    const [organizerId, setOrganizerId] = useState<string | undefined>(undefined);
+    const [eventId, setEventId] = useState<string | undefined>(undefined);
+
+    const [organizers, setOrganizers] = useState<User[]>([]);
+    const [events, setEvents] = useState<EventType[]>([]);
 
     useEffect(() => {
         loadCharges();
+        loadOrganizersAndEvents();
     }, []);
+
+    const loadOrganizersAndEvents = async () => {
+        try {
+            const orgs = await fetchUsersByRole('ORGANIZER' as any);
+            setOrganizers(orgs);
+        } catch (e) {
+            console.warn('Failed to load organizers', e);
+        }
+        try {
+            const evts = await fetchEvents();
+            setEvents(evts);
+        } catch (e) {
+            console.warn('Failed to load events', e);
+        }
+    };
 
     const loadCharges = async () => {
         const data = await fetchServiceCharges();
@@ -34,6 +56,9 @@ const AdminServiceCharges: React.FC = () => {
         setType('FIXED');
         setValue(0);
         setActive(true);
+        setLevel('DEFAULT');
+        setOrganizerId(undefined);
+        setEventId(undefined);
         setShowModal(true);
     };
 
@@ -43,6 +68,9 @@ const AdminServiceCharges: React.FC = () => {
         setType(charge.type);
         setValue(charge.value);
         setActive(charge.active);
+        setLevel((charge.level as ServiceChargeLevel) || 'DEFAULT');
+        setOrganizerId((charge as any).organizerId || undefined);
+        setEventId((charge as any).eventId || undefined);
         setShowModal(true);
     };
 
@@ -50,10 +78,14 @@ const AdminServiceCharges: React.FC = () => {
         e.preventDefault();
         setLoading(true);
         try {
+            const payload: any = { name, type, value, active, level };
+            if (level === 'ORGANIZER') payload.organizerId = organizerId || null;
+            if (level === 'EVENT') payload.eventId = eventId || null;
+
             if (editingCharge) {
-                await updateServiceCharge(editingCharge.id, { name, type, value, active });
+                await updateServiceCharge(editingCharge.id, payload);
             } else {
-                await createServiceCharge({ name, type, value, active });
+                await createServiceCharge(payload);
             }
             await loadCharges();
             setShowModal(false);
@@ -95,6 +127,7 @@ const AdminServiceCharges: React.FC = () => {
                             <tr>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Name</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Type</th>
+                                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Scope</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Value</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Status</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700 text-right">Actions</th>
@@ -120,6 +153,17 @@ const AdminServiceCharges: React.FC = () => {
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${charge.type === 'PERCENTAGE' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
                                                 {charge.type}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600">
+                                            <div className="text-xs font-medium text-slate-700">
+                                                {charge.level || 'DEFAULT'}
+                                                {charge.level === 'ORGANIZER' && (charge as any).organizerId ? (
+                                                    <div className="text-xs text-slate-500">{organizers.find(o => o.id === (charge as any).organizerId)?.name || 'Organizer'}</div>
+                                                ) : null}
+                                                {charge.level === 'EVENT' && (charge as any).eventId ? (
+                                                    <div className="text-xs text-slate-500">{events.find(e => e.id === (charge as any).eventId)?.title || 'Event'}</div>
+                                                ) : null}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm font-bold text-slate-900">
                                             {charge.type === 'PERCENTAGE' ? `${charge.value}%` : `$${charge.value.toFixed(2)}`}
@@ -165,6 +209,34 @@ const AdminServiceCharges: React.FC = () => {
                     <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
                         <h2 className="text-xl font-bold mb-4">{editingCharge ? 'Edit Service Charge' : 'Add Service Charge'}</h2>
                         <form onSubmit={handleSave}>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Scope</label>
+                                <select className="w-full border rounded-lg px-3 py-2" value={level} onChange={e => setLevel(e.target.value as ServiceChargeLevel)}>
+                                    <option value="DEFAULT">Default (applies platform-wide)</option>
+                                    <option value="ORGANIZER">Organizer-level</option>
+                                    <option value="EVENT">Event-level</option>
+                                </select>
+                            </div>
+
+                            {level === 'ORGANIZER' && (
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Organizer</label>
+                                    <select className="w-full border rounded-lg px-3 py-2" value={organizerId || ''} onChange={e => setOrganizerId(e.target.value || undefined)}>
+                                        <option value="">Select organizer</option>
+                                        {organizers.map(o => <option key={o.id} value={o.id}>{o.name} ({o.email})</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            {level === 'EVENT' && (
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Event</label>
+                                    <select className="w-full border rounded-lg px-3 py-2" value={eventId || ''} onChange={e => setEventId(e.target.value || undefined)}>
+                                        <option value="">Select event</option>
+                                        {events.map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+                                    </select>
+                                </div>
+                            )}
                             <div className="mb-4">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Charge Name</label>
                                 <input 

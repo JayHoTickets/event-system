@@ -155,7 +155,7 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
 
                 ${ticketsHtml}
 
-                <div style="margin-top:18px;border-top:1px solid #eee;padding-top:14px;color:#374151;">
+                    <div style="margin-top:18px;border-top:1px solid #eee;padding-top:14px;color:#374151;">
                     <div style="display:flex;justify-content:space-between;font-size:14px;color:#6b7280;margin-bottom:6px;">
                         <span>Subtotal</span>
                         <span>${formatCurrency((order.totalAmount || 0) - (order.serviceFee || 0) + (order.discountApplied || 0))}</span>
@@ -164,10 +164,16 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                         <span style="color:#059669">Discount</span>
                         <span style="color:#059669">-${formatCurrency(order.discountApplied || 0)}</span>
                     </div>
-                    <div style="display:flex;justify-content:space-between;font-size:14px;color:#6b7280;margin-bottom:6px;">
-                        <span>Booking Fee</span>
-                        <span>${formatCurrency(order.serviceFee || 0)}</span>
-                    </div>
+                    ${order.appliedCharges && order.appliedCharges.length > 0 ? `
+                        <div style="margin-bottom:6px;">
+                            <strong style="font-size:13px;">Applied Fees</strong>
+                            <div style="margin-top:6px;">
+                                ${order.appliedCharges.map(c => `<div style="display:flex;justify-content:space-between;font-size:14px;color:#6b7280;margin-bottom:4px;"><span>${c.name}</span><span>${formatCurrency(c.amount || 0)}</span></div>`).join('')}
+                            </div>
+                        </div>
+                    ` : `
+                        <div style="display:flex;justify-content:space-between;font-size:14px;color:#6b7280;margin-bottom:6px;"><span>Booking Fee</span><span>${formatCurrency(order.serviceFee || 0)}</span></div>
+                    `}
                     <div style="display:flex;justify-content:space-between;font-weight:800;font-size:18px;color:#111;margin-top:8px;">
                         <span>Total Paid</span>
                         <span>${formatCurrency(order.totalAmount || 0)}</span>

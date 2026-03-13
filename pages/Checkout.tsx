@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Event, Seat, Coupon, ServiceCharge, PaymentMode, SeatingType } from '../types';
-import { validateCoupon, processPayment, fetchServiceCharges, createPaymentIntent, releaseSeats, releaseSeatsKeepAlive, fetchBestCoupon } from '../services/mockBackend';
+import { validateCoupon, processPayment, fetchServiceCharges, createPaymentIntent, fetchChargesQuote, releaseSeats, releaseSeatsKeepAlive, fetchBestCoupon } from '../services/mockBackend';
 import { useAuth } from '../context/AuthContext';
 import { TicketCheck, CreditCard, Tag, Info, AlertTriangle, Timer, ArrowLeft } from 'lucide-react';
 import { formatInTimeZone } from '../utils/date';
@@ -22,8 +22,9 @@ const CheckoutForm: React.FC<{
     appliedCoupon: Coupon | null,
     calculatedFee: number,
     finalTotal: number,
-    onSuccess: (transactionId: string, termsAccepted: boolean) => Promise<void>
-}> = ({ event, selectedSeats, customerName, customerPhone, customerEmail, appliedCoupon, calculatedFee, finalTotal, onSuccess }) => {
+    onSuccess: (transactionId: string, termsAccepted: boolean) => Promise<void>,
+    onPaymentPrepared?: (data: { clientSecret: string, totalAmount: number, serviceFee?: number, appliedCharges?: any[] }) => void
+}> = ({ event, selectedSeats, customerName, customerPhone, customerEmail, appliedCoupon, calculatedFee, finalTotal, onSuccess, onPaymentPrepared }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState<string | null>(null);
@@ -47,7 +48,9 @@ const CheckoutForm: React.FC<{
         setProcessing(true);
         setError(null);
         try {
-            const { clientSecret } = await createPaymentIntent(selectedSeats, appliedCoupon?.id, event.id);
+            const resp = await createPaymentIntent(selectedSeats, appliedCoupon?.id, event.id);
+            const { clientSecret, serviceFee, appliedCharges } = resp as any;
+            if (onPaymentPrepared) onPaymentPrepared({ clientSecret, totalAmount: resp.totalAmount, serviceFee, appliedCharges });
             const cardElement = elements.getElement(CardElement);
             if (!cardElement) throw new Error("Card Element not found");
             const result = await stripe.confirmCardPayment(clientSecret, {
@@ -311,6 +314,8 @@ const Checkout: React.FC = () => {
     const [autoApplied, setAutoApplied] = useState(false);
   const [serviceCharges, setServiceCharges] = useState<ServiceCharge[]>([]);
   const [calculatedFee, setCalculatedFee] = useState(0);
+    const [appliedCharges, setAppliedCharges] = useState<any[] | null>(null);
+    const [serverServiceFee, setServerServiceFee] = useState<number | null>(null);
 
   // Timer State
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
@@ -442,14 +447,51 @@ useEffect(() => {
   const discountedSubtotal = Math.max(0, subtotal - discountAmount);
 
   useEffect(() => {
+      // Determine highest-priority applicable charges (Event -> Organizer -> Default)
       let feeTotal = 0;
-      serviceCharges.forEach(charge => {
+      let chargesToApply: any[] = [];
+      if (event && serviceCharges && serviceCharges.length > 0) {
+          // event-level
+          chargesToApply = serviceCharges.filter(c => (c as any).level === 'EVENT' && (c as any).eventId === event.id);
+
+          // organizer-level if no event-level
+          if (!chargesToApply || chargesToApply.length === 0) {
+              chargesToApply = serviceCharges.filter(c => (c as any).level === 'ORGANIZER' && (c as any).organizerId === event.organizerId);
+          }
+
+          // default-level if still none
+          if (!chargesToApply || chargesToApply.length === 0) {
+              chargesToApply = serviceCharges.filter(c => (c as any).level === 'DEFAULT');
+          }
+      } else {
+          chargesToApply = serviceCharges;
+      }
+
+      chargesToApply.forEach(charge => {
           feeTotal += charge.type === 'FIXED' ? charge.value : discountedSubtotal * (charge.value / 100);
       });
       setCalculatedFee(feeTotal);
   }, [serviceCharges, discountedSubtotal]);
 
-  const finalTotal = discountedSubtotal + calculatedFee;
+  // Fetch server-side quote (itemized charges + authoritative fee) whenever seats/coupon change
+  useEffect(() => {
+      let mounted = true;
+      (async () => {
+          try {
+              const q = await fetchChargesQuote(selectedSeats, appliedCoupon?.id, event.id);
+              if (!mounted) return;
+              setAppliedCharges(q.appliedCharges || null);
+              setServerServiceFee(typeof q.serviceFee === 'number' ? q.serviceFee : null);
+              setCalculatedFee(typeof q.serviceFee === 'number' ? q.serviceFee : calculatedFee);
+          } catch (e) {
+              // ignore quote failures and keep client-side calculation
+              console.debug('Failed to fetch charges quote', e);
+          }
+      })();
+      return () => { mounted = false; };
+  }, [selectedSeats, appliedCoupon?.id, event.id]);
+
+    const finalTotal = discountedSubtotal + (serverServiceFee ?? calculatedFee);
 
   const handleApplyCoupon = async () => {
     setCouponError(null);
@@ -511,6 +553,7 @@ useEffect(() => {
             event,
             selectedSeats,
             calculatedFee,
+            appliedCharges || undefined,
             appliedCoupon?.id,
             paymentModeToUse,
             transactionId === 'FREE' ? null : transactionId
@@ -599,13 +642,24 @@ useEffect(() => {
                                             </div>
                                         </>
                                 )}
-                {calculatedFee > 0 && (
-                     <div className="flex justify-between text-slate-600">
-                        <span className="flex items-center" title="Platform and Processing Fees">
-                            Booking Fee <Info className="w-3 h-3 ml-1 text-slate-400" />
-                        </span>
-                        <span>${calculatedFee.toFixed(2)}</span>
-                    </div>
+                {appliedCharges && appliedCharges.length > 0 ? (
+                    appliedCharges.map((c, idx) => (
+                        <div key={idx} className="flex justify-between text-slate-600">
+                            <span className="flex items-center" title={c.name}>
+                                {c.name} <Info className="w-3 h-3 ml-1 text-slate-400" />
+                            </span>
+                            <span>${(c.amount || 0).toFixed(2)}</span>
+                        </div>
+                    ))
+                ) : (
+                    calculatedFee > 0 && (
+                        <div className="flex justify-between text-slate-600">
+                            <span className="flex items-center" title="Platform and Processing Fees">
+                                Booking Fee <Info className="w-3 h-3 ml-1 text-slate-400" />
+                            </span>
+                            <span>${calculatedFee.toFixed(2)}</span>
+                        </div>
+                    )
                 )}
                 <div className="flex justify-between text-xl font-bold text-slate-900 pt-2 border-t border-slate-200 mt-2">
                     <span>Total</span>
@@ -665,7 +719,7 @@ useEffect(() => {
                     <>
                         <label className="block text-sm font-medium text-slate-700 mb-2">Credit Card</label>
                         <Elements stripe={stripePromise} >
-                            <CheckoutForm event={event} selectedSeats={selectedSeats} customerName={customerName} customerEmail={customerEmail}  customerPhone={customerPhone} appliedCoupon={appliedCoupon} calculatedFee={calculatedFee} finalTotal={finalTotal} onSuccess={handleOrderSuccess} />
+                                            <CheckoutForm event={event} selectedSeats={selectedSeats} customerName={customerName} customerEmail={customerEmail}  customerPhone={customerPhone} appliedCoupon={appliedCoupon} calculatedFee={calculatedFee} finalTotal={finalTotal} onPaymentPrepared={(data:any) => { setAppliedCharges(data.appliedCharges || null); setServerServiceFee(typeof data.serviceFee === 'number' ? data.serviceFee : null); setCalculatedFee(typeof data.serviceFee === 'number' ? data.serviceFee : calculatedFee); }} onSuccess={handleOrderSuccess} />
                         </Elements>
                     </>
                 )}

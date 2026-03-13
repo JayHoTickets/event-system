@@ -24,6 +24,7 @@ const OrderSchema = new mongoose.Schema({
     tickets: [OrderTicketSchema],
     totalAmount: Number,
     serviceFee: Number,
+    appliedCharges: { type: Array, default: [] },
     discountApplied: Number,
     couponCode: String,
     status: { type: String, default: 'PAID' }, // PAID, PAYMENT_PENDING, CANCELLED

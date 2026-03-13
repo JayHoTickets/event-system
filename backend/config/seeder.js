@@ -54,8 +54,8 @@ const seedData = async () => {
         const chargeCount = await ServiceCharge.countDocuments();
         if (chargeCount === 0) {
             await ServiceCharge.insertMany([
-                { name: 'Booking Fee', type: 'FIXED', value: 2.00, active: true },
-                { name: 'Platform Tax', type: 'PERCENTAGE', value: 2.5, active: true }
+                { name: 'Booking Fee', type: 'FIXED', value: 2.00, level: 'DEFAULT', active: true },
+                { name: 'Platform Tax', type: 'PERCENTAGE', value: 2.5, level: 'DEFAULT', active: true }
             ]);
             console.log('Service charges seeded');
         }

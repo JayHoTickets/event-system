@@ -16,12 +16,13 @@ exports.getOrders = async (req, res) => {
         const orders = await Order.find(query);
         res.json(orders);
     } catch (err) {
+        console.error('createOrder failed:', err);
         res.status(500).json({ message: err.message });
     }
 };
 
 exports.createOrder = async (req, res) => {
-    const { customer, event, seats, serviceFee, couponId, paymentMode, transactionId } = req.body;
+    const { customer, event, seats, serviceFee, appliedCharges, couponId, paymentMode, transactionId } = req.body;
     try {
         // 1. Compute subtotal and determine any applicable coupon (auto-apply best)
         let couponCode;
@@ -162,6 +163,56 @@ exports.createOrder = async (req, res) => {
             };
         });
 
+        // Normalize appliedCharges: accept array of objects or JSON/stringified forms
+        let parsedAppliedCharges = appliedCharges;
+        try {
+            console.debug('createOrder - raw appliedCharges type:', typeof appliedCharges);
+            try {
+                // Attempt repeated JSON.parse to handle double/triple-serialized values
+                let attempts = 0;
+                let cur = appliedCharges;
+                while (typeof cur === 'string' && attempts < 4) {
+                    try {
+                        cur = JSON.parse(cur);
+                    } catch (e) {
+                        // Try converting single quotes to double quotes as a last resort
+                        try { cur = JSON.parse(cur.replace(/'/g, '"')); }
+                        catch (e2) { break; }
+                    }
+                    attempts++;
+                }
+                parsedAppliedCharges = cur;
+            } catch (parseErr) {
+                console.debug('createOrder - appliedCharges parse attempt failed', parseErr);
+                parsedAppliedCharges = appliedCharges;
+            }
+        } catch (ex) {
+            console.debug('AppliedCharges normalization outer failed', ex);
+            parsedAppliedCharges = appliedCharges;
+        }
+
+        if (!Array.isArray(parsedAppliedCharges)) {
+            // If it's a single string that looks like an array, try a best-effort conversion
+            if (typeof parsedAppliedCharges === 'string' && parsedAppliedCharges.trim().startsWith('[')) {
+                try {
+                    parsedAppliedCharges = JSON.parse(parsedAppliedCharges.replace(/'/g, '"'));
+                } catch (e) {
+                    parsedAppliedCharges = [];
+                }
+            } else {
+                parsedAppliedCharges = [];
+            }
+        }
+
+        const normalizedAppliedCharges = parsedAppliedCharges.map(c => ({
+            name: c && c.name ? String(c.name) : '',
+            type: c && c.type ? String(c.type) : '',
+            value: c && (c.value !== undefined) ? Number(c.value) : 0,
+            level: c && c.level ? String(c.level) : '',
+            amount: c && (c.amount !== undefined) ? Number(c.amount) : 0
+        }));
+        console.debug('createOrder - normalizedAppliedCharges:', normalizedAppliedCharges);
+
         const order = await Order.create({
             userId: customer.id || `guest-${Date.now()}`,
             customerName: customer.name,
@@ -170,6 +221,7 @@ exports.createOrder = async (req, res) => {
             tickets: tickets,
             totalAmount,
             serviceFee,
+            appliedCharges: normalizedAppliedCharges,
             discountApplied: discount,
             couponCode,
             paymentMode,
