@@ -14,6 +14,8 @@ const CouponSchema = new mongoose.Schema({
     // Flexible legacy params for migration
     ruleParams: { type: mongoose.Schema.Types.Mixed },
     eventId: String, // Optional, null means global
+    // Optional: restrict coupon to specific ticket types within the event
+    applicableTicketTypeIds: { type: [String], default: [] },
     organizerId: { type: String, required: true },
     maxUses: Number,
     usedCount: { type: Number, default: 0 },

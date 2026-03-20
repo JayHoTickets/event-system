@@ -143,6 +143,8 @@ export interface Coupon {
   discountType: 'PERCENTAGE' | 'FIXED';
   value: number;
   eventId: string | null; // If null, applies to all events by organizer
+  // Optional: restrict coupon applicability to specific ticket type ids within the event
+  applicableTicketTypeIds?: string[];
   // New rule-driven fields
   ruleType?: 'THRESHOLD' | 'SEAT_COUNT' | 'CODE';
   // Explicit rule fields (preferred over legacy ruleParams)

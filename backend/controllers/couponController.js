@@ -28,6 +28,7 @@ exports.createCoupon = async (req, res) => {
             minSeats: req.body.minSeats ? Number(req.body.minSeats) : 0,
             ruleParams: req.body.ruleParams || {},
             eventId: req.body.eventId || null,
+            applicableTicketTypeIds: Array.isArray(req.body.applicableTicketTypeIds) ? req.body.applicableTicketTypeIds : [],
             organizerId: req.body.organizerId,
             maxUses: req.body.maxUses ? Number(req.body.maxUses) : 0,
             expiryDate: req.body.expiryDate ? new Date(req.body.expiryDate) : null,
@@ -64,6 +65,7 @@ exports.updateCoupon = async (req, res) => {
             ...(typeof req.body.minSeats !== 'undefined' ? { minSeats: Number(req.body.minSeats) } : {}),
             ...(typeof req.body.ruleParams !== 'undefined' ? { ruleParams: req.body.ruleParams } : {}),
             ...(typeof req.body.eventId !== 'undefined' ? { eventId: req.body.eventId } : {}),
+            ...(typeof req.body.applicableTicketTypeIds !== 'undefined' ? { applicableTicketTypeIds: Array.isArray(req.body.applicableTicketTypeIds) ? req.body.applicableTicketTypeIds : [] } : {}),
             ...(typeof req.body.maxUses !== 'undefined' ? { maxUses: Number(req.body.maxUses) } : {}),
             ...(typeof req.body.expiryDate !== 'undefined' ? { expiryDate: req.body.expiryDate ? new Date(req.body.expiryDate) : null } : {}),
             ...(typeof req.body.active !== 'undefined' ? { active: !!req.body.active } : {})

@@ -13,6 +13,16 @@ function computeCouponDiscount(coupon, context) {
     const seats = context.seats || [];
     const seatsCount = seats.length || context.seatsCount || 0;
 
+    // If the coupon restricts which ticket types it applies to, compute matched subtotal
+    let matchedSubtotal = subtotal;
+    if (coupon.applicableTicketTypeIds && Array.isArray(coupon.applicableTicketTypeIds) && coupon.applicableTicketTypeIds.length > 0) {
+        matchedSubtotal = seats.reduce((acc, s) => {
+            if (!s) return acc;
+            if (s.ticketTypeId && coupon.applicableTicketTypeIds.includes(s.ticketTypeId)) return acc + (s.price || 0);
+            return acc;
+        }, 0);
+    }
+
     // Respect maxUses
     if (coupon.maxUses && (coupon.usedCount || 0) >= coupon.maxUses) {
         return { discount: 0, usedCountIncrement: 0 };
@@ -35,9 +45,11 @@ function computeCouponDiscount(coupon, context) {
             // prefer explicit field, fall back to ruleParams
             const minAmount = (typeof coupon.minAmount === 'number') ? coupon.minAmount : (coupon.ruleParams && coupon.ruleParams.minAmount) || 0;
             if (subtotal >= minAmount) {
-                // apply percent or fixed over subtotal
-                discount = applyValue(subtotal);
-                usedInc = 1;
+                // apply percent or fixed over matchedSubtotal (respect ticket-type scoping)
+                if (matchedSubtotal > 0) {
+                    discount = applyValue(matchedSubtotal);
+                    usedInc = 1;
+                }
             }
             break;
         }
@@ -45,8 +57,10 @@ function computeCouponDiscount(coupon, context) {
         case 'SEAT_COUNT': {
             const minSeats = (typeof coupon.minSeats === 'number') ? coupon.minSeats : (coupon.ruleParams && coupon.ruleParams.minSeats) || 0;
             if (seatsCount >= minSeats) {
-                discount = applyValue(subtotal);
-                usedInc = 1;
+                if (matchedSubtotal > 0) {
+                    discount = applyValue(matchedSubtotal);
+                    usedInc = 1;
+                }
             }
             break;
         }
@@ -55,8 +69,10 @@ function computeCouponDiscount(coupon, context) {
             // CODE type: requires explicit code; compute using discountType/value
             // For safety, apply only if coupon.code was provided in context (context.requestedCode)
             if (context.requestedCode && context.requestedCode === coupon.code) {
-                discount = applyValue(subtotal);
-                usedInc = 1;
+                if (matchedSubtotal > 0) {
+                    discount = applyValue(matchedSubtotal);
+                    usedInc = 1;
+                }
             }
             break;
         }

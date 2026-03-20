@@ -35,13 +35,26 @@ const OrganizerCoupons: React.FC = () => {
         // explicit fields
         minAmount: 0,
         minSeats: 0,
+        applicableTicketTypeIds: [] as string[]
     };
 
     const [formData, setFormData] = useState({ ...initialForm });
+    const [availableTicketTypes, setAvailableTicketTypes] = useState<any[]>([]);
 
     useEffect(() => {
         loadData();
     }, [user]);
+
+    // When the selected event in the form changes, populate available ticket types
+    useEffect(() => {
+        const eId = (formData as any).eventId;
+        if (!eId) {
+            setAvailableTicketTypes([]);
+            return;
+        }
+        const ev = events.find(ev => ev.id === eId);
+        setAvailableTicketTypes(ev && ev.ticketTypes ? ev.ticketTypes : []);
+    }, [ (formData as any).eventId, events ]);
 
     const loadData = () => {
         if(user) {
@@ -60,6 +73,7 @@ const OrganizerCoupons: React.FC = () => {
     const openCreateModal = () => {
         setEditingCoupon(null);
         setFormData({ ...initialForm });
+        setAvailableTicketTypes([]);
         setShowModal(true);
     };
 
@@ -86,6 +100,8 @@ const OrganizerCoupons: React.FC = () => {
             // explicit fields prefer top-level values, fall back to legacy ruleParams
             minAmount: (typeof (coupon as any).minAmount !== 'undefined' && (coupon as any).minAmount !== null) ? (coupon as any).minAmount : ((coupon as any).ruleParams && (coupon as any).ruleParams.minAmount) || initialForm.minAmount,
             minSeats: (typeof (coupon as any).minSeats !== 'undefined' && (coupon as any).minSeats !== null) ? (coupon as any).minSeats : ((coupon as any).ruleParams && (coupon as any).ruleParams.minSeats) || initialForm.minSeats
+            ,
+            applicableTicketTypeIds: (coupon as any).applicableTicketTypeIds || []
         });
         setShowModal(true);
     };
@@ -102,6 +118,7 @@ const OrganizerCoupons: React.FC = () => {
                 discountType: formData.discountType as 'PERCENTAGE' | 'FIXED',
                 value: Number(formData.value),
                 eventId: formData.eventId || null,
+                applicableTicketTypeIds: Array.isArray((formData as any).applicableTicketTypeIds) ? (formData as any).applicableTicketTypeIds : [],
                 organizerId,
                 maxUses: Number(formData.maxUses),
                 expiryDate: formData.expiryDate,
@@ -213,7 +230,18 @@ const OrganizerCoupons: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600 flex items-center">
                                             <Ticket className="w-3 h-3 mr-1 text-slate-400" />
-                                            {getEventName(coupon.eventId)}
+                                            <div className="flex flex-col">
+                                                <span>{getEventName(coupon.eventId)}</span>
+                                                {(coupon as any).applicableTicketTypeIds && (coupon as any).applicableTicketTypeIds.length > 0 && (
+                                                    <small className="text-xs text-slate-500 mt-1">
+                                                        Specific ticket types: {(() => {
+                                                            const ev = events.find(e => e.id === coupon.eventId);
+                                                            if (!ev || !ev.ticketTypes) return `${(coupon as any).applicableTicketTypeIds.length} selected`;
+                                                            return (coupon as any).applicableTicketTypeIds.map((id:string) => ev.ticketTypes.find((t:any)=>t.id===id)?.name || id).join(', ');
+                                                        })()}
+                                                    </small>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600">
                                             {coupon.usedCount} / {coupon.maxUses}
@@ -339,6 +367,34 @@ const OrganizerCoupons: React.FC = () => {
                                 </select>
                                 <p className="text-xs text-slate-500 mt-1">Leave as "All Events" to apply to everything.</p>
                             </div>
+
+                            {/* Ticket type scoping - shown when an event is selected */}
+                            {(formData as any).eventId && availableTicketTypes && availableTicketTypes.length > 0 && (
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Apply To Ticket Types</label>
+                                    <p className="text-xs text-slate-500 mb-2">Select the ticket types within the chosen event this coupon should apply to. Leave none selected to apply to all ticket types.</p>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {availableTicketTypes.map((tt: any) => {
+                                            const checked = (formData as any).applicableTicketTypeIds && (formData as any).applicableTicketTypeIds.includes(tt.id);
+                                            return (
+                                                <label key={tt.id} className="inline-flex items-center gap-2 text-sm">
+                                                    <input type="checkbox" checked={checked} onChange={(e) => {
+                                                        const prev = Array.isArray((formData as any).applicableTicketTypeIds) ? [...(formData as any).applicableTicketTypeIds] : [];
+                                                        if (e.target.checked) {
+                                                            prev.push(tt.id);
+                                                        } else {
+                                                            const idx = prev.indexOf(tt.id);
+                                                            if (idx >= 0) prev.splice(idx, 1);
+                                                        }
+                                                        setFormData({...formData, applicableTicketTypeIds: prev});
+                                                    }} />
+                                                    <span className="text-slate-700">{tt.name} — ${tt.price?.toFixed ? tt.price.toFixed(2) : tt.price}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="mb-4">
                                 <label className="block text-sm font-medium text-slate-700 mb-2">Rule Parameters</label>
