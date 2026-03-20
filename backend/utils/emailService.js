@@ -7,6 +7,8 @@ const sesClient = new SESClient({ region: REGION });
 
 const sendEmail = async (to, subject, htmlContent) => {
     const fromAddress = process.env.EMAIL_FROM || 'noreply@jayhotickets.com';
+    const fromName = process.env.EMAIL_FROM_NAME || 'Jay-Ho! Tickets';
+    const sourceAddress = `${fromName} <${fromAddress}>`;
 
     if (!process.env.AWS_REGION || !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
         console.warn('AWS credentials or region missing. Email not sent.');
@@ -14,7 +16,7 @@ const sendEmail = async (to, subject, htmlContent) => {
     }
 
     const params = {
-        Source: fromAddress,
+        Source: sourceAddress,
         Destination: { ToAddresses: [to] },
         Message: {
             Subject: { Data: subject, Charset: 'UTF-8' },
