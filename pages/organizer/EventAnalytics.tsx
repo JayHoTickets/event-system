@@ -424,6 +424,7 @@ const EventAnalytics: React.FC = () => {
     const hasZeroPriceTicketForHold = selectedSeatObjsLocal.some(s => (s.price ?? 0) === 0);
     if (hasZeroPriceTicketForHold) {
       setHoldProcessing(false);
+      setShowHoldOrder(false)
       setShowNotEligibleModal(true);
       return;
     }
