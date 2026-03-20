@@ -375,6 +375,7 @@ const EventAnalytics: React.FC = () => {
         selectedSeatObjs,
         0, // No service fee for box office
         undefined,
+        undefined, // couponId (none)
         boMode,
       );
       setBoProcessing(false);
