@@ -156,6 +156,7 @@ export interface Coupon {
   organizerId: string;
   maxUses: number;
   usedCount: number;
+  startDate?: string;
   expiryDate: string;
   active: boolean;
   deleted?: boolean;

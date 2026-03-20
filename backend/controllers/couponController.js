@@ -29,6 +29,7 @@ exports.createCoupon = async (req, res) => {
             ruleParams: req.body.ruleParams || {},
             eventId: req.body.eventId || null,
             applicableTicketTypeIds: Array.isArray(req.body.applicableTicketTypeIds) ? req.body.applicableTicketTypeIds : [],
+            startDate: req.body.startDate ? new Date(req.body.startDate) : null,
             organizerId: req.body.organizerId,
             maxUses: req.body.maxUses ? Number(req.body.maxUses) : 0,
             expiryDate: req.body.expiryDate ? new Date(req.body.expiryDate) : null,
@@ -66,6 +67,7 @@ exports.updateCoupon = async (req, res) => {
             ...(typeof req.body.ruleParams !== 'undefined' ? { ruleParams: req.body.ruleParams } : {}),
             ...(typeof req.body.eventId !== 'undefined' ? { eventId: req.body.eventId } : {}),
             ...(typeof req.body.applicableTicketTypeIds !== 'undefined' ? { applicableTicketTypeIds: Array.isArray(req.body.applicableTicketTypeIds) ? req.body.applicableTicketTypeIds : [] } : {}),
+            ...(typeof req.body.startDate !== 'undefined' ? { startDate: req.body.startDate ? new Date(req.body.startDate) : null } : {}),
             ...(typeof req.body.maxUses !== 'undefined' ? { maxUses: Number(req.body.maxUses) } : {}),
             ...(typeof req.body.expiryDate !== 'undefined' ? { expiryDate: req.body.expiryDate ? new Date(req.body.expiryDate) : null } : {}),
             ...(typeof req.body.active !== 'undefined' ? { active: !!req.body.active } : {})
@@ -106,7 +108,9 @@ exports.validateCoupon = async (req, res) => {
         const coupon = await Coupon.findOne({ code, active: true, deleted: false });
         if (!coupon) return res.status(400).json({ message: 'Invalid coupon' });
         if (coupon.eventId && coupon.eventId !== eventId) return res.status(400).json({ message: 'Not valid for this event' });
-        if (coupon.expiryDate && new Date(coupon.expiryDate) < new Date()) return res.status(400).json({ message: 'Expired' });
+        const now = new Date();
+        if (coupon.startDate && new Date(coupon.startDate) > now) return res.status(400).json({ message: 'Not active yet' });
+        if (coupon.expiryDate && new Date(coupon.expiryDate) < now) return res.status(400).json({ message: 'Expired' });
         if (coupon.maxUses && (coupon.usedCount || 0) >= coupon.maxUses) return res.status(400).json({ message: 'Limit reached' });
 
         const subtotal = (seats || []).reduce((a, s) => a + (s.price || 0), 0);
@@ -134,6 +138,9 @@ exports.getBestCoupon = async (req, res) => {
 
         let best = { discount: 0, coupon: null };
         for (const c of coupons) {
+            const now = new Date();
+            if (c.startDate && new Date(c.startDate) > now) continue;
+            if (c.expiryDate && new Date(c.expiryDate) < now) continue;
             const { discount } = computeCouponDiscount(c, { subtotal, seats, seatsCount: (seats || []).length, eventId });
             if (discount > best.discount) best = { discount, coupon: c };
         }

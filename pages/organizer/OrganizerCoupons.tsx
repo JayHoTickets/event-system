@@ -30,6 +30,7 @@ const OrganizerCoupons: React.FC = () => {
         value: 10,
         eventId: '',
         maxUses: 100,
+        startDate: '',
         expiryDate: '',
         ruleType: 'CODE',
         // explicit fields
@@ -88,6 +89,14 @@ const OrganizerCoupons: React.FC = () => {
             }
         } catch (e) { expiry = ''; }
 
+        let start = '';
+        try {
+            if ((coupon as any).startDate) {
+                const s = new Date((coupon as any).startDate);
+                if (!isNaN(s.getTime())) start = s.toISOString().slice(0,16);
+            }
+        } catch (e) { start = ''; }
+
         setFormData({
             ...initialForm,
             code: coupon.code || initialForm.code,
@@ -96,6 +105,7 @@ const OrganizerCoupons: React.FC = () => {
             eventId: coupon.eventId || initialForm.eventId,
             maxUses: typeof (coupon as any).maxUses !== 'undefined' ? (coupon as any).maxUses : initialForm.maxUses,
             expiryDate: expiry || initialForm.expiryDate,
+            startDate: start || initialForm.startDate,
             ruleType: (coupon as any).ruleType || initialForm.ruleType,
             // explicit fields prefer top-level values, fall back to legacy ruleParams
             minAmount: (typeof (coupon as any).minAmount !== 'undefined' && (coupon as any).minAmount !== null) ? (coupon as any).minAmount : ((coupon as any).ruleParams && (coupon as any).ruleParams.minAmount) || initialForm.minAmount,
@@ -121,6 +131,7 @@ const OrganizerCoupons: React.FC = () => {
                 applicableTicketTypeIds: Array.isArray((formData as any).applicableTicketTypeIds) ? (formData as any).applicableTicketTypeIds : [],
                 organizerId,
                 maxUses: Number(formData.maxUses),
+                startDate: (formData as any).startDate,
                 expiryDate: formData.expiryDate,
                 ruleType: formData.ruleType || 'CODE',
                     // Explicit fields preferred by backend; keep ruleParams for compatibility
@@ -144,6 +155,7 @@ const OrganizerCoupons: React.FC = () => {
                 value: 10,
                 eventId: '',
                 maxUses: 100,
+                startDate: '',
                 expiryDate: '',
                 ruleType: 'CODE',
                 minAmount: 0,
@@ -430,6 +442,15 @@ const OrganizerCoupons: React.FC = () => {
                                         className="w-full border rounded-lg px-3 py-2"
                                         value={formData.maxUses}
                                         onChange={e => setFormData({...formData, maxUses: Number(e.target.value)})}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
+                                    <input 
+                                        type="datetime-local"
+                                        className="w-full border rounded-lg px-3 py-2"
+                                        value={(formData as any).startDate}
+                                        onChange={e => setFormData({...formData, startDate: e.target.value})}
                                     />
                                 </div>
                                 <div>

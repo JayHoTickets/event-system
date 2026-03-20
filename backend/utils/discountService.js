@@ -9,6 +9,7 @@ function computeCouponDiscount(coupon, context) {
     const now = new Date();
     if (!coupon || !coupon.active || coupon.deleted) return { discount: 0, usedCountIncrement: 0 };
     if (coupon.expiryDate && new Date(coupon.expiryDate) < now) return { discount: 0, usedCountIncrement: 0 };
+    if (coupon.startDate && new Date(coupon.startDate) > now) return { discount: 0, usedCountIncrement: 0 };
     const subtotal = context.subtotal || 0;
     const seats = context.seats || [];
     const seatsCount = seats.length || context.seatsCount || 0;
