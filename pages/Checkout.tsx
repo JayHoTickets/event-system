@@ -316,6 +316,7 @@ const Checkout: React.FC = () => {
   const [calculatedFee, setCalculatedFee] = useState(0);
     const [appliedCharges, setAppliedCharges] = useState<any[] | null>(null);
     const [serverServiceFee, setServerServiceFee] = useState<number | null>(null);
+    const [chargesLoading, setChargesLoading] = useState(true);
 
   // Timer State
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
@@ -478,15 +479,18 @@ useEffect(() => {
       let mounted = true;
       (async () => {
               try {
+                  setChargesLoading(true);
                   const q = await fetchChargesQuote(selectedSeats, appliedCoupon?.id, event.id, PaymentMode.ONLINE);
-              if (!mounted) return;
-              setAppliedCharges(q.appliedCharges || null);
-              setServerServiceFee(typeof q.serviceFee === 'number' ? q.serviceFee : null);
-              setCalculatedFee(typeof q.serviceFee === 'number' ? q.serviceFee : calculatedFee);
-          } catch (e) {
-              // ignore quote failures and keep client-side calculation
-              console.debug('Failed to fetch charges quote', e);
-          }
+                  if (!mounted) return;
+                  setAppliedCharges(q.appliedCharges || null);
+                  setServerServiceFee(typeof q.serviceFee === 'number' ? q.serviceFee : null);
+                  setCalculatedFee(typeof q.serviceFee === 'number' ? q.serviceFee : calculatedFee);
+              } catch (e) {
+                  // ignore quote failures and keep client-side calculation
+                  console.debug('Failed to fetch charges quote', e);
+              } finally {
+                  if (mounted) setChargesLoading(false);
+              }
       })();
       return () => { mounted = false; };
   }, [selectedSeats, appliedCoupon?.id, event.id]);
@@ -642,7 +646,9 @@ useEffect(() => {
                                             </div>
                                         </>
                                 )}
-                {appliedCharges && appliedCharges.length > 0 ? (
+                {chargesLoading ? (
+                    <div className="text-sm text-slate-500">Calculating fees...</div>
+                ) : appliedCharges && appliedCharges.length > 0 ? (
                     appliedCharges.map((c, idx) => (
                         <div key={idx} className="flex justify-between text-slate-600">
                             <span className="flex items-center" title={c.name}>
@@ -663,7 +669,13 @@ useEffect(() => {
                 )}
                 <div className="flex justify-between text-xl font-bold text-slate-900 pt-2 border-t border-slate-200 mt-2">
                     <span>Total</span>
-                    <span>${finalTotal.toFixed(2)}</span>
+                    <span>
+                        {chargesLoading ? (
+                            <span className="text-sm text-slate-500">Calculating…</span>
+                        ) : (
+                            `$${finalTotal.toFixed(2)}`
+                        )}
+                    </span>
                 </div>
             </div>
         </div>
