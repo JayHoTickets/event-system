@@ -53,6 +53,7 @@ const EventAnalytics: React.FC = () => {
   const [boPhone, setBoPhone] = useState("");
   const [boMode, setBoMode] = useState<PaymentMode>(PaymentMode.CASH);
   const [boProcessing, setBoProcessing] = useState(false);
+  const [showNotEligibleModal, setShowNotEligibleModal] = useState(false);
 
   // Hold Order Form (Pay Later)
   const [showHoldOrder, setShowHoldOrder] = useState(false);
@@ -418,6 +419,14 @@ const EventAnalytics: React.FC = () => {
     e.preventDefault();
     if (!event || !currentOrganizerId) return;
     setHoldProcessing(true);
+
+    const selectedSeatObjsLocal = event.seats.filter((s) => selectedSeatIds.includes(s.id));
+    const hasZeroPriceTicketForHold = selectedSeatObjsLocal.some(s => (s.price ?? 0) === 0);
+    if (hasZeroPriceTicketForHold) {
+      setHoldProcessing(false);
+      setShowNotEligibleModal(true);
+      return;
+    }
 
     try {
       // Call API to create payment pending order (hold)
