@@ -165,6 +165,7 @@ export interface ServiceCharge {
   type: 'PERCENTAGE' | 'FIXED';
   value: number;
   active: boolean;
+  paymentModes?: PaymentMode[]; // Which payment modes this charge applies to (e.g. ONLINE, CASH)
 }
 
 // Service charge scoping

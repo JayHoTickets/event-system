@@ -9,7 +9,9 @@ const ServiceChargeSchema = new mongoose.Schema({
     level: { type: String, enum: ['DEFAULT', 'ORGANIZER', 'EVENT'], default: 'DEFAULT' },
     organizerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
     eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: false },
-    active: { type: Boolean, default: true }
+    active: { type: Boolean, default: true },
+    // Which payment modes this charge applies to. If omitted, applies to all.
+    paymentModes: { type: [String], enum: ['ONLINE', 'CASH', 'CHARITY'], default: ['ONLINE','CASH'] }
 }, {
     toJSON: {
         virtuals: true,

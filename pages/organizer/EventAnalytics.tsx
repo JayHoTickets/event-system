@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder } from '../../services/mockBackend';
+import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder, fetchChargesQuote } from '../../services/mockBackend';
 import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
 import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
@@ -377,12 +377,22 @@ const EventAnalytics: React.FC = () => {
     }
 
     try {
+      // Ask server for authoritative quote for this payment mode so charges apply correctly
+      let serverQuote: any = null;
+      try {
+        serverQuote = await fetchChargesQuote(selectedSeatObjs, undefined, event.id, boMode);
+      } catch (e) {
+        console.debug('BoxOffice - failed to fetch server quote, falling back to 0 service fee', e);
+      }
+      const serviceFeeToUse = serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0;
+      const appliedChargesToUse = serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined;
+
       await processPayment(
         { name: boName, email: boEmail, phone: boPhone },
         event,
         selectedSeatObjs,
-        0, // No service fee for box office
-        undefined,
+        serviceFeeToUse,
+        appliedChargesToUse,
         undefined, // couponId (none)
         boMode,
       );
@@ -1413,7 +1423,7 @@ const EventAnalytics: React.FC = () => {
                         <DollarSign className="w-5 h-5" />
                         <span className="text-xs font-bold">CASH</span>
                       </button>
-                      <button
+                      {/* <button
                         type="button"
                         onClick={() => setBoMode(PaymentMode.CHARITY)}
                         className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.CHARITY ? "bg-purple-50 border-purple-500 text-purple-700" : "hover:bg-slate-50"}`}
@@ -1422,7 +1432,7 @@ const EventAnalytics: React.FC = () => {
                         <span className="text-xs font-bold">
                           CHARITY / COMP
                         </span>
-                      </button>
+                      </button> */}
                     </div>
                   </div>
                 </div>

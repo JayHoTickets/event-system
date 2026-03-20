@@ -20,6 +20,7 @@ const AdminServiceCharges: React.FC = () => {
     const [level, setLevel] = useState<ServiceChargeLevel>('DEFAULT');
     const [organizerId, setOrganizerId] = useState<string | undefined>(undefined);
     const [eventId, setEventId] = useState<string | undefined>(undefined);
+    const [paymentModeChoice, setPaymentModeChoice] = useState<'ONLINE'|'CASH'|'BOTH'>('BOTH');
 
     const [organizers, setOrganizers] = useState<User[]>([]);
     const [events, setEvents] = useState<EventType[]>([]);
@@ -59,6 +60,7 @@ const AdminServiceCharges: React.FC = () => {
         setLevel('DEFAULT');
         setOrganizerId(undefined);
         setEventId(undefined);
+        setPaymentModeChoice('BOTH');
         setShowModal(true);
     };
 
@@ -71,6 +73,11 @@ const AdminServiceCharges: React.FC = () => {
         setLevel((charge.level as ServiceChargeLevel) || 'DEFAULT');
         setOrganizerId((charge as any).organizerId || undefined);
         setEventId((charge as any).eventId || undefined);
+        // Determine mode choice from stored paymentModes
+        const pm = (charge as any).paymentModes || ['ONLINE','CASH'];
+        if (pm.length === 1 && pm[0] === 'ONLINE') setPaymentModeChoice('ONLINE');
+        else if (pm.length === 1 && pm[0] === 'CASH') setPaymentModeChoice('CASH');
+        else setPaymentModeChoice('BOTH');
         setShowModal(true);
     };
 
@@ -81,6 +88,10 @@ const AdminServiceCharges: React.FC = () => {
             const payload: any = { name, type, value, active, level };
             if (level === 'ORGANIZER') payload.organizerId = organizerId || null;
             if (level === 'EVENT') payload.eventId = eventId || null;
+            // Map paymentModeChoice to array for backend
+            if (paymentModeChoice === 'ONLINE') payload.paymentModes = ['ONLINE'];
+            else if (paymentModeChoice === 'CASH') payload.paymentModes = ['CASH'];
+            else payload.paymentModes = ['ONLINE','CASH'];
 
             if (editingCharge) {
                 await updateServiceCharge(editingCharge.id, payload);
@@ -126,6 +137,7 @@ const AdminServiceCharges: React.FC = () => {
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Name</th>
+                                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Mode</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Type</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Scope</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Value</th>
@@ -147,6 +159,11 @@ const AdminServiceCharges: React.FC = () => {
                                             <div className="flex items-center font-medium text-slate-900">
                                                 <Receipt className="w-4 h-4 mr-2 text-slate-400" />
                                                 {charge.name}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600">
+                                            <div className="text-xs font-medium text-slate-700">
+                                                {((charge as any).paymentModes || ['ONLINE','CASH']).join(', ')}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600">
@@ -271,6 +288,15 @@ const AdminServiceCharges: React.FC = () => {
                                         onChange={e => setValue(Number(e.target.value))}
                                     />
                                 </div>
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Apply To (Payment Mode)</label>
+                                <select className="w-full border rounded-lg px-3 py-2" value={paymentModeChoice} onChange={e => setPaymentModeChoice(e.target.value as any)}>
+                                    <option value="ONLINE">Online only</option>
+                                    <option value="CASH">Cash only</option>
+                                    <option value="BOTH">Both (Online & Cash)</option>
+                                </select>
                             </div>
 
                             <div className="mb-6">

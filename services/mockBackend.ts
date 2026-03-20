@@ -273,17 +273,17 @@ export const fetchBestCoupon = (eventId: string, seats: Seat[]): Promise<{ coupo
 };
 
 // --- ORDERS & TICKETS & PAYMENTS ---
-export const createPaymentIntent = (seats: Seat[], couponId?: string, eventId?: string): Promise<{ clientSecret: string, totalAmount: number, serviceFee?: number, appliedCharges?: any[] }> => {
+export const createPaymentIntent = (seats: Seat[], couponId?: string, eventId?: string, paymentMode: PaymentMode = PaymentMode.ONLINE): Promise<{ clientSecret: string, totalAmount: number, serviceFee?: number, appliedCharges?: any[] }> => {
     return fetchJson('/payments/create-intent', {
         method: 'POST',
-        body: JSON.stringify({ seats, couponId, eventId })
+        body: JSON.stringify({ seats, couponId, eventId, paymentMode })
     });
 };
 
-export const fetchChargesQuote = (seats: Seat[], couponId?: string, eventId?: string): Promise<{ subtotal: number, discount: number, discountedSubtotal: number, serviceFee: number, appliedCharges: any[], totalAmount: number }> => {
+export const fetchChargesQuote = (seats: Seat[], couponId?: string, eventId?: string, paymentMode: PaymentMode = PaymentMode.ONLINE): Promise<{ subtotal: number, discount: number, discountedSubtotal: number, serviceFee: number, appliedCharges: any[], totalAmount: number }> => {
     return fetchJson('/payments/quote', {
         method: 'POST',
-        body: JSON.stringify({ seats, couponId, eventId })
+        body: JSON.stringify({ seats, couponId, eventId, paymentMode })
     });
 };
 

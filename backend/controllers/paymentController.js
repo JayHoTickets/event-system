@@ -6,7 +6,7 @@ const ServiceCharge = require('../models/ServiceCharge');
 const Event = require('../models/Event');
 const { computeCouponDiscount } = require('../utils/discountService');
 
-const computeChargesForRequest = async (seats, couponId, eventId) => {
+const computeChargesForRequest = async (seats, couponId, eventId, paymentMode = 'ONLINE') => {
     const subtotal = seats.reduce((acc, s) => acc + (s.price || 0), 0);
     let discount = 0;
 
@@ -73,6 +73,18 @@ const computeChargesForRequest = async (seats, couponId, eventId) => {
         chargesToApply = await ServiceCharge.find({ level: 'DEFAULT', active: true });
     }
 
+    // Filter charges by paymentMode if the charge specifies paymentModes
+    if (paymentMode) {
+        chargesToApply = chargesToApply.filter(ch => {
+            if (!ch.paymentModes || ch.paymentModes.length === 0) return true;
+            try {
+                return ch.paymentModes.includes(paymentMode);
+            } catch (e) {
+                return true;
+            }
+        });
+    }
+
     const appliedCharges = [];
     for (const ch of chargesToApply) {
         let amount = 0;
@@ -91,9 +103,9 @@ const computeChargesForRequest = async (seats, couponId, eventId) => {
 };
 
 exports.quoteCharges = async (req, res) => {
-    const { seats, couponId, eventId } = req.body;
+    const { seats, couponId, eventId, paymentMode } = req.body;
     try {
-        const result = await computeChargesForRequest(seats, couponId, eventId);
+        const result = await computeChargesForRequest(seats, couponId, eventId, paymentMode || 'ONLINE');
         res.json(result);
     } catch (err) {
         console.error('Quote Error:', err);
@@ -102,14 +114,14 @@ exports.quoteCharges = async (req, res) => {
 };
 
 exports.createPaymentIntent = async (req, res) => {
-    const { seats, couponId, eventId } = req.body;
+    const { seats, couponId, eventId, paymentMode } = req.body;
 
     try {
         if (!process.env.STRIPE_SECRET_KEY) {
             throw new Error("Stripe is not configured on the server.");
         }
 
-        const { discountedSubtotal, serviceFee, appliedCharges, totalAmount } = await computeChargesForRequest(seats, couponId, eventId);
+        const { discountedSubtotal, serviceFee, appliedCharges, totalAmount } = await computeChargesForRequest(seats, couponId, eventId, paymentMode || 'ONLINE');
 
         // 4. Create Stripe Intent
         // Stripe expects amounts in cents (integers)

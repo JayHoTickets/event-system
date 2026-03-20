@@ -48,7 +48,7 @@ const CheckoutForm: React.FC<{
         setProcessing(true);
         setError(null);
         try {
-            const resp = await createPaymentIntent(selectedSeats, appliedCoupon?.id, event.id);
+            const resp = await createPaymentIntent(selectedSeats, appliedCoupon?.id, event.id, PaymentMode.ONLINE);
             const { clientSecret, serviceFee, appliedCharges } = resp as any;
             if (onPaymentPrepared) onPaymentPrepared({ clientSecret, totalAmount: resp.totalAmount, serviceFee, appliedCharges });
             const cardElement = elements.getElement(CardElement);
@@ -477,8 +477,8 @@ useEffect(() => {
   useEffect(() => {
       let mounted = true;
       (async () => {
-          try {
-              const q = await fetchChargesQuote(selectedSeats, appliedCoupon?.id, event.id);
+              try {
+                  const q = await fetchChargesQuote(selectedSeats, appliedCoupon?.id, event.id, PaymentMode.ONLINE);
               if (!mounted) return;
               setAppliedCharges(q.appliedCharges || null);
               setServerServiceFee(typeof q.serviceFee === 'number' ? q.serviceFee : null);
