@@ -1460,6 +1460,29 @@ const EventAnalytics: React.FC = () => {
         </div>
       )}
 
+      {/* Not Eligible Modal for $0 tickets */}
+      {showNotEligibleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-red-600 p-4 flex justify-between items-center">
+              <h3 className="font-bold text-white">Not Eligible</h3>
+              <button
+                onClick={() => setShowNotEligibleModal(false)}
+                className="text-slate-200 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-700">This flow cannot be used for free ($0) tickets. Use the Hold/Charity flow or adjust ticket pricing.</p>
+              <div className="mt-6 text-right">
+                <button onClick={() => setShowNotEligibleModal(false)} className="px-4 py-2 rounded-lg bg-slate-900 text-white">OK</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hold Order Modal (Pay Later) */}
       {showHoldOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
