@@ -368,6 +368,14 @@ const EventAnalytics: React.FC = () => {
       selectedSeatIds.includes(s.id),
     );
 
+    // Prevent box-office bookings for seats with a price of 0
+    const hasZeroPriceTicket = selectedSeatObjs.some(s => (s.price ?? 0) === 0);
+    if (hasZeroPriceTicket) {
+      alert('Cannot book seats with price $0 via Box Office. Please use the Hold/Charity flow or adjust ticket pricing.');
+      setBoProcessing(false);
+      return;
+    }
+
     try {
       await processPayment(
         { name: boName, email: boEmail, phone: boPhone },
