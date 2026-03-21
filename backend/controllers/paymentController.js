@@ -89,8 +89,9 @@ const computeChargesForRequest = async (seats, couponId, eventId, paymentMode = 
     for (const ch of chargesToApply) {
         let amount = 0;
         if (ch.type === 'FIXED') {
-            amount = ch.value;
-            serviceFee += ch.value;
+            // Fixed charges apply per-ticket (multiply by number of seats)
+            amount = (ch.value || 0) * (Array.isArray(seats) ? seats.length : 1);
+            serviceFee += amount;
         } else {
             amount = discountedSubtotal * (ch.value / 100);
             serviceFee += amount;

@@ -469,10 +469,12 @@ useEffect(() => {
       }
 
       chargesToApply.forEach(charge => {
-          feeTotal += charge.type === 'FIXED' ? charge.value : discountedSubtotal * (charge.value / 100);
+          feeTotal += charge.type === 'FIXED'
+              ? (charge.value || 0) * (selectedSeats ? selectedSeats.length : 1)
+              : discountedSubtotal * (charge.value / 100);
       });
       setCalculatedFee(feeTotal);
-  }, [serviceCharges, discountedSubtotal]);
+  }, [serviceCharges, discountedSubtotal, selectedSeats.length]);
 
   // Fetch server-side quote (itemized charges + authoritative fee) whenever seats/coupon change
   useEffect(() => {
