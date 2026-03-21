@@ -1,7 +1,7 @@
 
 import { Event, Seat, SeatStatus, User, UserRole, Coupon, Order, Venue, Theater, Stage, ServiceCharge, PaymentMode, Ticket } from '../types';
 
-const API_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'https://jayhoshow.com/api';
 
 const fetchJson = async (url: string, options?: RequestInit) => {
     try {
@@ -298,7 +298,8 @@ export const processPayment = (
     appliedCharges?: any[],
     couponId?: string,
     paymentMode: PaymentMode = PaymentMode.ONLINE,
-    transactionId?: string
+    transactionId?: string,
+    bookedBy?: { id?: string, role?: string, name?: string }
 ): Promise<Order> => {
     const normalizeAppliedCharges = (ac: any) => {
         if (!ac) return undefined;
@@ -325,6 +326,7 @@ export const processPayment = (
     const safeAppliedCharges = normalizeAppliedCharges(appliedCharges);
     const payload: any = { customer, event, seats, serviceFee, couponId, paymentMode, transactionId };
     if (safeAppliedCharges !== undefined) payload.appliedCharges = safeAppliedCharges;
+    if (bookedBy) payload.bookedBy = bookedBy;
 
     return fetchJson('/orders', {
         method: 'POST',
@@ -336,11 +338,12 @@ export const createPaymentPendingOrder = (
     eventId: string,
     seatIds: string[],
     customer: { id?: string, name: string, email: string, phone?: string },
-    serviceFee: number = 0
+    serviceFee: number = 0,
+    bookedBy?: { id?: string, role?: string, name?: string }
 ): Promise<Order> => {
     return fetchJson('/orders/payment-pending', {
         method: 'POST',
-        body: JSON.stringify({ eventId, seatIds, customer, serviceFee })
+        body: JSON.stringify({ eventId, seatIds, customer, serviceFee, bookedBy })
     });
 };
 

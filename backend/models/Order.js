@@ -43,6 +43,13 @@ const OrderSchema = new mongoose.Schema({
     transactionId: String, // Stripe Payment Intent ID
     refundTransactionId: String, // Stripe Refund ID
     date: { type: Date, default: Date.now }
+    ,
+    // Who booked this order (customer, organizer, staff)
+    bookedBy: {
+        id: String,
+        role: String,
+        name: String
+    }
 }, {
     toJSON: {
         virtuals: true,

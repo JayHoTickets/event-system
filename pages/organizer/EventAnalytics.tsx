@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder, fetchChargesQuote } from '../../services/mockBackend';
+import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder, fetchChargesQuote, fetchUsersByRole } from '../../services/mockBackend';
 import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
 import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
@@ -16,6 +16,7 @@ const EventAnalytics: React.FC = () => {
     
     const [event, setEvent] = useState<Event | null>(null);
     const [orders, setOrders] = useState<Order[]>([]);
+    const [usersMap, setUsersMap] = useState<Record<string,string>>({});
     const { user } = useAuth();
     const currentOrganizerId = user ? ((user.role === 'STAFF') ? (user as any).organizerId : user.id) : null;
     const perms: string[] = (user as any)?.permissions || [];
@@ -36,6 +37,8 @@ const EventAnalytics: React.FC = () => {
 
   // Selection State
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
+  const selectedSeatObjs = (event ? event.seats.filter((s) => selectedSeatIds.includes(s.id)) : []);
+  const selectionTotal = selectedSeatObjs.reduce((acc, s) => acc + (s.price || 0), 0);
 
     // Modal State
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -74,14 +77,30 @@ const EventAnalytics: React.FC = () => {
 
     const loadData = () => {
         if (id) {
-            Promise.all([
-                fetchEventById(id),
-                fetchEventOrders(id)
-            ]).then(([eData, oData]) => {
-                setEvent(eData || null);
-                setOrders(oData);
-                setLoading(false);
-            });
+        Promise.all([
+          fetchEventById(id),
+          fetchEventOrders(id),
+          fetchUsersByRole('ORGANIZER'),
+          fetchUsersByRole('STAFF'),
+          fetchUsersByRole('USER')
+        ]).then(([eData, oData, orgs, staffs, users]) => {
+          setEvent(eData || null);
+          setOrders(oData);
+          // Build simple id->name map from fetched users
+          const map: Record<string,string> = {};
+          (orgs || []).forEach((u:any) => { if (u && u.id) map[u.id] = u.name + ' (Organizer)'; });
+          (staffs || []).forEach((u:any) => { if (u && u.id) map[u.id] = u.name + ' (Staff)'; });
+          (users || []).forEach((u:any) => { if (u && u.id) map[u.id] = map[u.id] || u.name + ' (User)'; });
+          setUsersMap(map);
+          setLoading(false);
+        }).catch(err => {
+          // fallback: still try to load event/orders
+          Promise.all([fetchEventById(id), fetchEventOrders(id)]).then(([eData, oData]) => {
+            setEvent(eData || null);
+            setOrders(oData);
+            setLoading(false);
+          }).catch(e => { setLoading(false); });
+        });
         }
     }
 
@@ -117,15 +136,36 @@ const EventAnalytics: React.FC = () => {
       event.seatingType === SeatingType.RESERVED &&
       mapContainerRef.current
     ) {
-      const padding = 100;
-      const cols = event.cols || 30;
-      const contentW = cols * CELL_SIZE + padding;
-      const containerW = mapContainerRef.current.clientWidth;
-      const newScale = Math.min(1, (containerW - 40) / contentW);
-      setZoom(Math.max(0.2, newScale));
-    }
-  }, [activeView, event, user]);
+      (async () => {
+        try {
+          // Ask server for authoritative quote for this payment mode so charges apply correctly
+          let serverQuote: any = null;
+          try {
+            serverQuote = await fetchChargesQuote(selectedSeatObjs, undefined, event.id, boMode);
+          } catch (e) {
+            console.debug('MAP view - failed to fetch server quote, falling back to 0 service fee', e);
+          }
+          const serviceFeeToUse = serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0;
+          const appliedChargesToUse = serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined;
 
+          await processPayment(
+            { name: boName, email: boEmail, phone: boPhone },
+            event,
+            selectedSeatObjs,
+            serviceFeeToUse,
+            appliedChargesToUse,
+            undefined, // couponId (none)
+            boMode,
+            undefined, // transactionId
+            // bookedBy -> current logged in user (organizer/staff)
+            { id: user?.id, role: user?.role, name: (user as any)?.name }
+          );
+        } catch (err) {
+          console.error('processPayment in MAP view failed', err);
+        }
+      })();
+    }
+  }, [activeView, event, boName, boEmail, boPhone, selectedSeatObjs, boMode, user]);
   if (loading)
     return (
       <div className="p-10 text-center text-slate-500">
@@ -262,11 +302,6 @@ const EventAnalytics: React.FC = () => {
         t.checkInDate ? new Date(t.checkInDate).toISOString() : "",
       ]);
 
-      const escapeCell = (v: any) => {
-        if (v === null || v === undefined) return "";
-        return `"${String(v).replace(/"/g, '""')}"`;
-      };
-
       const csv = [headers, ...rows]
         .map((r) => r.map(escapeCell).join(","))
         .join("\n");
@@ -294,6 +329,7 @@ const EventAnalytics: React.FC = () => {
         'Received',
         'Customer Name',
         'Customer Email',
+        'Booked By',
         'Items',
         'Total Amount',
         'Payment Mode',
@@ -308,6 +344,7 @@ const EventAnalytics: React.FC = () => {
         o.date ? new Date(o.date).toISOString() : '',
         o.customerName,
         o.customerEmail,
+        (o.bookedBy && (o.bookedBy.name || o.bookedBy.id)) ? `${o.bookedBy.name || o.bookedBy.id} ${o.bookedBy && o.bookedBy.role ? `(${o.bookedBy.role})` : ''}` : (o.userId && !String(o.userId).startsWith('guest-') ? o.userId : o.customerName),
         o.tickets.length,
         (o.totalAmount || 0).toFixed(2),
         o.paymentMode || 'ONLINE',
@@ -449,6 +486,9 @@ const EventAnalytics: React.FC = () => {
         appliedChargesToUse,
         undefined, // couponId (none)
         boMode,
+        undefined,
+        // bookedBy: organizer/staff performing box-office action
+        { id: user?.id, role: (user as any)?.role, name: (user as any)?.name }
       );
       setBoProcessing(false);
       setShowBoxOffice(false);
@@ -493,7 +533,9 @@ const EventAnalytics: React.FC = () => {
           email: holdEmail,
           phone: holdPhone
         },
-        0 // No service fee for holds
+        0, // No service fee for holds
+        // bookedBy: organizer/staff placing the hold
+        { id: user?.id, role: (user as any)?.role, name: (user as any)?.name }
       );
       
       setHoldProcessing(false);
@@ -508,13 +550,7 @@ const EventAnalytics: React.FC = () => {
     }
   };
 
-  const selectedSeatObjs = event.seats.filter((s) =>
-    selectedSeatIds.includes(s.id),
-  );
-  const selectionTotal = selectedSeatObjs.reduce(
-    (acc, s) => acc + (s.price || 0),
-    0,
-  );
+  
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 relative">
@@ -757,6 +793,7 @@ const EventAnalytics: React.FC = () => {
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order ID</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Received</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
+                                      <th className="px-6 py-4 text-sm font-semibold text-slate-700">Booked By</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Items</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total (Net)</th>
                                         <th className="px-6 py-4 text-sm font-semibold text-slate-700">Mode</th>
@@ -767,11 +804,11 @@ const EventAnalytics: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredOrders.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
-                                                No orders found matching criteria.
-                                            </td>
-                                        </tr>
+                                      <tr>
+                                        <td colSpan={10} className="px-6 py-12 text-center text-slate-400">
+                                          No orders found matching criteria.
+                                        </td>
+                                      </tr>
                                     ) : (
                                         filteredOrders.map(order => (
                                             <tr key={order.id} className="hover:bg-slate-50 transition-colors">
@@ -781,6 +818,19 @@ const EventAnalytics: React.FC = () => {
                                                     <p className="text-sm font-medium text-slate-900">{order.customerName}</p>
                                                     <p className="text-xs text-slate-500">{order.customerEmail}</p>
                                                 </td>
+                                          <td className="px-6 py-4">
+                                            <p className="text-sm font-medium text-slate-900">
+                                              {(() => {
+                                                if (order.bookedBy && (order.bookedBy.name || order.bookedBy.id)) {
+                                                  return `${order.bookedBy.name || order.bookedBy.id}${order.bookedBy.role ? ` (${order.bookedBy.role})` : ''}`;
+                                                }
+                                                const uid = order.userId || '';
+                                                if (!uid || String(uid).startsWith('guest-')) return order.customerName || 'Customer';
+                                                if (usersMap && usersMap[uid]) return usersMap[uid];
+                                                return order.customerName || uid;
+                                              })()}
+                                            </p>
+                                          </td>
                                                 <td className="px-6 py-4 text-sm text-slate-600">
                                                     {order.tickets.length} Tickets
                                                     {order.couponCode && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">{order.couponCode}</span>}

@@ -22,7 +22,7 @@ exports.getOrders = async (req, res) => {
 };
 
 exports.createOrder = async (req, res) => {
-    const { customer, event, seats, serviceFee, appliedCharges, couponId, paymentMode, transactionId } = req.body;
+    const { customer, event, seats, serviceFee, appliedCharges, couponId, paymentMode, transactionId, bookedBy } = req.body;
     try {
         // 1. Compute subtotal and determine any applicable coupon (auto-apply best)
         let couponCode;
@@ -236,6 +236,9 @@ exports.createOrder = async (req, res) => {
             couponCode,
             paymentMode,
             transactionId: transactionId || null // Store Stripe ID
+            ,
+            // Persist bookedBy info if provided, otherwise infer from customer
+            bookedBy: bookedBy || (customer && customer.id ? { id: customer.id, role: 'CUSTOMER', name: customer.name } : undefined)
         });
 
         // 4. Send Emails (Async - don't block response)
@@ -543,7 +546,7 @@ exports.completePaymentPendingOrder = async (req, res) => {
  * The seats are marked as HOLD status and will auto-release after 24 hours if not paid
  */
 exports.createPaymentPendingOrder = async (req, res) => {
-    const { eventId, seatIds, customer, serviceFee = 0 } = req.body;
+    const { eventId, seatIds, customer, serviceFee = 0, bookedBy } = req.body;
     try {
         // 1. Fetch Event
         const event = await Event.findById(eventId);
@@ -636,7 +639,8 @@ exports.createPaymentPendingOrder = async (req, res) => {
             discountApplied: 0,
             status: 'PAYMENT_PENDING',
             paymentPendingUntil,
-            paymentUrl: '' // Will be set below
+            paymentUrl: '', // Will be set below
+            bookedBy: bookedBy || (customer && customer.id ? { id: customer.id, role: 'CUSTOMER', name: customer.name } : undefined)
         });
 
         // 8. Now set the payment URL with the actual order ID
