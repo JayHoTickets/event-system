@@ -286,6 +286,59 @@ const EventAnalytics: React.FC = () => {
         }
     };
 
+  // --- Orders Export Handler (CSV) ---
+  const handleExportOrders = () => {
+    try {
+      const headers = [
+        'Order ID',
+        'Received',
+        'Customer Name',
+        'Customer Email',
+        'Items',
+        'Total Amount',
+        'Payment Mode',
+        'Status',
+        'Refund Status',
+        'Coupon',
+        'Service Fee'
+      ];
+
+      const rows = filteredOrders.map(o => [
+        o.id,
+        o.date ? new Date(o.date).toISOString() : '',
+        o.customerName,
+        o.customerEmail,
+        o.tickets.length,
+        (o.totalAmount || 0).toFixed(2),
+        o.paymentMode || 'ONLINE',
+        o.status,
+        o.refundStatus || '',
+        o.couponCode || '',
+        (o.serviceFee || 0).toFixed(2)
+      ]);
+
+      const escapeCell = (v: any) => {
+        if (v === null || v === undefined) return '';
+        return `"${String(v).replace(/"/g, '""')}"`;
+      };
+
+      const csv = [headers, ...rows].map(r => r.map(escapeCell).join(',')).join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${event?.id || 'event'}-orders-report.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export orders failed', err);
+      alert('Export failed. Check console for details.');
+    }
+  };
+
     // Open cancel form prefilled for selected order
     const handleCancelOrder = (order: Order) => {
         setSelectedOrder(order);
@@ -484,18 +537,7 @@ const EventAnalytics: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handleExport}
-            className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg flex items-center hover:bg-slate-50 text-sm font-medium"
-          >
-            <Download className="w-4 h-4 mr-2" /> Export
-          </button>
-          {/* <button
-            onClick={() => navigate("/organizer/scanner")}
-            className="bg-black text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#d7ae4b] hover:text-black text-sm font-medium"
-          >
-            <UserCheck className="w-4 h-4 mr-2" /> Scan Tickets
-          </button> */}
+          {/* Export button moved into Check-in tab header to scope it to check-in report */}
         </div>
       </div>
 
@@ -699,6 +741,12 @@ const EventAnalytics: React.FC = () => {
                                         <option value="CASH">Cash</option>
                                         <option value="CHARITY">Charity</option>
                                     </select>
+                                    <button
+                                      onClick={handleExportOrders}
+                                      className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg flex items-center hover:bg-slate-50 text-sm font-medium"
+                                    >
+                                      <Download className="w-4 h-4 mr-2" /> Export
+                                    </button>
                                 </div>
                         </div>
 
@@ -894,6 +942,12 @@ const EventAnalytics: React.FC = () => {
                   <option value="CHECKED_IN">Checked In</option>
                   <option value="PENDING">Pending</option>
                 </select>
+                <button
+                  onClick={handleExport}
+                  className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg flex items-center hover:bg-slate-50 text-sm font-medium"
+                >
+                  <Download className="w-4 h-4 mr-2" /> Export
+                </button>
               </div>
             </div>
 
