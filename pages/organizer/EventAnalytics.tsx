@@ -138,34 +138,19 @@ const EventAnalytics: React.FC = () => {
     ) {
       (async () => {
         try {
-          // Ask server for authoritative quote for this payment mode so charges apply correctly
-          let serverQuote: any = null;
+          // Fetch an authoritative quote for display (do NOT create orders here).
+          // This keeps MAP view read-only; actual bookings happen on explicit form submit.
           try {
-            serverQuote = await fetchChargesQuote(selectedSeatObjs, undefined, event.id, boMode);
+            await fetchChargesQuote(selectedSeatObjs, undefined, event.id, boMode);
           } catch (e) {
-            console.debug('MAP view - failed to fetch server quote, falling back to 0 service fee', e);
+            console.debug('MAP view - failed to fetch server quote', e);
           }
-          const serviceFeeToUse = serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0;
-          const appliedChargesToUse = serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined;
-
-          await processPayment(
-            { name: boName, email: boEmail, phone: boPhone },
-            event,
-            selectedSeatObjs,
-            serviceFeeToUse,
-            appliedChargesToUse,
-            undefined, // couponId (none)
-            boMode,
-            undefined, // transactionId
-            // bookedBy -> current logged in user (organizer/staff)
-            { id: user?.id, role: user?.role, name: (user as any)?.name }
-          );
         } catch (err) {
-          console.error('processPayment in MAP view failed', err);
+          console.error('MAP view quote fetch failed', err);
         }
       })();
     }
-  }, [activeView, event, boName, boEmail, boPhone, selectedSeatObjs, boMode, user]);
+  }, [activeView, event, selectedSeatIds, boMode, user]);
   if (loading)
     return (
       <div className="p-10 text-center text-slate-500">
@@ -1528,7 +1513,7 @@ const EventAnalytics: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       Payment Mode
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                       <button
                         type="button"
                         onClick={() => setBoMode(PaymentMode.CASH)}
@@ -1543,9 +1528,16 @@ const EventAnalytics: React.FC = () => {
                         className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.CHARITY ? "bg-purple-50 border-purple-500 text-purple-700" : "hover:bg-slate-50"}`}
                       >
                         <CreditCard className="w-5 h-5" />
-                        <span className="text-xs font-bold">
-                          CHARITY / COMP
-                        </span>
+                        <span className="text-xs font-bold">CHARITY</span>
+                      </button> */}
+
+                      {/* <button
+                        type="button"
+                        onClick={() => setBoMode(PaymentMode.COMPLIMENTARY)}
+                        className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.COMPLIMENTARY ? "bg-indigo-50 border-indigo-500 text-indigo-700" : "hover:bg-slate-50"}`}
+                      >
+                        <Ban className="w-5 h-5" />
+                        <span className="text-xs font-bold">COMP / FREE</span>
                       </button> */}
                     </div>
                   </div>
@@ -1557,7 +1549,9 @@ const EventAnalytics: React.FC = () => {
                 >
                   {boProcessing
                     ? "Processing..."
-                    : `Confirm Booking ($${selectionTotal.toFixed(2)})`}
+                    : boMode === PaymentMode.COMPLIMENTARY
+                      ? "Confirm Complimentary Booking ($0.00)"
+                      : `Confirm Booking ($${selectionTotal.toFixed(2)})`}
                 </button>
               </form>
             </div>
