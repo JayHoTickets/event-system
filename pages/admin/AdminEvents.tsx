@@ -49,7 +49,7 @@ const AdminEvents: React.FC = () => {
               <th className="text-left px-4 py-3">Venue</th>
               <th className="text-left px-4 py-3">Status</th>
               <th className="text-left px-4 py-3">Complementry limit</th>
-              <th className="text-left px-4 py-3">No Profit</th>
+              <th className="text-left px-4 py-3">Non Profit</th>
               <th className="text-right px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -80,7 +80,7 @@ const AdminEvents: React.FC = () => {
                 <td className="px-4 py-3">
                   <label className="flex items-center text-sm">
                     <input type="checkbox" className="mr-2" checked={!!editingAllowFree[ev.id]} onChange={e => setEditingAllowFree(prev => ({ ...prev, [ev.id]: e.target.checked }))} />
-                    No Profit
+                    Non Profit
                   </label>
                 </td>
                 <td className="px-4 py-3 text-right">
