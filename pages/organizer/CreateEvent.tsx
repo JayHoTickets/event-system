@@ -359,6 +359,27 @@ const CreateEvent: React.FC = () => {
         return 'bg-white border-slate-200 text-slate-300';
     };
 
+    // Stats for ticket setup: assigned seats, estimated revenue, unassigned seats
+    const assignedSeats = Object.keys(seatMappings).length;
+    const totalTheaterSeats = selectedTheaterLayout?.seats.length || 0;
+    const totalGACapacity = ticketTypes.reduce((acc, t) => acc + (t.totalQuantity || 0), 0);
+
+    const estimatedRevenue = React.useMemo(() => {
+        if (formData.seatingType === SeatingType.RESERVED) {
+            // Sum price for each assigned seat based on mapped ticket type
+            return Object.values(seatMappings).reduce((acc: number, ttId) => {
+                const tt = ticketTypes.find(t => t.id === ttId);
+                return acc + (tt ? (tt.price || 0) : 0);
+            }, 0);
+        }
+        // General Admission: price * capacity per ticket type
+        return ticketTypes.reduce((acc, t) => acc + ((t.price || 0) * (t.totalQuantity || 0)), 0);
+    }, [seatMappings, ticketTypes, formData.seatingType]);
+
+    const unassignedSeats = formData.seatingType === SeatingType.RESERVED
+        ? Math.max(0, totalTheaterSeats - assignedSeats)
+        : Math.max(0, totalGACapacity);
+
     const isReserved = formData.seatingType === SeatingType.RESERVED;
     const isStep1Valid = formData.title && formData.venueId && (!isReserved || formData.theaterId);
 
@@ -522,6 +543,22 @@ const CreateEvent: React.FC = () => {
                                         <button type="button" onClick={addTicketType} className="text-indigo-600 hover:bg-indigo-50 p-1 rounded"><Plus className="w-5 h-5"/></button>
                                     </h3>
                                     
+                                    {/* Stats: shows assigned seats, estimated revenue, unassigned seats */}
+                                    <div className="mb-3 flex gap-3 items-stretch">
+                                        <div className="bg-white border rounded-lg px-3 py-2 text-xs text-slate-700 shadow-sm">
+                                            <div className="text-[10px] text-slate-400 uppercase">Assigned Seats</div>
+                                            <div className="font-bold text-slate-900">{assignedSeats}</div>
+                                        </div>
+                                        <div className="bg-white border rounded-lg px-3 py-2 text-xs text-slate-700 shadow-sm">
+                                            <div className="text-[10px] text-slate-400 uppercase">Estimated Revenue</div>
+                                            <div className="font-bold text-slate-900">{formData.currency} {Number(estimatedRevenue || 0).toFixed(2)}</div>
+                                        </div>
+                                        <div className="bg-white border rounded-lg px-3 py-2 text-xs text-slate-700 shadow-sm">
+                                            <div className="text-[10px] text-slate-400 uppercase">Unassigned Seats</div>
+                                            <div className="font-bold text-slate-900">{unassignedSeats}</div>
+                                        </div>
+                                    </div>
+
                                     <div className={`${isReserved ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
                                         {ticketTypes.map(tt => (
                                             <div 
