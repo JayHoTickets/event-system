@@ -31,6 +31,11 @@ exports.setComplimentaryLimit = async (req, res) => {
     try {
         const { id } = req.params;
         const { complimentaryLimit } = req.body;
+        // Authorization: allow ADMIN to set any organizer limit; allow ORGANIZER to set only their own user record
+        const caller = req.user;
+        if (!caller) return res.status(401).json({ message: 'Not authenticated' });
+        if (caller.role !== 'ADMIN' && caller.role !== 'ORGANIZER') return res.status(403).json({ message: 'Forbidden' });
+        if (caller.role === 'ORGANIZER' && String(caller.id) !== String(id)) return res.status(403).json({ message: 'Organizers may only modify their own settings' });
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: 'User not found' });
         // Only organizers or admins should have this, but allow setting when present
