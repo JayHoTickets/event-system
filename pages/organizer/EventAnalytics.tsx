@@ -69,6 +69,11 @@ const EventAnalytics: React.FC = () => {
   const [holdEmail, setHoldEmail] = useState("");
   const [holdPhone, setHoldPhone] = useState("");
   const [holdProcessing, setHoldProcessing] = useState(false);
+  const [holdCouponCode, setHoldCouponCode] = useState<string>("");
+  const [holdCoupon, setHoldCoupon] = useState<any | null>(null);
+  const [holdCouponError, setHoldCouponError] = useState<string | null>(null);
+  const [holdCouponApplying, setHoldCouponApplying] = useState(false);
+  const [holdQuote, setHoldQuote] = useState<any | null>(null);
 
   // Check-in Report State
   const [ticketSearch, setTicketSearch] = useState("");
@@ -525,12 +530,19 @@ const EventAnalytics: React.FC = () => {
         },
         0, // No service fee for holds
         // bookedBy: organizer/staff placing the hold
-        { id: user?.id, role: (user as any)?.role, name: (user as any)?.name }
+        { id: user?.id, role: (user as any)?.role, name: (user as any)?.name },
+        holdCoupon ? holdCoupon.id : undefined,
+        undefined // paymentMode (optional)
       );
       
       setHoldProcessing(false);
       setShowHoldOrder(false);
       setSelectedSeatIds([]);
+      // clear coupon UI
+      setHoldCoupon(null);
+      setHoldCouponCode('');
+      setHoldQuote(null);
+      setHoldCouponError(null);
       loadData();
       alert(`Hold placed! Payment email sent to ${holdEmail}. Customer has 24 hours to pay.`);
     } catch (err) {
@@ -1735,6 +1747,57 @@ const EventAnalytics: React.FC = () => {
                       value={holdPhone}
                       onChange={(e) => setHoldPhone(e.target.value)}
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Coupon Code (optional)</label>
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 border rounded-lg px-3 py-2"
+                        placeholder="Enter coupon code"
+                        value={holdCouponCode}
+                        onChange={(e) => { setHoldCouponCode(e.target.value); setHoldCouponError(null); }}
+                      />
+                      {!holdCoupon ? (
+                        <button
+                          type="button"
+                          disabled={!holdCouponCode || holdCouponApplying}
+                          onClick={async () => {
+                            if (!event) return;
+                            setHoldCouponApplying(true);
+                            setHoldCouponError(null);
+                            try {
+                              const selectedSeatObjsLocal = event.seats.filter((s) => selectedSeatIds.includes(s.id));
+                              const coupon = await validateCoupon(holdCouponCode.trim(), event.id, selectedSeatObjsLocal);
+                              setHoldCoupon(coupon);
+                              try {
+                                const quote = await fetchChargesQuote(selectedSeatObjsLocal, coupon.id, event.id, PaymentMode.ONLINE);
+                                setHoldQuote(quote);
+                              } catch (qe) { console.debug('Quote with coupon failed', qe); setHoldQuote(null); }
+                            } catch (err: any) {
+                              setHoldCoupon(null);
+                              setHoldCouponError(err?.message || 'Invalid coupon');
+                            } finally {
+                              setHoldCouponApplying(false);
+                            }
+                          }}
+                          className="px-3 py-2 bg-slate-900 text-white rounded-lg disabled:opacity-60"
+                        >
+                          {holdCouponApplying ? 'Checking...' : 'Apply'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { setHoldCoupon(null); setHoldCouponCode(''); setHoldQuote(null); setHoldCouponError(null); }}
+                          className="px-3 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    {holdCoupon && (
+                      <p className="text-xs text-green-700 mt-1">Applied: {holdCoupon.code} — {holdQuote ? `$${(holdQuote.discount || 0).toFixed(2)} discount` : 'coupon applied'}</p>
+                    )}
+                    {holdCouponError && <p className="text-xs text-red-600 mt-1">{holdCouponError}</p>}
                   </div>
                 </div>
 

@@ -357,11 +357,13 @@ export const createPaymentPendingOrder = (
     seatIds: string[],
     customer: { id?: string, name: string, email: string, phone?: string },
     serviceFee: number = 0,
-    bookedBy?: { id?: string, role?: string, name?: string }
+    bookedBy?: { id?: string, role?: string, name?: string },
+    couponId?: string,
+    paymentMode?: PaymentMode
 ): Promise<Order> => {
     return fetchJson('/orders/payment-pending', {
         method: 'POST',
-        body: JSON.stringify({ eventId, seatIds, customer, serviceFee, bookedBy })
+        body: JSON.stringify({ eventId, seatIds, customer, serviceFee, bookedBy, couponId, paymentMode })
     });
 };
 

@@ -613,7 +613,7 @@ exports.completePaymentPendingOrder = async (req, res) => {
  * The seats are marked as HOLD status and will auto-release after 24 hours if not paid
  */
 exports.createPaymentPendingOrder = async (req, res) => {
-    const { eventId, seatIds, customer, serviceFee = 0, bookedBy, paymentMode } = req.body;
+    const { eventId, seatIds, customer, serviceFee = 0, bookedBy, paymentMode, couponId } = req.body;
     try {
         // 1. Fetch Event
         const event = await Event.findById(eventId);
@@ -772,7 +772,28 @@ exports.createPaymentPendingOrder = async (req, res) => {
 
         // 4. Calculate subtotal from seats
         const subtotal = seatObjects.reduce((acc, s) => acc + (s.price || 0), 0);
-        const totalAmount = subtotal + serviceFee;
+        // Apply coupon (if provided) to adjust totalAmount for PAYMENT_PENDING orders
+        let discount = 0;
+        let appliedCouponCode = null;
+        if (couponId) {
+            try {
+                const mongoose = require('mongoose');
+                if (mongoose.Types.ObjectId.isValid(String(couponId))) {
+                    const coupon = await Coupon.findById(couponId);
+                    if (coupon) {
+                        const resCompute = computeCouponDiscount(coupon, { subtotal, seats: seatObjects, seatsCount: seatObjects.length, requestedCode: coupon.code, eventId });
+                        if (resCompute && resCompute.discount > 0) {
+                            discount = resCompute.discount;
+                            appliedCouponCode = coupon.code;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('createPaymentPendingOrder - coupon validation failed', e);
+            }
+        }
+
+        const totalAmount = Math.max(0, subtotal - (discount || 0)) + serviceFee;
 
         // 5. Generate Ticket Objects (without QR codes, as payment hasn't been made yet)
         const crypto = require('crypto');
@@ -818,7 +839,8 @@ exports.createPaymentPendingOrder = async (req, res) => {
             tickets: tickets,
             totalAmount,
             serviceFee,
-            discountApplied: 0,
+            discountApplied: discount || 0,
+            couponCode: appliedCouponCode || undefined,
             status: 'PAYMENT_PENDING',
             paymentPendingUntil,
             paymentUrl: '', // Will be set below
