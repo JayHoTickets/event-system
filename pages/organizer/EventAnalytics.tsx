@@ -1712,7 +1712,7 @@ const EventAnalytics: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-6" style={{height:"600px", overflowY:'scroll'}}>
               <div className="mb-6 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                 <div className="flex justify-between items-start mb-2">
                   <div>
