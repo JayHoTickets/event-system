@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAllEventsForAdmin, updateEventComplimentaryLimit } from '../../services/mockBackend';
+import { fetchAllEventsForAdmin, updateEventComplimentaryLimit, updateEventAllowFreeTickets } from '../../services/mockBackend';
 import { Event, EventStatus } from '../../types';
 import { Eye, Edit2 } from 'lucide-react';
 
@@ -8,6 +8,7 @@ const AdminEvents: React.FC = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [editingLimits, setEditingLimits] = useState<Record<string, string>>({});
+  const [editingAllowFree, setEditingAllowFree] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,6 +16,10 @@ const AdminEvents: React.FC = () => {
       try {
         const res = await fetchAllEventsForAdmin();
         setEvents(res || []);
+        // Initialize allow-free state for UI
+        const map: Record<string, boolean> = {};
+        (res || []).forEach((ev: Event) => { map[ev.id] = !!ev.allowFreeTickets; });
+        setEditingAllowFree(map);
       } catch (err) {
         console.error('Failed to load events', err);
       } finally {
@@ -71,12 +76,20 @@ const AdminEvents: React.FC = () => {
                         onChange={e => setEditingLimits(prev => ({ ...prev, [ev.id]: e.target.value }))}
                         className="w-28 px-2 py-1 border rounded text-sm"
                       />
+                      <label className="ml-3 flex items-center text-sm">
+                        <input type="checkbox" className="mr-2" checked={!!editingAllowFree[ev.id]} onChange={e => setEditingAllowFree(prev => ({ ...prev, [ev.id]: e.target.checked }))} />
+                        Allow free tickets
+                      </label>
                       <button
                         onClick={async () => {
                           const raw = editingLimits[ev.id];
                           const val = raw === '' || raw === undefined ? null : Number(raw);
                           try {
                             await updateEventComplimentaryLimit(ev.id, val);
+                            // Save allow-free setting if it changed
+                            if (editingAllowFree[ev.id] !== ev.allowFreeTickets) {
+                                await updateEventAllowFreeTickets(ev.id, !!editingAllowFree[ev.id]);
+                            }
                             const refreshed = await fetchAllEventsForAdmin();
                             setEvents(refreshed || []);
                           } catch (err) {

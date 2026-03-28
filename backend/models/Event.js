@@ -66,6 +66,7 @@ const EventSchema = new mongoose.Schema({
     deleted: { type: Boolean, default: false },
     // Limit for complimentary tickets for this event. Null/undefined means no event-level limit.
     complimentaryLimit: { type: Number, default: null }
+    , allowFreeTickets: { type: Boolean, default: false }
 }, {
     timestamps: true,
     toJSON: {

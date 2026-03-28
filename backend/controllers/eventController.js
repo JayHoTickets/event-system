@@ -228,14 +228,26 @@ const hydrateSeats = (theaterSeats, ticketTypes, seatMappings) => {
     });
 };
 
-// Validate ticket types: price must be >= 1
-const validateTicketTypes = (types) => {
+// Validate ticket types: normally price must be >= 1. If allowFreeTickets=true,
+// price may be exactly 0 (free). Negative prices or other invalid values are rejected.
+const validateTicketTypes = (types, allowFreeTickets = false) => {
     if (!types) return { valid: true };
     for (const t of types) {
         const price = t && t.price != null ? Number(t.price) : NaN;
-        if (isNaN(price) || price < 1) {
+        // Reject NaN or negative
+        if (isNaN(price) || price < 0) {
+            const name = (t && (t.name || t.id)) || 'Unnamed ticket type';
+            return { valid: false, message: `Ticket type \"${name}\" has invalid price` };
+        }
+        // Disallow small positive prices below $1 unless free tickets are explicitly allowed and price === 0
+        if (price > 0 && price < 1) {
             const name = (t && (t.name || t.id)) || 'Unnamed ticket type';
             return { valid: false, message: `Ticket type \"${name}\" must have price >= 1` };
+        }
+        // price === 0 is only allowed when allowFreeTickets is true
+        if (price === 0 && !allowFreeTickets) {
+            const name = (t && (t.name || t.id)) || 'Unnamed ticket type';
+            return { valid: false, message: `Ticket type \"${name}\" is free; free tickets not allowed for this event` };
         }
     }
     return { valid: true };
@@ -244,7 +256,7 @@ const validateTicketTypes = (types) => {
 exports.createEvent = async (req, res) => {
     const { seatMappings, ...data } = req.body;
     try {
-        const vt = validateTicketTypes(data.ticketTypes);
+        const vt = validateTicketTypes(data.ticketTypes, !!data.allowFreeTickets);
         if (!vt.valid) return res.status(400).json({ message: vt.message });
         const venue = await Venue.findById(data.venueId);
         let seats = [], stage, rows = 0, cols = 0;
@@ -326,9 +338,11 @@ exports.updateEvent = async (req, res) => {
     const { seatMappings, ...data } = req.body;
     try {
         const event = await Event.findById(req.params.id);
-        // If ticketTypes provided in the update payload, validate them
+        // If ticketTypes provided in the update payload, validate them. Determine
+        // whether free tickets are allowed based on the update payload or existing event.
         if (data.ticketTypes) {
-            const vt = validateTicketTypes(data.ticketTypes);
+            const allowFree = (data.allowFreeTickets !== undefined) ? !!data.allowFreeTickets : !!(event && event.allowFreeTickets);
+            const vt = validateTicketTypes(data.ticketTypes, allowFree);
             if (!vt.valid) return res.status(400).json({ message: vt.message });
         }
         if (!event) return res.status(404).json({ message: 'Not found' });
@@ -487,6 +501,21 @@ exports.setComplimentaryLimit = async (req, res) => {
         if (!event) return res.status(404).json({ message: 'Event not found' });
         // Allow null to clear limit
         event.complimentaryLimit = (complimentaryLimit === null || complimentaryLimit === undefined) ? null : Number(complimentaryLimit);
+        await event.save();
+        res.json({ success: true, event });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Admin/Organizer: enable or disable creating free (price === 0) ticket types for an event
+exports.setAllowFreeTickets = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { allowFreeTickets } = req.body;
+        const event = await Event.findById(id);
+        if (!event) return res.status(404).json({ message: 'Event not found' });
+        event.allowFreeTickets = !!allowFreeTickets;
         await event.save();
         res.json({ success: true, event });
     } catch (err) {

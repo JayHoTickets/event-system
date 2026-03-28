@@ -178,6 +178,13 @@ export const updateEventComplimentaryLimit = (id: string, complimentaryLimit: nu
     });
 };
 
+export const updateEventAllowFreeTickets = (id: string, allowFreeTickets: boolean): Promise<any> => {
+    return fetchJson(`/events/${id}/allow-free-tickets`, {
+        method: 'PATCH',
+        body: JSON.stringify({ allowFreeTickets })
+    });
+};
+
 export const holdSeat = (eventId: string, seatId: string): Promise<boolean> => {
     return fetchJson('/seats/hold', { 
         method: 'POST', 

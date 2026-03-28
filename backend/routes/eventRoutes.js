@@ -12,6 +12,7 @@ router.delete('/:id', authenticateJWT, requireRole('ORGANIZER'), deleteEvent);
 router.put('/:id/seats', authenticateJWT, requireRole('ORGANIZER'), updateSeats);
 router.post('/:id/lock-seats', authenticateJWT, requireRole('ORGANIZER'), lockSeats);
 router.post('/:id/release-seats', authenticateJWT, requireRole('ORGANIZER'), releaseSeats);
-router.patch('/:id/complimentary-limit', authenticateJWT, requireRole('ORGANIZER'), require('../controllers/eventController').setComplimentaryLimit);
+router.patch('/:id/complimentary-limit', authenticateJWT, requireRole('ADMIN'), require('../controllers/eventController').setComplimentaryLimit);
+router.patch('/:id/allow-free-tickets', authenticateJWT, requireRole('ADMIN'), require('../controllers/eventController').setAllowFreeTickets);
 
 module.exports = router;
