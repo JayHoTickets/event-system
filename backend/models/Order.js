@@ -40,6 +40,7 @@ const OrderSchema = new mongoose.Schema({
     // Audit trail of cancellation actions
     cancellationHistory: [{ organizerId: String, timestamp: Date, refundAmount: Number, notes: String }],
     paymentMode: String,
+    complimentary: { type: Boolean, default: false },
     transactionId: String, // Stripe Payment Intent ID
     refundTransactionId: String, // Stripe Refund ID
     date: { type: Date, default: Date.now }

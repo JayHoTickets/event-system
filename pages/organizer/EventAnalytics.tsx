@@ -460,9 +460,8 @@ const EventAnalytics: React.FC = () => {
       } catch (e) {
         console.debug('BoxOffice - failed to fetch server quote, falling back to 0 service fee', e);
       }
-      const serviceFeeToUse = serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0;
-      const appliedChargesToUse = serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined;
-
+      let serviceFeeToUse = serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0;
+      let appliedChargesToUse = serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined;
       await processPayment(
         { name: boName, email: boEmail, phone: boPhone },
         event,
@@ -1531,14 +1530,14 @@ const EventAnalytics: React.FC = () => {
                         <span className="text-xs font-bold">CHARITY</span>
                       </button> */}
 
-                      {/* <button
+                      <button
                         type="button"
                         onClick={() => setBoMode(PaymentMode.COMPLIMENTARY)}
                         className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.COMPLIMENTARY ? "bg-indigo-50 border-indigo-500 text-indigo-700" : "hover:bg-slate-50"}`}
                       >
                         <Ban className="w-5 h-5" />
                         <span className="text-xs font-bold">COMP / FREE</span>
-                      </button> */}
+                      </button>
                     </div>
                   </div>
                 </div>

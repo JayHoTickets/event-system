@@ -198,7 +198,8 @@ export interface Ticket {
 export enum PaymentMode {
   ONLINE = 'ONLINE',
   CASH = 'CASH',
-  CHARITY = 'CHARITY'
+  CHARITY = 'CHARITY',
+  COMPLIMENTARY = 'COMPLIMENTARY'
 }
 
 export interface Order {

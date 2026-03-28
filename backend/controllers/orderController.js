@@ -223,22 +223,34 @@ exports.createOrder = async (req, res) => {
         }));
         console.debug('createOrder - normalizedAppliedCharges:', normalizedAppliedCharges);
 
+        // Prepare final values; force zeros for complimentary bookings
+        let finalTotal = totalAmount;
+        let finalServiceFee = Number(serviceFee || 0);
+        let finalAppliedCharges = Array.isArray(normalizedAppliedCharges) ? normalizedAppliedCharges : [];
+        let finalDiscountApplied = discount;
+        if (String(paymentMode || '').toUpperCase() === 'COMPLIMENTARY') {
+            finalTotal = 0;
+            finalServiceFee = 0;
+            finalAppliedCharges = [];
+            finalDiscountApplied = subtotal;
+        }
+
         const order = await Order.create({
             userId: customer.id || `guest-${Date.now()}`,
             customerName: customer.name,
             customerEmail: customer.email,
             customerPhone: customer.phone || null,
             tickets: tickets,
-            totalAmount,
-            serviceFee,
-            appliedCharges: normalizedAppliedCharges,
-            discountApplied: discount,
+            totalAmount: finalTotal,
+            serviceFee: finalServiceFee,
+            appliedCharges: finalAppliedCharges,
+            discountApplied: finalDiscountApplied,
             couponCode,
             paymentMode,
-            transactionId: transactionId || null // Store Stripe ID
-            ,
+            transactionId: transactionId || null, // Store Stripe ID
             // Persist bookedBy info if provided, otherwise infer from customer
-            bookedBy: bookedBy || (customer && customer.id ? { id: customer.id, role: 'CUSTOMER', name: customer.name } : undefined)
+            bookedBy: bookedBy || (customer && customer.id ? { id: customer.id, role: 'CUSTOMER', name: customer.name } : undefined),
+            complimentary: String(paymentMode || '').toUpperCase() === 'COMPLIMENTARY'
         });
 
         // 4. Send Emails (Async - don't block response)

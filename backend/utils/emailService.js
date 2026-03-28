@@ -99,7 +99,7 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                             </h3>
                             <p style="margin:4px 0;color:#555;font-size:14px;"><strong>Event:</strong> ${event.title}</p>
                             ${event.seatingType === 'RESERVED' ? `<p style="margin:4px 0;color:#555;font-size:14px;"><strong>Seat:</strong> ${t.seatLabel}</p>` : ''}
-                            <p style="margin:4px 0;color:#555;font-size:14px;"><strong>Price:</strong> ${formatCurrency(t.price)}</p>
+                            ${order.complimentary ? `<p style="margin:4px 0;color:#555;font-size:14px;"><strong>Price:</strong> Free</p>` : `<p style="margin:4px 0;color:#555;font-size:14px;"><strong>Price:</strong> ${formatCurrency(t.price)}</p>`}
                             <p style="margin:6px 0 0 0; font-size:11px; color:#888;">ID: ${t.id}</p>
                         </td>
                     </tr>
@@ -157,6 +157,15 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
 
                 ${ticketsHtml}
 
+                    ${order.complimentary ? `
+                    <div style="margin-top:18px;border-top:1px solid #eee;padding-top:14px;color:#374151;">
+                        <div style="display:flex;justify-content:space-between;font-weight:800;font-size:18px;color:#111;margin-top:8px;">
+                            <span>Total Paid</span>
+                            <span>${formatCurrency(0)}</span>
+                        </div>
+                        <div style="margin-top:8px;color:#6b7280;font-size:13px;">This ticket was issued complimentary. No charges apply.</div>
+                    </div>
+                    ` : `
                     <div style="margin-top:18px;border-top:1px solid #eee;padding-top:14px;color:#374151;">
                     <div style="display:flex;justify-content:space-between;font-size:14px;color:#6b7280;margin-bottom:6px;">
                         <span>Subtotal</span>
@@ -181,6 +190,7 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                         <span>${formatCurrency(order.totalAmount || 0)}</span>
                     </div>
                 </div>
+                    `}
 
                 <div style="margin-top:22px;">
                     <h4 style="margin:0 0 8px 0;color:#111;font-size:16px;">⚠️ Important Instructions</h4>

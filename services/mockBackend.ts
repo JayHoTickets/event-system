@@ -1,7 +1,7 @@
 
 import { Event, Seat, SeatStatus, User, UserRole, Coupon, Order, Venue, Theater, Stage, ServiceCharge, PaymentMode, Ticket } from '../types';
 
-const API_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'https://jayhoshow.com/api';
+const API_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const fetchJson = async (url: string, options?: RequestInit) => {
     try {
@@ -195,11 +195,6 @@ export const releaseSeatsKeepAlive = (eventId: string, seatIds: string[]) => {
         // Prefer navigator.sendBeacon when available (more reliable on unload)
         if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
             try {
-                        // Some browsers / network stacks may not send the blob with
-                        // the expected JSON content-type for sendBeacon. As a
-                        // fallback we append the seatIds as a query param and send
-                        // an empty body — the server will accept either body or
-                        // query parameters (see backend controller).
                         const query = `?seatIds=${encodeURIComponent(JSON.stringify(seatIds))}`;
                         const beaconUrl = url + query;
                         try {
