@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder, fetchChargesQuote, fetchUsersByRole } from '../../services/mockBackend';
+import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder, fetchChargesQuote, fetchUsersByRole, validateCoupon } from '../../services/mockBackend';
 import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
 import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
@@ -56,6 +56,11 @@ const EventAnalytics: React.FC = () => {
   const [boPhone, setBoPhone] = useState("");
   const [boMode, setBoMode] = useState<PaymentMode>(PaymentMode.CASH);
   const [boProcessing, setBoProcessing] = useState(false);
+  const [boCouponCode, setBoCouponCode] = useState<string>("");
+  const [boCoupon, setBoCoupon] = useState<any | null>(null);
+  const [boCouponError, setBoCouponError] = useState<string | null>(null);
+  const [boCouponApplying, setBoCouponApplying] = useState(false);
+  const [boQuote, setBoQuote] = useState<any | null>(null);
   const [showNotEligibleModal, setShowNotEligibleModal] = useState(false);
 
   // Hold Order Form (Pay Later)
@@ -452,11 +457,12 @@ const EventAnalytics: React.FC = () => {
       return;
     }
 
-    try {
+      try {
       // Ask server for authoritative quote for this payment mode so charges apply correctly
       let serverQuote: any = null;
       try {
-        serverQuote = await fetchChargesQuote(selectedSeatObjs, undefined, event.id, boMode);
+        const couponId = boCoupon ? boCoupon.id : undefined;
+        serverQuote = await fetchChargesQuote(selectedSeatObjs, couponId, event.id, boMode);
       } catch (e) {
         console.debug('BoxOffice - failed to fetch server quote, falling back to 0 service fee', e);
       }
@@ -468,7 +474,7 @@ const EventAnalytics: React.FC = () => {
         selectedSeatObjs,
         serviceFeeToUse,
         appliedChargesToUse,
-        undefined, // couponId (none)
+        boCoupon ? boCoupon.id : undefined,
         boMode,
         undefined,
         // bookedBy: organizer/staff performing box-office action
@@ -1507,6 +1513,57 @@ const EventAnalytics: React.FC = () => {
                       value={boPhone}
                       onChange={(e) => setBoPhone(e.target.value)}
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Coupon Code (optional)</label>
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 border rounded-lg px-3 py-2"
+                        placeholder="Enter coupon code"
+                        value={boCouponCode}
+                        onChange={(e) => { setBoCouponCode(e.target.value); setBoCouponError(null); }}
+                      />
+                      {!boCoupon ? (
+                        <button
+                          type="button"
+                          disabled={!boCouponCode || boCouponApplying}
+                          onClick={async () => {
+                            if (!event) return;
+                            setBoCouponApplying(true);
+                            setBoCouponError(null);
+                            try {
+                              const selectedSeatObjsLocal = event.seats.filter((s) => selectedSeatIds.includes(s.id));
+                              const coupon = await validateCoupon(boCouponCode.trim(), event.id, selectedSeatObjsLocal);
+                              setBoCoupon(coupon);
+                              try {
+                                const quote = await fetchChargesQuote(selectedSeatObjsLocal, coupon.id, event.id, boMode);
+                                setBoQuote(quote);
+                              } catch (qe) { console.debug('Quote with coupon failed', qe); setBoQuote(null); }
+                            } catch (err: any) {
+                              setBoCoupon(null);
+                              setBoCouponError(err?.message || 'Invalid coupon');
+                            } finally {
+                              setBoCouponApplying(false);
+                            }
+                          }}
+                          className="px-3 py-2 bg-slate-900 text-white rounded-lg disabled:opacity-60"
+                        >
+                          {boCouponApplying ? 'Checking...' : 'Apply'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { setBoCoupon(null); setBoCouponCode(''); setBoQuote(null); setBoCouponError(null); }}
+                          className="px-3 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    {boCoupon && (
+                      <p className="text-xs text-green-700 mt-1">Applied: {boCoupon.code} — {boQuote ? `$${(boQuote.discount || 0).toFixed(2)} discount` : 'coupon applied'}</p>
+                    )}
+                    {boCouponError && <p className="text-xs text-red-600 mt-1">{boCouponError}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
