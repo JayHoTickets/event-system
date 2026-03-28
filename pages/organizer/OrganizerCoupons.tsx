@@ -159,7 +159,8 @@ const OrganizerCoupons: React.FC = () => {
                 expiryDate: '',
                 ruleType: 'CODE',
                 minAmount: 0,
-                minSeats: 0
+                minSeats: 0,
+                applicableTicketTypeIds: []
             });
         } catch (error) {
             alert('Failed to save coupon: ' + error);
