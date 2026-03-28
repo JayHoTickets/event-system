@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAllEventsForAdmin } from '../../services/mockBackend';
+import { fetchAllEventsForAdmin, updateEventComplimentaryLimit } from '../../services/mockBackend';
 import { Event, EventStatus } from '../../types';
 import { Eye, Edit2 } from 'lucide-react';
 
 const AdminEvents: React.FC = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
+  const [editingLimits, setEditingLimits] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,7 +48,7 @@ const AdminEvents: React.FC = () => {
           </thead>
           <tbody>
             {events.map(ev => (
-              <tr key={ev.id} className="border-t last:border-b">
+                <tr key={ev.id} className="border-t last:border-b">
                 <td className="px-4 py-3">
                   <div className="font-semibold text-slate-800">{ev.title}</div>
                   <div className="text-xs text-slate-500">Organizer: {ev.organizerId || '—'}</div>
@@ -61,6 +62,33 @@ const AdminEvents: React.FC = () => {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center gap-2 mr-2">
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="No limit"
+                        value={editingLimits[ev.id] ?? (ev.complimentaryLimit == null ? '' : String(ev.complimentaryLimit))}
+                        onChange={e => setEditingLimits(prev => ({ ...prev, [ev.id]: e.target.value }))}
+                        className="w-28 px-2 py-1 border rounded text-sm"
+                      />
+                      <button
+                        onClick={async () => {
+                          const raw = editingLimits[ev.id];
+                          const val = raw === '' || raw === undefined ? null : Number(raw);
+                          try {
+                            await updateEventComplimentaryLimit(ev.id, val);
+                            const refreshed = await fetchAllEventsForAdmin();
+                            setEvents(refreshed || []);
+                          } catch (err) {
+                            console.error('Failed to update complimentary limit', err);
+                            alert('Failed to update complimentary limit');
+                          }
+                        }}
+                        className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 text-sm"
+                      >
+                        Save
+                      </button>
+                    </div>
                     <button onClick={() => navigate(`/event/${ev.slug || ev.id}`)} className="px-3 py-1 bg-white border rounded text-slate-600 hover:bg-slate-50">
                       <Eye className="w-4 h-4 inline-block mr-1" /> View
                     </button>

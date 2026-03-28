@@ -458,6 +458,22 @@ exports.updateEvent = async (req, res) => {
     }
 };
 
+// Set complimentary limit for an event (admin/organizer use)
+exports.setComplimentaryLimit = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { complimentaryLimit } = req.body;
+        const event = await Event.findById(id);
+        if (!event) return res.status(404).json({ message: 'Event not found' });
+        // Allow null to clear limit
+        event.complimentaryLimit = (complimentaryLimit === null || complimentaryLimit === undefined) ? null : Number(complimentaryLimit);
+        await event.save();
+        res.json({ success: true, event });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
 exports.deleteEvent = async (req, res) => {
     try {
         await Event.findByIdAndUpdate(req.params.id, { deleted: true });

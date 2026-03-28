@@ -46,6 +46,13 @@ export const createOrganizerUser = (name: string, email: string, password: strin
     });
 };
 
+export const updateOrganizerComplimentaryLimit = (id: string, complimentaryLimit: number | null): Promise<any> => {
+    return fetchJson(`/users/${id}/complimentary-limit`, {
+        method: 'PATCH',
+        body: JSON.stringify({ complimentaryLimit })
+    });
+};
+
 // --- STAFF (Organizer's staff members) ---
 export const fetchStaffByOrganizer = (organizerId: string): Promise<any[]> => {
     return fetchJson(`/staff?organizerId=${organizerId}`);
@@ -160,6 +167,12 @@ export const updateEvent = (id: string, eventData: any): Promise<Event> => {
 
 export const deleteEvent = (id: string): Promise<void> => {
     return fetchJson(`/events/${id}`, { method: 'DELETE' });
+};
+export const updateEventComplimentaryLimit = (id: string, complimentaryLimit: number | null): Promise<any> => {
+    return fetchJson(`/events/${id}/complimentary-limit`, {
+        method: 'PATCH',
+        body: JSON.stringify({ complimentaryLimit })
+    });
 };
 
 export const holdSeat = (eventId: string, seatId: string): Promise<boolean> => {

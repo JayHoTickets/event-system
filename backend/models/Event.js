@@ -63,7 +63,9 @@ const EventSchema = new mongoose.Schema({
     rows: Number,
     cols: Number,
     location: String,
-    deleted: { type: Boolean, default: false }
+    deleted: { type: Boolean, default: false },
+    // Limit for complimentary tickets for this event. Null/undefined means no event-level limit.
+    complimentaryLimit: { type: Number, default: null }
 }, {
     timestamps: true,
     toJSON: {

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { User, UserRole } from '../../types';
-import { fetchUsersByRole, createOrganizerUser } from '../../services/mockBackend';
+import { fetchUsersByRole, createOrganizerUser, updateOrganizerComplimentaryLimit } from '../../services/mockBackend';
 import { Users, Plus, Mail, Lock, User as UserIcon, RefreshCw } from 'lucide-react';
 
 const AdminOrganizers: React.FC = () => {
   const [organizers, setOrganizers] = useState<User[]>([]);
+    const [editingLimits, setEditingLimits] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   
@@ -102,9 +103,30 @@ const AdminOrganizers: React.FC = () => {
                                 <td className="px-6 py-4 text-sm text-slate-600">{org.email}</td>
                                 <td className="px-6 py-4 text-xs font-mono text-slate-400">{org.id}</td>
                                 <td className="px-6 py-4 text-right">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        Active
-                                    </span>
+                                    <div className="flex items-center justify-end gap-2">
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            placeholder="No limit"
+                                            value={editingLimits[org.id] ?? (org.complimentaryLimit == null ? '' : String(org.complimentaryLimit))}
+                                            onChange={e => setEditingLimits(prev => ({ ...prev, [org.id]: e.target.value }))}
+                                            className="w-28 px-2 py-1 border rounded text-sm mr-2"
+                                        />
+                                        <button
+                                            onClick={async () => {
+                                                const raw = editingLimits[org.id];
+                                                const val = raw === '' || raw === undefined ? null : Number(raw);
+                                                try {
+                                                    await updateOrganizerComplimentaryLimit(org.id, val);
+                                                    await loadOrganizers();
+                                                } catch (err) {
+                                                    console.error('Failed to update organizer complimentary limit', err);
+                                                    alert('Failed to update organizer complimentary limit');
+                                                }
+                                            }}
+                                            className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 text-sm"
+                                        >Save</button>
+                                    </div>
                                 </td>
                             </tr>
                         ))

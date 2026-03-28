@@ -479,8 +479,8 @@ const EventAnalytics: React.FC = () => {
       setSelectedSeatIds([]);
       loadData();
       alert("Booking confirmed!");
-    } catch (err) {
-      alert("Booking failed");
+    } catch (err: any) {
+      alert("Booking failed "+(err.message || String(err)));
       setBoProcessing(false);
     }
   };

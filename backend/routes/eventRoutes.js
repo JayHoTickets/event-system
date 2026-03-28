@@ -11,5 +11,6 @@ router.delete('/:id', deleteEvent);
 router.put('/:id/seats', updateSeats);
 router.post('/:id/lock-seats', lockSeats);
 router.post('/:id/release-seats', releaseSeats);
+router.patch('/:id/complimentary-limit', require('../controllers/eventController').setComplimentaryLimit);
 
 module.exports = router;

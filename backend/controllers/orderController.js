@@ -5,6 +5,7 @@ const Coupon = require('../models/Coupon');
 const User = require('../models/User');
 const { sendOrderEmails } = require('../utils/emailService');
 const { computeCouponDiscount } = require('../utils/discountService');
+const { GLOBAL_LIMIT } = require('../config/complimentary');
 
 const { sendCancellationEmails } = require('../utils/emailService');
 const Stripe = require('stripe');
@@ -73,8 +74,62 @@ exports.createOrder = async (req, res) => {
 
         // 2. Update Event Seats/Inventory
         const eventDoc = await Event.findById(event.id);
+        // Enforce complimentary limits if this is a complimentary order
+        const isComplimentary = String(paymentMode || '').toUpperCase() === 'COMPLIMENTARY';
+        if (isComplimentary && eventDoc) {
+            try {
+                // Count already-used complimentary tickets for this event
+                const aggEvent = await Order.aggregate([
+                    { $match: { complimentary: true } },
+                    { $unwind: '$tickets' },
+                    { $match: { 'tickets.eventId': event.id } },
+                    { $count: 'n' }
+                ]);
+                const usedEvent = (aggEvent && aggEvent.length) ? aggEvent[0].n : 0;
+                // Count already-used complimentary tickets for organizer (all events)
+                let usedOrganizer = 0;
+                if (eventDoc.organizerId) {
+                    const organizerEventIds = await Event.find({ organizerId: eventDoc.organizerId }).select('_id');
+                    const ids = organizerEventIds.map(e => String(e._id));
+                    const aggOrg = await Order.aggregate([
+                        { $match: { complimentary: true } },
+                        { $unwind: '$tickets' },
+                        { $match: { 'tickets.eventId': { $in: ids } } },
+                        { $count: 'n' }
+                    ]);
+                    usedOrganizer = (aggOrg && aggOrg.length) ? aggOrg[0].n : 0;
+                }
+
+                const requested = seats.length || 0;
+
+                // Apply limit precedence: event -> organizer -> global
+                if (eventDoc.complimentaryLimit != null) {
+                    if (usedEvent + requested > Number(eventDoc.complimentaryLimit)) {
+                        return res.status(400).json({ message: 'Complimentary limit exceeded for this event' });
+                    }
+                } else if (eventDoc.organizerId) {
+                    const organizerDoc = await User.findById(eventDoc.organizerId);
+                    if (organizerDoc && organizerDoc.complimentaryLimit != null) {
+                        if (usedOrganizer + requested > Number(organizerDoc.complimentaryLimit)) {
+                            return res.status(400).json({ message: 'Complimentary limit exceeded for this organizer' });
+                        }
+                    } else if (GLOBAL_LIMIT != null) {
+                        if (usedOrganizer + requested > Number(GLOBAL_LIMIT)) {
+                            return res.status(400).json({ message: 'Complimentary global limit exceeded' });
+                        }
+                    }
+                } else if (GLOBAL_LIMIT != null) {
+                    if (usedEvent + requested > Number(GLOBAL_LIMIT)) {
+                        return res.status(400).json({ message: 'Complimentary global limit exceeded' });
+                    }
+                }
+            } catch (limitErr) {
+                console.error('Failed to enforce complimentary limits', limitErr);
+                return res.status(500).json({ message: 'Failed to validate complimentary limits' });
+            }
+        }
         if (eventDoc) {
-            if (event.seatingType === 'RESERVED') {
+            if (eventDoc.seatingType === 'RESERVED') {
                 const soldIds = new Set(seats.map(s => s.id));
 
                 // Pre-check: ensure all requested seats are available.
@@ -558,7 +613,7 @@ exports.completePaymentPendingOrder = async (req, res) => {
  * The seats are marked as HOLD status and will auto-release after 24 hours if not paid
  */
 exports.createPaymentPendingOrder = async (req, res) => {
-    const { eventId, seatIds, customer, serviceFee = 0, bookedBy } = req.body;
+    const { eventId, seatIds, customer, serviceFee = 0, bookedBy, paymentMode } = req.body;
     try {
         // 1. Fetch Event
         const event = await Event.findById(eventId);
@@ -588,6 +643,121 @@ exports.createPaymentPendingOrder = async (req, res) => {
 
         if (conflicts.length > 0) {
             return res.status(409).json({ message: 'Some seats are not available', conflicts });
+        }
+
+        // If complimentary, enforce limits and create immediate PAID order instead of HOLD
+        const isComplimentary = String(paymentMode || '').toUpperCase() === 'COMPLIMENTARY';
+        if (isComplimentary) {
+            try {
+                // Count existing complimentary tickets for event and organizer and enforce limits
+                const aggEvent = await Order.aggregate([
+                    { $match: { complimentary: true } },
+                    { $unwind: '$tickets' },
+                    { $match: { 'tickets.eventId': eventId } },
+                    { $count: 'n' }
+                ]);
+                const usedEvent = (aggEvent && aggEvent.length) ? aggEvent[0].n : 0;
+                let usedOrganizer = 0;
+                if (event.organizerId) {
+                    const organizerEventIds = await Event.find({ organizerId: event.organizerId }).select('_id');
+                    const ids = organizerEventIds.map(e => String(e._id));
+                    const aggOrg = await Order.aggregate([
+                        { $match: { complimentary: true } },
+                        { $unwind: '$tickets' },
+                        { $match: { 'tickets.eventId': { $in: ids } } },
+                        { $count: 'n' }
+                    ]);
+                    usedOrganizer = (aggOrg && aggOrg.length) ? aggOrg[0].n : 0;
+                }
+                const requested = (seatIds && seatIds.length) ? seatIds.length : 0;
+                if (event.complimentaryLimit != null) {
+                    if (usedEvent + requested > Number(event.complimentaryLimit)) {
+                        return res.status(400).json({ message: 'Complimentary limit exceeded for this event' });
+                    }
+                } else if (event.organizerId) {
+                    const organizerDoc = await User.findById(event.organizerId);
+                    if (organizerDoc && organizerDoc.complimentaryLimit != null) {
+                        if (usedOrganizer + requested > Number(organizerDoc.complimentaryLimit)) {
+                            return res.status(400).json({ message: 'Complimentary limit exceeded for this organizer' });
+                        }
+                    } else if (GLOBAL_LIMIT != null) {
+                        if (usedOrganizer + requested > Number(GLOBAL_LIMIT)) {
+                            return res.status(400).json({ message: 'Complimentary global limit exceeded' });
+                        }
+                    }
+                } else if (GLOBAL_LIMIT != null) {
+                    if (usedEvent + requested > Number(GLOBAL_LIMIT)) {
+                        return res.status(400).json({ message: 'Complimentary global limit exceeded' });
+                    }
+                }
+
+                // Create immediate PAID zero-valued order and mark seats SOLD
+                const seatObjects = event.seats.filter(s => seatIds.includes(s.id));
+                const subtotal = seatObjects.reduce((acc, s) => acc + (s.price || 0), 0);
+
+                const crypto = require('crypto');
+                const TICKET_PREFIX = process.env.TICKET_PREFIX || 'JH';
+                const generateTicketId = () => {
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                    const coreLen = 8 + Math.floor(Math.random() * 3);
+                    const bytes = crypto.randomBytes(coreLen);
+                    let core = '';
+                    for (let i = 0; i < coreLen; i++) {
+                        core += chars[bytes[i] % chars.length];
+                    }
+                    return `${TICKET_PREFIX}${core}`;
+                };
+
+                const tickets = seatObjects.map(s => ({
+                    id: generateTicketId(),
+                    eventId: event.id,
+                    eventTitle: event.title,
+                    seatId: s.id,
+                    seatLabel: `${s.rowLabel}${s.seatNumber}`,
+                    price: s.price,
+                    color: s.color || null,
+                    ticketType: s.tier,
+                    qrCodeData: null,
+                    purchaseDate: new Date(),
+                    checkedIn: false
+                }));
+
+                // Mark seats as SOLD in event
+                const seatIdSet = new Set(seatIds);
+                event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s, status: 'SOLD', holdUntil: null } : s);
+                await event.save();
+
+                const order = await Order.create({
+                    userId: customer.id || `guest-${Date.now()}`,
+                    customerName: customer.name,
+                    customerEmail: customer.email,
+                    customerPhone: customer.phone || null,
+                    tickets,
+                    totalAmount: 0,
+                    serviceFee: 0,
+                    discountApplied: subtotal,
+                    status: 'PAID',
+                    paymentPendingUntil: null,
+                    paymentUrl: null,
+                    bookedBy: bookedBy || (customer && customer.id ? { id: customer.id, role: 'CUSTOMER', name: customer.name } : undefined),
+                    complimentary: true,
+                    paymentMode: 'COMPLIMENTARY'
+                });
+
+                // Send confirmation emails asynchronously
+                try {
+                    const organizer = await User.findById(event.organizerId);
+                    const admin = await User.findOne({ role: 'ADMIN' });
+                    await sendOrderEmails({ order, event, customerName: customer.name, customerEmail: customer.email, organizerEmail: organizer ? organizer.email : null, adminEmail: admin ? admin.email : 'admin@jayhoticket.com' });
+                } catch (emailErr) {
+                    console.error('Failed to send complimentary order emails', emailErr);
+                }
+
+                return res.json(order);
+            } catch (e) {
+                console.error('createPaymentPendingOrder complimentary branch failed', e);
+                return res.status(500).json({ message: 'Failed to create complimentary order' });
+            }
         }
 
         // 3. Mark seats as HOLD with 24-hour expiry

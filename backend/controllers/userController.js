@@ -25,3 +25,19 @@ exports.createOrganizer = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+// Set organizer-level complimentary limit
+exports.setComplimentaryLimit = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { complimentaryLimit } = req.body;
+        const user = await User.findById(id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        // Only organizers or admins should have this, but allow setting when present
+        user.complimentaryLimit = (complimentaryLimit === null || complimentaryLimit === undefined) ? null : Number(complimentaryLimit);
+        await user.save();
+        res.json({ success: true, user });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};

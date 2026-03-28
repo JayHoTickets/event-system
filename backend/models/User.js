@@ -6,6 +6,9 @@ const UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['ADMIN', 'ORGANIZER', 'USER'], default: 'USER' }
+    ,
+    // Organizer-level complimentary limit (null means no organizer-level limit)
+    complimentaryLimit: { type: Number, default: null }
 }, {
     toJSON: {
         virtuals: true,
