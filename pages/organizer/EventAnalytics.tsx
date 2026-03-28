@@ -1536,7 +1536,7 @@ const EventAnalytics: React.FC = () => {
                         className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.COMPLIMENTARY ? "bg-indigo-50 border-indigo-500 text-indigo-700" : "hover:bg-slate-50"}`}
                       >
                         <Ban className="w-5 h-5" />
-                        <span className="text-xs font-bold">COMP / FREE</span>
+                        <span className="text-xs font-bold">COMP</span>
                       </button>
                     </div>
                   </div>
@@ -1572,7 +1572,7 @@ const EventAnalytics: React.FC = () => {
               </button>
             </div>
             <div className="p-6">
-              <p className="text-slate-700">This flow cannot be used for free ($0) tickets. Use the Hold/Charity flow or adjust ticket pricing.</p>
+              <p className="text-slate-700">This flow cannot be used for $0 price tickets. Use the Hold flow or adjust ticket pricing.</p>
               <div className="mt-6 text-right">
                 <button onClick={() => setShowNotEligibleModal(false)} className="px-4 py-2 rounded-lg bg-slate-900 text-white">OK</button>
               </div>
