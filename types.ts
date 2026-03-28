@@ -123,6 +123,10 @@ export interface Event {
   seatingType: SeatingType;
   currency: string;
   terms: string;
+  // Limit for complimentary tickets for this event. Null/undefined means no event-level limit.
+  complimentaryLimit?: number | null;
+  // When true, the admin has allowed ticket types with price === 0 for this event
+  allowFreeTickets?: boolean;
   
   // Soft Delete Flag
   deleted?: boolean;

@@ -48,6 +48,8 @@ const AdminEvents: React.FC = () => {
               <th className="text-left px-4 py-3">Date</th>
               <th className="text-left px-4 py-3">Venue</th>
               <th className="text-left px-4 py-3">Status</th>
+              <th className="text-left px-4 py-3">Complementry limit</th>
+              <th className="text-left px-4 py-3">No Profit</th>
               <th className="text-right px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -65,43 +67,45 @@ const AdminEvents: React.FC = () => {
                     {ev.status}
                   </span>
                 </td>
+                <td className="px-4 py-3">
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="No limit"
+                    value={editingLimits[ev.id] ?? (ev.complimentaryLimit == null ? '' : String(ev.complimentaryLimit))}
+                    onChange={e => setEditingLimits(prev => ({ ...prev, [ev.id]: e.target.value }))}
+                    className="w-28 px-2 py-1 border rounded text-sm"
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <label className="flex items-center text-sm">
+                    <input type="checkbox" className="mr-2" checked={!!editingAllowFree[ev.id]} onChange={e => setEditingAllowFree(prev => ({ ...prev, [ev.id]: e.target.checked }))} />
+                    No Profit
+                  </label>
+                </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <div className="flex items-center gap-2 mr-2">
-                      <input
-                        type="number"
-                        min={0}
-                        placeholder="No limit"
-                        value={editingLimits[ev.id] ?? (ev.complimentaryLimit == null ? '' : String(ev.complimentaryLimit))}
-                        onChange={e => setEditingLimits(prev => ({ ...prev, [ev.id]: e.target.value }))}
-                        className="w-28 px-2 py-1 border rounded text-sm"
-                      />
-                      <label className="ml-3 flex items-center text-sm">
-                        <input type="checkbox" className="mr-2" checked={!!editingAllowFree[ev.id]} onChange={e => setEditingAllowFree(prev => ({ ...prev, [ev.id]: e.target.checked }))} />
-                        Allow free tickets
-                      </label>
-                      <button
-                        onClick={async () => {
-                          const raw = editingLimits[ev.id];
-                          const val = raw === '' || raw === undefined ? null : Number(raw);
-                          try {
-                            await updateEventComplimentaryLimit(ev.id, val);
-                            // Save allow-free setting if it changed
-                            if (editingAllowFree[ev.id] !== ev.allowFreeTickets) {
-                                await updateEventAllowFreeTickets(ev.id, !!editingAllowFree[ev.id]);
-                            }
-                            const refreshed = await fetchAllEventsForAdmin();
-                            setEvents(refreshed || []);
-                          } catch (err) {
-                            console.error('Failed to update complimentary limit', err);
-                            alert('Failed to update complimentary limit');
+                    <button
+                      onClick={async () => {
+                        const raw = editingLimits[ev.id];
+                        const val = raw === '' || raw === undefined ? null : Number(raw);
+                        try {
+                          await updateEventComplimentaryLimit(ev.id, val);
+                          // Save allow-free setting if it changed
+                          if (editingAllowFree[ev.id] !== ev.allowFreeTickets) {
+                              await updateEventAllowFreeTickets(ev.id, !!editingAllowFree[ev.id]);
                           }
-                        }}
-                        className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 text-sm"
-                      >
-                        Save
-                      </button>
-                    </div>
+                          const refreshed = await fetchAllEventsForAdmin();
+                          setEvents(refreshed || []);
+                        } catch (err) {
+                          console.error('Failed to update complimentary limit', err);
+                          alert('Failed to update complimentary limit');
+                        }
+                      }}
+                      className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 text-sm"
+                    >
+                      Save
+                    </button>
                     <button onClick={() => navigate(`/event/${ev.slug || ev.id}`)} className="px-3 py-1 bg-white border rounded text-slate-600 hover:bg-slate-50">
                       <Eye className="w-4 h-4 inline-block mr-1" /> View
                     </button>
