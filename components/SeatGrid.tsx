@@ -89,8 +89,8 @@ const SeatGrid: React.FC<SeatGridProps> = ({
     // 1. Selected state always wins (Green)
     if (isSelected) return 'bg-green-500 text-white ring-2 ring-green-300 z-10 shadow-lg scale-110';
     
-    // 2. Sold state (Grey/Light)
-    if (seat.status === SeatStatus.SOLD) return 'bg-slate-200 text-slate-400 cursor-not-allowed border-slate-200';
+    // 2. Sold state (Grey/Light) — slightly darker border for contrast
+    if (seat.status === SeatStatus.SOLD) return 'bg-slate-200 text-slate-400 cursor-not-allowed border-black';
     
     // 3. Hold state (Organizer placed hold, awaiting payment) - Yellow
     if (seat.status === SeatStatus.HOLD) return 'bg-yellow-400 text-yellow-900 cursor-not-allowed border-yellow-500 font-semibold';
@@ -101,17 +101,37 @@ const SeatGrid: React.FC<SeatGridProps> = ({
     // 5. Blocked/Unavailable state (Dark Grey/Black)
     if (seat.status === SeatStatus.UNAVAILABLE) {
         // Always use full dark background for unavailable seats to match header legend
-        const base = 'bg-slate-800 border-slate-900 text-slate-400';
+        const base = 'bg-slate-800 border-black text-slate-400';
         const interactive = canSelectUnavailable ? 'cursor-pointer hover:bg-slate-700 hover:text-slate-300' : 'cursor-not-allowed';
         return `${base} ${interactive}`;
     }
     
-    // 6. Available (White or Ticket Type Color)
-    if (seat.color) {
-         return `text-white shadow-sm hover:brightness-90`;
-    }
-    return 'bg-white border-slate-300 text-slate-700 hover:border-indigo-400 hover:shadow-md';
+        // 6. Available (White or Ticket Type Color)
+            if (seat.color) {
+                // Colored ticket types: keep text legible and use bold black border for contrast
+                return `text-white shadow-sm hover:brightness-90 border-black`;
+            }
+            // Default available seats: bold black border and hover accent
+            return 'bg-white border-black text-slate-700 hover:border-indigo-500 hover:shadow-md';
   };
+
+    // Utility: darken a hex color by a given factor (0-1)
+    const darkenHex = (hex: string, factor = 0.35) => {
+        try {
+            // Normalize shorthand
+            let h = hex.replace('#', '');
+            if (h.length === 3) h = h.split('').map(c => c + c).join('');
+            const r = parseInt(h.substring(0,2), 16);
+            const g = parseInt(h.substring(2,4), 16);
+            const b = parseInt(h.substring(4,6), 16);
+            const nr = Math.max(0, Math.min(255, Math.round(r * (1 - factor))));
+            const ng = Math.max(0, Math.min(255, Math.round(g * (1 - factor))));
+            const nb = Math.max(0, Math.min(255, Math.round(b * (1 - factor))));
+            return `rgb(${nr}, ${ng}, ${nb})`;
+        } catch (e) {
+            return hex;
+        }
+    };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!allowDragSelect) return;
@@ -281,7 +301,10 @@ const SeatGrid: React.FC<SeatGridProps> = ({
                 // Inject dynamic color if not selected and valid
                 if (!isSelected && seat.status === SeatStatus.AVAILABLE && seat.color) {
                     styleObj.backgroundColor = seat.color;
-                    styleObj.borderColor = seat.color;
+                    // Use a darker border variant for contrast (overrides very light colors)
+                    styleObj.borderColor = darkenHex(seat.color, 0.45);
+                    styleObj.borderWidth = 2;
+                    styleObj.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
                 }
 
                 return (
@@ -292,9 +315,9 @@ const SeatGrid: React.FC<SeatGridProps> = ({
                         onClick={() => onSeatClick && !isDisabled && onSeatClick(seat)}
                         disabled={isDisabled}
                         className={clsx(
-                            "absolute rounded-t-md border flex items-center justify-center text-[10px] font-bold transition-all duration-200",
-                            colorClass
-                        )}
+                                "absolute rounded-t-md border-2 flex items-center justify-center text-[10px] font-bold transition-all duration-200",
+                                colorClass
+                            )}
                         style={styleObj}
                         title={`${seat.tier || 'Seat'} - Row ${seat.rowLabel} Seat ${seat.seatNumber} ${seat.price ? `($${seat.price})` : ''} - ${seat.status}`}
                     >
