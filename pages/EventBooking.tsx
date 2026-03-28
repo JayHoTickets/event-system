@@ -392,7 +392,7 @@ return (
             </div>
             
             {/* Map Canvas */}
-            <div ref={mapContainerRef} className="flex-1 bg-slate-50 overflow-hidden flex items-center justify-center p-4 relative">
+            <div ref={mapContainerRef} className="flex-1 bg-slate-50 overflow-auto flex items-center justify-center p-4 relative">
               <SeatGrid 
                 seats={event.seats.map(s => {
                   const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
@@ -581,7 +581,7 @@ return (
           </div>
           
           {/* Map Canvas */}
-          <div ref={mapContainerRef} className="flex-1 bg-slate-100 overflow-hidden flex items-center justify-center p-4 relative touch-none">
+          <div ref={mapContainerRef} className="flex-1 bg-slate-100 overflow-auto flex items-center justify-center p-4 relative">
             <SeatGrid 
               // Ensure seats show ticket-type color when assigned (ticketTypeId -> ticketTypes)
               seats={event.seats.map(s => {
