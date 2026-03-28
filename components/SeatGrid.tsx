@@ -100,7 +100,10 @@ const SeatGrid: React.FC<SeatGridProps> = ({
     
     // 5. Blocked/Unavailable state (Dark Grey/Black)
     if (seat.status === SeatStatus.UNAVAILABLE) {
-        return 'bg-slate-800 text-slate-600 border-slate-800 ' + (canSelectUnavailable ? 'cursor-pointer hover:bg-slate-700 hover:text-slate-400' : 'cursor-not-allowed opacity-60');
+        // Always use full dark background for unavailable seats to match header legend
+        const base = 'bg-slate-800 border-slate-900 text-slate-400';
+        const interactive = canSelectUnavailable ? 'cursor-pointer hover:bg-slate-700 hover:text-slate-300' : 'cursor-not-allowed';
+        return `${base} ${interactive}`;
     }
     
     // 6. Available (White or Ticket Type Color)
