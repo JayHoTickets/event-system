@@ -442,6 +442,20 @@ const EventAnalytics: React.FC = () => {
     setBoName("");
     setBoEmail("");
     setBoMode(PaymentMode.CASH);
+    setBoCoupon(null);
+    setBoCouponCode('');
+    setBoQuote(null);
+    // Try fetch server quote for current selection to show fees/discounts
+    (async () => {
+      if (!event) return;
+      try {
+        const selectedSeatObjs = event.seats.filter((s) => selectedSeatIds.includes(s.id));
+        const quote = await fetchChargesQuote(selectedSeatObjs, undefined, event.id, PaymentMode.CASH);
+        setBoQuote(quote);
+      } catch (e) {
+        setBoQuote(null);
+      }
+    })();
     setShowBoxOffice(true);
   };
 
@@ -500,6 +514,19 @@ const EventAnalytics: React.FC = () => {
     setHoldName("");
     setHoldEmail("");
     setHoldPhone("");
+    setHoldCoupon(null);
+    setHoldCouponCode('');
+    setHoldQuote(null);
+    (async () => {
+      if (!event) return;
+      try {
+        const selectedSeatObjs = event.seats.filter((s) => selectedSeatIds.includes(s.id));
+        const quote = await fetchChargesQuote(selectedSeatObjs, undefined, event.id, PaymentMode.ONLINE);
+        setHoldQuote(quote);
+      } catch (e) {
+        setHoldQuote(null);
+      }
+    })();
     setShowHoldOrder(true);
   };
 
@@ -1487,6 +1514,26 @@ const EventAnalytics: React.FC = () => {
                 </div>
               </div>
 
+              {/* Price breakdown */}
+              <div className="mb-4 p-3 bg-white border rounded-lg text-sm">
+                <div className="flex justify-between text-slate-600 mb-1">
+                  <span>Subtotal</span>
+                  <span className="font-medium">${selectionTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 mb-1">
+                  <span>Discount</span>
+                  <span className="font-medium">${((boQuote && boQuote.discount) || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 mb-1">
+                  <span>Service Fee</span>
+                  <span className="font-medium">${((boQuote && boQuote.serviceFee) || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-900 font-bold mt-2">
+                  <span>Total</span>
+                  <span>${( (selectionTotal - ((boQuote && boQuote.discount) || 0)) + ((boQuote && boQuote.serviceFee) || 0) ).toFixed(2)}</span>
+                </div>
+              </div>
+
               <form onSubmit={handleBoxOfficeSubmit}>
                 <div className="space-y-4 mb-6">
                   <div>
@@ -1696,6 +1743,26 @@ const EventAnalytics: React.FC = () => {
                       <span>${(seat.price || 0).toFixed(2)}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Price breakdown for Hold */}
+              <div className="mb-4 p-3 bg-white border rounded-lg text-sm">
+                <div className="flex justify-between text-slate-600 mb-1">
+                  <span>Subtotal</span>
+                  <span className="font-medium">${selectionTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 mb-1">
+                  <span>Discount</span>
+                  <span className="font-medium">${((holdQuote && holdQuote.discount) || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 mb-1">
+                  <span>Service Fee</span>
+                  <span className="font-medium">${((holdQuote && holdQuote.serviceFee) || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-900 font-bold mt-2">
+                  <span>Total</span>
+                  <span>${( (selectionTotal - ((holdQuote && holdQuote.discount) || 0)) + ((holdQuote && holdQuote.serviceFee) || 0) ).toFixed(2)}</span>
                 </div>
               </div>
 
