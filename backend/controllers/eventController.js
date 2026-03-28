@@ -228,9 +228,24 @@ const hydrateSeats = (theaterSeats, ticketTypes, seatMappings) => {
     });
 };
 
+// Validate ticket types: price must be >= 1
+const validateTicketTypes = (types) => {
+    if (!types) return { valid: true };
+    for (const t of types) {
+        const price = t && t.price != null ? Number(t.price) : NaN;
+        if (isNaN(price) || price < 1) {
+            const name = (t && (t.name || t.id)) || 'Unnamed ticket type';
+            return { valid: false, message: `Ticket type \"${name}\" must have price >= 1` };
+        }
+    }
+    return { valid: true };
+};
+
 exports.createEvent = async (req, res) => {
     const { seatMappings, ...data } = req.body;
     try {
+        const vt = validateTicketTypes(data.ticketTypes);
+        if (!vt.valid) return res.status(400).json({ message: vt.message });
         const venue = await Venue.findById(data.venueId);
         let seats = [], stage, rows = 0, cols = 0;
 
@@ -311,6 +326,11 @@ exports.updateEvent = async (req, res) => {
     const { seatMappings, ...data } = req.body;
     try {
         const event = await Event.findById(req.params.id);
+        // If ticketTypes provided in the update payload, validate them
+        if (data.ticketTypes) {
+            const vt = validateTicketTypes(data.ticketTypes);
+            if (!vt.valid) return res.status(400).json({ message: vt.message });
+        }
         if (!event) return res.status(404).json({ message: 'Not found' });
 
         let updateData = { ...data };

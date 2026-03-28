@@ -317,8 +317,15 @@ const CreateEvent: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
-        if (!canManageEvents) { alert('You do not have permission to create or update events'); setLoading(false); return; }
-        
+        if (!canManageEvents) { alert('You do not have permission to create or update events'); return; }
+
+        // Client-side validation: ticket prices must be >= $1
+        const invalid = ticketTypes.find(t => { const p = Number(t.price); return isNaN(p) || p < 1; });
+        if (invalid) {
+            alert(`Ticket type "${invalid.name || invalid.id || 'Unnamed'}" must have price >= $1`);
+            return;
+        }
+
         setLoading(true);
         try {
             if (isEditMode && id) {
@@ -581,6 +588,8 @@ const CreateEvent: React.FC = () => {
                                                             type="number"
                                                             className="w-full border-b focus:border-indigo-500 outline-none text-sm font-medium py-1" 
                                                             value={tt.price} 
+                                                            min={1}
+                                                            step="0.01"
                                                             onChange={(e) => updateTicketType(tt.id, 'price', Number(e.target.value))}
                                                         />
                                                     </div>
