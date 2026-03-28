@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder, fetchChargesQuote, fetchUsersByRole, validateCoupon } from '../../services/mockBackend';
-import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
+import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat, UserRole } from '../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
 import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
@@ -90,9 +90,9 @@ const EventAnalytics: React.FC = () => {
         Promise.all([
           fetchEventById(id),
           fetchEventOrders(id),
-          fetchUsersByRole('ORGANIZER'),
-          fetchUsersByRole('STAFF'),
-          fetchUsersByRole('USER')
+          fetchUsersByRole(UserRole.ORGANIZER),
+          fetchUsersByRole(UserRole.STAFF),
+          fetchUsersByRole(UserRole.USER)
         ]).then(([eData, oData, orgs, staffs, users]) => {
           setEvent(eData || null);
           setOrders(oData);

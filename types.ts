@@ -107,6 +107,8 @@ export interface TicketType {
 export interface Event {
   id: string;
   title: string;
+  // Human-friendly URL slug (optional)
+  slug?: string;
   description: string;
   organizerId: string;
   
@@ -232,4 +234,10 @@ export interface Order {
   cancelledAt?: string;
   paymentMode: PaymentMode;
   date: string;
+  // Who booked this order (customer, organizer, staff)
+  bookedBy?: {
+    id?: string;
+    role?: string;
+    name?: string;
+  };
 }

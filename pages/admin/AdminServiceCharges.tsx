@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { ServiceChargeScoped as ServiceCharge, ServiceChargeLevel, User, Event as EventType } from '../../types';
+import { ServiceChargeScoped as ServiceCharge, ServiceChargeLevel, User, Event as EventType, UserRole } from '../../types';
 import { fetchServiceCharges, createServiceCharge, updateServiceCharge, deleteServiceCharge, fetchUsersByRole, fetchEvents } from '../../services/mockBackend';
 import { Receipt, Plus, Trash2, Edit2, CheckCircle, XCircle } from 'lucide-react';
 
@@ -32,7 +32,7 @@ const AdminServiceCharges: React.FC = () => {
 
     const loadOrganizersAndEvents = async () => {
         try {
-            const orgs = await fetchUsersByRole('ORGANIZER' as any);
+            const orgs = await fetchUsersByRole(UserRole.ORGANIZER);
             setOrganizers(orgs);
         } catch (e) {
             console.warn('Failed to load organizers', e);
@@ -47,7 +47,9 @@ const AdminServiceCharges: React.FC = () => {
 
     const loadCharges = async () => {
         const data = await fetchServiceCharges();
-        setCharges(data);
+        // Ensure each charge includes a `level` (ServiceChargeScoped requires it).
+        const normalized = (data || []).map((c: any) => ({ level: c.level || 'DEFAULT', ...c }));
+        setCharges(normalized);
         setLoading(false);
     };
 
