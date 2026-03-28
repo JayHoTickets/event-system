@@ -377,17 +377,6 @@ return (
                     <span>Booking (In-progress)</span>
                   </div>
                 </div>
-
-                {/* Ticket type chips - visible on desktop */}
-                <div className="hidden md:flex items-center gap-3 flex-wrap text-sm">
-                  {event.ticketTypes.map(tt => (
-                    <div key={tt.id} className="flex items-center gap-2 px-3 py-1 rounded-full border bg-white shadow-sm">
-                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: tt.color }} />
-                      <div className="text-slate-700 font-medium">{tt.name}</div>
-                      <div className="text-slate-500 ml-2">${tt.price.toFixed(0)}</div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
             
@@ -503,6 +492,16 @@ return (
                 )}
               </div>
             </div>
+            {/* Ticket type chips - visible on desktop */}
+                <div className="hidden md:flex items-center gap-3 flex-wrap text-sm">
+                  {event.ticketTypes.map(tt => (
+                    <div key={tt.id} className="flex items-center gap-2 px-3 py-1 rounded-full border bg-white shadow-sm">
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: tt.color }} />
+                      <div className="text-slate-700 font-medium">{tt.name}</div>
+                      <div className="text-slate-500 ml-2">${tt.price.toFixed(0)}</div>
+                    </div>
+                  ))}
+                </div>
             <button
               onClick={handleCheckout}
               disabled={selectedCount === 0}
