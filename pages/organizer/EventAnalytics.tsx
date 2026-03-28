@@ -1666,7 +1666,7 @@ const EventAnalytics: React.FC = () => {
                     ? "Processing..."
                     : boMode === PaymentMode.COMPLIMENTARY
                       ? "Confirm Complimentary Booking ($0.00)"
-                      : `Confirm Booking ($${selectionTotal.toFixed(2)})`}
+                      : `Confirm Booking ($${(((selectionTotal - ((boQuote && boQuote.discount) || 0)) + ((boQuote && boQuote.serviceFee) || 0))).toFixed(2)})`}
                 </button>
               </form>
             </div>
@@ -1885,7 +1885,7 @@ const EventAnalytics: React.FC = () => {
                 >
                   {holdProcessing
                     ? "Placing Hold..."
-                    : `Place Hold ($${selectionTotal.toFixed(2)})`}
+                    : `Place Hold ($${(((selectionTotal - ((holdQuote && holdQuote.discount) || 0)) + ((holdQuote && holdQuote.serviceFee) || 0))).toFixed(2)})`}
                 </button>
               </form>
             </div>
