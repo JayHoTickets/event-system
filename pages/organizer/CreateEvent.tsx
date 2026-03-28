@@ -440,7 +440,7 @@ const CreateEvent: React.FC = () => {
                                     >
                                         <Users className="w-6 h-6" />
                                         <span className="font-bold">General Admission</span>
-                                        <span className="text-xs text-center opacity-70">Standing room or free seating by capacity</span>
+                                        <span className="text-xs text-center opacity-70">Standing room or  seating by capacity</span>
                                     </button>
                                 </div>
                             </div>
