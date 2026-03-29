@@ -1,7 +1,6 @@
 
 const User = require('../models/User');
 const Staff = require('../models/Staff');
-const { generateToken } = require('../middleware/auth');
 
 exports.login = async (req, res) => {
     let { email, password } = req.body;
@@ -10,21 +9,18 @@ exports.login = async (req, res) => {
         const user = await User.findOne({ email });
         // In a real app, use bcrypt.compare(password, user.password)
         if (user && user.password === password) {
-            const safe = user.toJSON ? user.toJSON() : user;
-            delete safe.password;
-            const token = generateToken({ id: safe.id || safe._id, role: safe.role || 'USER' });
-            return res.json({ user: safe, token });
+            return res.json(user);
         }
 
         // If not a regular user, check staff collection
         const staff = await Staff.findOne({ email });
         if (staff && staff.password === password && staff.active) {
+            // Return a lightweight object compatible with frontend expectations
             const out = staff.toJSON ? staff.toJSON() : staff;
             out.role = 'STAFF';
+            // Include organizerId so frontend can scope actions
             out.organizerId = staff.organizerId;
-            delete out.password;
-            const token = generateToken({ id: out.id || out._id, role: out.role });
-            return res.json({ user: out, token });
+            return res.json(out);
         }
 
         res.status(401).json({ message: 'Invalid credentials' });
@@ -38,10 +34,7 @@ exports.mockLogin = async (req, res) => {
     try {
         const user = await User.findOne({ role });
         if (user) {
-            const safe = user.toJSON ? user.toJSON() : user;
-            delete safe.password;
-            const token = generateToken({ id: safe.id || safe._id, role: safe.role || role });
-            return res.json({ user: safe, token });
+            return res.json(user);
         }
         res.status(404).json({ message: 'No demo user found for role' });
     } catch (err) {

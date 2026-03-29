@@ -21,10 +21,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return null;
-      const parsed = JSON.parse(stored);
-      // parsed may be { user, token } for backwards compatibility accept whole object
-      return parsed && parsed.user ? parsed.user : parsed;
+      return stored ? JSON.parse(stored) : null;
     } catch (error) {
       console.error("Failed to parse user session", error);
       return null;
@@ -32,28 +29,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   const login = async (role: UserRole) => {
-    const resp = await mockLogin(role);
-    // resp expected { user, token }
-    const u = (resp && (resp as any).user) ? (resp as any).user : resp;
-    const token = (resp && (resp as any).token) ? (resp as any).token : null;
-    setUser(u);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: u, token }));
-    if (token) localStorage.setItem('eventhorizon_token', token);
+    const loggedUser = await mockLogin(role);
+    setUser(loggedUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(loggedUser));
   };
 
   const loginWithEmailPassword = async (email: string, password: string) => {
-    const resp = await authenticateUser(email, password);
-    const u = (resp && (resp as any).user) ? (resp as any).user : resp;
-    const token = (resp && (resp as any).token) ? (resp as any).token : null;
-    setUser(u);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: u, token }));
-    if (token) localStorage.setItem('eventhorizon_token', token);
+    const loggedUser = await authenticateUser(email, password);
+    setUser(loggedUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(loggedUser));
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem('eventhorizon_token');
   };
 
   const value = {
