@@ -382,13 +382,13 @@ return (
                 >
                   <ZoomOut className="w-5 h-5"/>
                 </button>
-                <button 
+                {/* <button 
                   onClick={fitMapToContainer} 
                   className="p-2 hover:bg-slate-100 rounded text-slate-700 border-t mt-1" 
                   title="Fit to Screen"
                 >
                   <Maximize className="w-5 h-5"/>
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -577,9 +577,9 @@ return (
               <button onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} className="p-2 hover:bg-slate-100 rounded text-slate-700 bg-slate-50 border border-slate-200">
                 <ZoomOut className="w-5 h-5"/>
               </button>
-              <button onClick={fitMapToContainer} className="p-2 hover:bg-slate-100 rounded text-slate-700 border-t mt-1" title="Fit to Screen">
+              {/* <button onClick={fitMapToContainer} className="p-2 hover:bg-slate-100 rounded text-slate-700 border-t mt-1" title="Fit to Screen">
                 <Maximize className="w-5 h-5"/>
-              </button>
+              </button> */}
             </div>
           </div>
         </div>
