@@ -1,3 +1,4 @@
+import { authenticateJWT } from '../middleware/auth';
 
 const express = require('express');
 const router = express.Router();
@@ -13,7 +14,7 @@ router.get('/', getOrders);
 router.get('/:id', getOrderById);
 router.post('/', createOrder);
 router.post('/:id/complete-payment', completePaymentPendingOrder);
-router.post('/:id/cancel', cancelOrder);
-router.post('/:id/refund-status', updateRefundStatus);
+router.post('/:id/cancel', authenticateJWT, requireRole('ORGANIZER'), cancelOrder);
+router.post('/:id/refund-status', authenticateJWT, requireRole('ORGANIZER'), updateRefundStatus);
 
 module.exports = router;
