@@ -1,30 +1,45 @@
 
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const connectDB = require('./config/db');
-const seedData = require('./config/seeder');
-const path = require('path');
-const fetch = require('node-fetch');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import connectDB from './config/db.js';
+import seedData from './config/seeder.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import eventRoutes from './routes/eventRoutes.js';
+import { holdSeat } from './controllers/eventController.js';
+import venueRoutes from './routes/venueRoutes.js';
+import theaterRoutes from './routes/theaterRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
+import couponRoutes from './routes/couponRoutes.js';
+import serviceChargeRoutes from './routes/serviceChargeRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import staffRoutes from './routes/staffRoutes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const port = process.env.PORT || 5000;
 
 // Connect Database
-connectDB().then(() => {
+connectDB().then(async () => {
     // Run seeder to ensure default admin/organizer exist
     seedData();
 
     // Start periodic cleanup job to free expired seat holds
-    try {
-        const eventController = require('./controllers/eventController');
-        // Run immediately, then every minute
-        eventController.cleanupExpiredHolds();
-        setInterval(() => {
-            eventController.cleanupExpiredHolds();
-        }, 60 * 1000);
-    } catch (err) {
-        console.error('Failed to start cleanup job', err);
-    }
+        try {
+            const { cleanupExpiredHolds } = await import('./controllers/eventController.js');
+            // Run immediately, then every minute
+            cleanupExpiredHolds();
+            setInterval(() => {
+                cleanupExpiredHolds();
+            }, 60 * 1000);
+        } catch (err) {
+            console.error('Failed to start cleanup job', err);
+        }
 });
 
 // Middleware
@@ -32,16 +47,16 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
 // Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/events', require('./routes/eventRoutes'));
-app.use('/api/venues', require('./routes/venueRoutes'));
-app.use('/api/theaters', require('./routes/theaterRoutes'));
-app.use('/api/orders', require('./routes/orderRoutes'));
-app.use('/api/coupons', require('./routes/couponRoutes'));
-app.use('/api/service-charges', require('./routes/serviceChargeRoutes'));
-app.use('/api/payments', require('./routes/paymentRoutes'));
-app.use('/api/staff', require('./routes/staffRoutes'));
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/venues', venueRoutes);
+app.use('/api/theaters', theaterRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/service-charges', serviceChargeRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/staff', staffRoutes);
 
 // Image proxy to avoid cross-origin issues when generating PDFs
 
@@ -64,7 +79,7 @@ app.get('/image-proxy', async (req, res) => {
 });
 
 // Specific seat route mapping
-app.post('/api/seats/hold', require('./controllers/eventController').holdSeat);
+app.post('/api/seats/hold', holdSeat);
 
 // Serve frontend static files (if built) and provide SPA fallback for client-side routes
 const distPath = path.join(__dirname, '..', 'dist');

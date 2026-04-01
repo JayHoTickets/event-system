@@ -1,7 +1,6 @@
-
-const User = require('../models/User');
-const Venue = require('../models/Venue');
-const ServiceCharge = require('../models/ServiceCharge');
+import User from '../models/User.js';
+import Venue from '../models/Venue.js';
+import ServiceCharge from '../models/ServiceCharge.js';
 
 const seedData = async () => {
     try {
@@ -65,4 +64,4 @@ const seedData = async () => {
     }
 };
 
-module.exports = seedData;
+export default seedData;

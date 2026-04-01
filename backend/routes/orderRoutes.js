@@ -1,8 +1,9 @@
-import { authenticateJWT } from '../middleware/auth.js';
+import express from 'express';
+import { authenticateJWT, requireRole } from '../middleware/auth.js';
+import * as orderController from '../controllers/orderController.js';
 
-const express = require('express');
 const router = express.Router();
-const { getOrders, getOrderById, createOrder, verifyTicket, checkInTicket, cancelOrder, updateRefundStatus, createPaymentPendingOrder, completePaymentPendingOrder } = require('../controllers/orderController');
+const { getOrders, getOrderById, createOrder, verifyTicket, checkInTicket, cancelOrder, updateRefundStatus, createPaymentPendingOrder, completePaymentPendingOrder } = orderController;
 
 // Specific routes first (before /:id pattern)
 router.post('/verify', verifyTicket);
@@ -17,4 +18,4 @@ router.post('/:id/complete-payment', completePaymentPendingOrder);
 router.post('/:id/cancel', authenticateJWT, requireRole('ORGANIZER'), cancelOrder);
 router.post('/:id/refund-status', authenticateJWT, requireRole('ORGANIZER'), updateRefundStatus);
 
-module.exports = router;
+export default router;

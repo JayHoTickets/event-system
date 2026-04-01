@@ -1,10 +1,11 @@
+import Stripe from 'stripe';
+import Coupon from '../models/Coupon.js';
+import ServiceCharge from '../models/ServiceCharge.js';
+import Event from '../models/Event.js';
+import { computeCouponDiscount } from '../utils/discountService.js';
+import mongoose from 'mongoose';
 
-const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-const Coupon = require('../models/Coupon');
-const ServiceCharge = require('../models/ServiceCharge');
-const Event = require('../models/Event');
-const { computeCouponDiscount } = require('../utils/discountService');
 
 const computeChargesForRequest = async (seats, couponId, eventId, paymentMode = 'ONLINE') => {
     const subtotal = seats.reduce((acc, s) => acc + (s.price || 0), 0);
@@ -38,7 +39,7 @@ const computeChargesForRequest = async (seats, couponId, eventId, paymentMode = 
     if (eventId) {
         const q = { level: 'EVENT', active: true };
         try {
-            const ObjectId = require('mongoose').Types.ObjectId;
+            const ObjectId = mongoose.Types.ObjectId;
             if (ObjectId.isValid(eventId)) {
                 q.$or = [{ eventId: eventId }, { eventId: ObjectId(eventId) }];
             } else {
@@ -56,7 +57,7 @@ const computeChargesForRequest = async (seats, couponId, eventId, paymentMode = 
         if (organizerIdForCharge) {
             const q = { level: 'ORGANIZER', active: true };
             try {
-                const ObjectId = require('mongoose').Types.ObjectId;
+                const ObjectId = mongoose.Types.ObjectId;
                 if (ObjectId.isValid(organizerIdForCharge)) {
                     q.$or = [{ organizerId: organizerIdForCharge }, { organizerId: ObjectId(organizerIdForCharge) }];
                 } else {
@@ -103,7 +104,7 @@ const computeChargesForRequest = async (seats, couponId, eventId, paymentMode = 
     return { subtotal, discount, discountedSubtotal, serviceFee, appliedCharges, totalAmount };
 };
 
-exports.quoteCharges = async (req, res) => {
+export const quoteCharges = async (req, res) => {
     const { seats, couponId, eventId, paymentMode } = req.body;
     try {
         const result = await computeChargesForRequest(seats, couponId, eventId, paymentMode || 'ONLINE');
@@ -114,7 +115,7 @@ exports.quoteCharges = async (req, res) => {
     }
 };
 
-exports.createPaymentIntent = async (req, res) => {
+export const createPaymentIntent = async (req, res) => {
     const { seats, couponId, eventId, paymentMode } = req.body;
 
     try {

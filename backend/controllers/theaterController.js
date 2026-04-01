@@ -1,7 +1,6 @@
+import Theater from '../models/Theater.js';
 
-const Theater = require('../models/Theater');
-
-exports.getTheaters = async (req, res) => {
+export const getTheaters = async (req, res) => {
     try {
         const query = { deleted: false };
         if (req.query.venueId) query.venueId = req.query.venueId;
@@ -12,7 +11,7 @@ exports.getTheaters = async (req, res) => {
     }
 };
 
-exports.getTheaterById = async (req, res) => {
+export const getTheaterById = async (req, res) => {
     try {
         const theater = await Theater.findById(req.params.id);
         if (theater && theater.deleted) return res.status(404).json(null);
@@ -22,7 +21,7 @@ exports.getTheaterById = async (req, res) => {
     }
 };
 
-exports.createTheater = async (req, res) => {
+export const createTheater = async (req, res) => {
     try {
         // Default stage if not provided
         const theaterData = {
@@ -37,7 +36,7 @@ exports.createTheater = async (req, res) => {
     }
 };
 
-exports.updateTheaterInfo = async (req, res) => {
+export const updateTheaterInfo = async (req, res) => {
     try {
         const { name, venueId } = req.body;
         // Only allow updating basic info, not layout
@@ -52,7 +51,7 @@ exports.updateTheaterInfo = async (req, res) => {
     }
 };
 
-exports.updateLayout = async (req, res) => {
+export const updateLayout = async (req, res) => {
     try {
         const { seats, stage, rows, cols } = req.body;
         const theater = await Theater.findByIdAndUpdate(
@@ -66,7 +65,7 @@ exports.updateLayout = async (req, res) => {
     }
 };
 
-exports.deleteTheater = async (req, res) => {
+export const deleteTheater = async (req, res) => {
     try {
         await Theater.findByIdAndUpdate(req.params.id, { deleted: true });
         res.json({ success: true });

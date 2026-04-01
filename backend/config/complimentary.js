@@ -10,4 +10,4 @@ if (raw) {
     if (!isNaN(n) && n > 0) GLOBAL_LIMIT = n;
 }
 
-module.exports = { GLOBAL_LIMIT };
+export { GLOBAL_LIMIT };

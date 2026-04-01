@@ -1,9 +1,8 @@
+import Coupon from '../models/Coupon.js';
+import Event from '../models/Event.js';
+import { computeCouponDiscount } from '../utils/discountService.js';
 
-const Coupon = require('../models/Coupon');
-const Event = require('../models/Event');
-const { computeCouponDiscount } = require('../utils/discountService');
-
-exports.getCoupons = async (req, res) => {
+export const getCoupons = async (req, res) => {
     try {
         const query = { deleted: false };
         if (req.query.organizerId) query.organizerId = req.query.organizerId;
@@ -14,7 +13,7 @@ exports.getCoupons = async (req, res) => {
     }
 };
 
-exports.createCoupon = async (req, res) => {
+export const createCoupon = async (req, res) => {
     try {
         const exists = await Coupon.findOne({ code: req.body.code, active: true, deleted: false });
         if (exists) return res.status(400).json({ message: 'Code exists' });
@@ -52,7 +51,7 @@ exports.createCoupon = async (req, res) => {
     }
 };
 
-exports.updateCoupon = async (req, res) => {
+export const updateCoupon = async (req, res) => {
     try {
         // Load existing coupon to merge legacy ruleParams if needed
         const existing = await Coupon.findById(req.params.id);
@@ -93,7 +92,7 @@ exports.updateCoupon = async (req, res) => {
     }
 };
 
-exports.deleteCoupon = async (req, res) => {
+export const deleteCoupon = async (req, res) => {
     try {
         await Coupon.findByIdAndUpdate(req.params.id, { deleted: true });
         res.json({ success: true });
@@ -102,7 +101,7 @@ exports.deleteCoupon = async (req, res) => {
     }
 };
 
-exports.validateCoupon = async (req, res) => {
+export const validateCoupon = async (req, res) => {
     const { code, eventId, seats } = req.body;
     try {
         const coupon = await Coupon.findOne({ code, active: true, deleted: false });
@@ -127,7 +126,7 @@ exports.validateCoupon = async (req, res) => {
 };
 
 // Returns the best applicable coupon for a given event and seats
-exports.getBestCoupon = async (req, res) => {
+export const getBestCoupon = async (req, res) => {
     const { eventId, seats } = req.body;
     try {
         const eventDoc = eventId ? await Event.findById(eventId) : null;

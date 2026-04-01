@@ -1,7 +1,6 @@
+import ServiceCharge from '../models/ServiceCharge.js';
 
-const ServiceCharge = require('../models/ServiceCharge');
-
-exports.getCharges = async (req, res) => {
+export const getCharges = async (req, res) => {
     try {
         const charges = await ServiceCharge.find();
         res.json(charges);
@@ -10,7 +9,7 @@ exports.getCharges = async (req, res) => {
     }
 };
 
-exports.createCharge = async (req, res) => {
+export const createCharge = async (req, res) => {
     try {
         const charge = await ServiceCharge.create(req.body);
         res.json(charge);
@@ -19,7 +18,7 @@ exports.createCharge = async (req, res) => {
     }
 };
 
-exports.updateCharge = async (req, res) => {
+export const updateCharge = async (req, res) => {
     try {
         const charge = await ServiceCharge.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(charge);
@@ -28,7 +27,7 @@ exports.updateCharge = async (req, res) => {
     }
 };
 
-exports.deleteCharge = async (req, res) => {
+export const deleteCharge = async (req, res) => {
     try {
         await ServiceCharge.findByIdAndDelete(req.params.id);
         res.json({ success: true });

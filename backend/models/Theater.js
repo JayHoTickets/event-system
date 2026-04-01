@@ -1,5 +1,5 @@
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const SeatSchema = new mongoose.Schema({
     id: String, // Client-side ID (e.g., '0-1')
@@ -42,4 +42,4 @@ const TheaterSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('Theater', TheaterSchema);
+export default mongoose.model('Theater', TheaterSchema);

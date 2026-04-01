@@ -1,17 +1,17 @@
+import Order from '../models/Order.js';
+import Event from '../models/Event.js';
+import Coupon from '../models/Coupon.js';
+import User from '../models/User.js';
+import { sendOrderEmails, sendCancellationEmails, sendPaymentPendingEmail } from '../utils/emailService.js';
+import { computeCouponDiscount } from '../utils/discountService.js';
+import { GLOBAL_LIMIT } from '../config/complimentary.js';
+import Stripe from 'stripe';
+import mongoose from 'mongoose';
+import crypto from 'crypto';
 
-const Order = require('../models/Order');
-const Event = require('../models/Event');
-const Coupon = require('../models/Coupon');
-const User = require('../models/User');
-const { sendOrderEmails } = require('../utils/emailService');
-const { computeCouponDiscount } = require('../utils/discountService');
-const { GLOBAL_LIMIT } = require('../config/complimentary');
-
-const { sendCancellationEmails } = require('../utils/emailService');
-const Stripe = require('stripe');
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
-exports.getOrders = async (req, res) => {
+export const getOrders = async (req, res) => {
     try {
         const query = req.query.eventId ? { 'tickets.eventId': req.query.eventId } : {};
         const orders = await Order.find(query);
@@ -22,7 +22,7 @@ exports.getOrders = async (req, res) => {
     }
 };
 
-exports.createOrder = async (req, res) => {
+export const createOrder = async (req, res) => {
     const { customer, event, seats, serviceFee, appliedCharges, couponId, paymentMode, transactionId, bookedBy } = req.body;
     try {
         // 1. Compute subtotal and determine any applicable coupon (auto-apply best)
@@ -33,7 +33,7 @@ exports.createOrder = async (req, res) => {
 
         if (couponId) {
             // Only attempt to lookup coupon if couponId looks like a valid ObjectId
-            const mongoose = require('mongoose');
+            // using imported mongoose
             try {
                 if (mongoose.Types.ObjectId.isValid(String(couponId))) {
                     const coupon = await Coupon.findById(couponId);
@@ -198,7 +198,7 @@ exports.createOrder = async (req, res) => {
         const totalAmount = Math.max(0, subtotal - discount) + serviceFee;
         
         // Generate Ticket Objects with compact alphanumeric IDs (10-12 chars)
-        const crypto = require('crypto');
+        // using imported crypto
         const TICKET_PREFIX = process.env.TICKET_PREFIX || 'JH';
         const generateTicketId = () => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -336,7 +336,7 @@ exports.createOrder = async (req, res) => {
     }
 };
 
-exports.verifyTicket = async (req, res) => {
+export const verifyTicket = async (req, res) => {
     const { qrCode } = req.body;
     try {
         // Find order containing this ticket ID
@@ -363,7 +363,7 @@ exports.verifyTicket = async (req, res) => {
     }
 };
 
-exports.checkInTicket = async (req, res) => {
+export const checkInTicket = async (req, res) => {
     const { ticketId, checkedIn } = req.body;
     try {
         const order = await Order.findOne({ "tickets.id": ticketId });
@@ -389,7 +389,7 @@ exports.checkInTicket = async (req, res) => {
 };
 
 // Organizer cancels an order for their event
-exports.cancelOrder = async (req, res) => {
+export const cancelOrder = async (req, res) => {
     const { id } = req.params; // order id
     const { organizerId, refundAmount = 0, notes = '', refundStatus = 'PENDING' } = req.body;
     try {
@@ -528,7 +528,7 @@ exports.cancelOrder = async (req, res) => {
  * Updates seat status from HOLD to SOLD
  * Sends confirmation email with QR codes and tickets
  */
-exports.completePaymentPendingOrder = async (req, res) => {
+export const completePaymentPendingOrder = async (req, res) => {
     const { orderId, paymentMode, transactionId } = req.body;
     try {
         const order = await Order.findById(orderId);
@@ -612,7 +612,7 @@ exports.completePaymentPendingOrder = async (req, res) => {
  * This creates an order with PAYMENT_PENDING status and sends a payment-pending email
  * The seats are marked as HOLD status and will auto-release after 24 hours if not paid
  */
-exports.createPaymentPendingOrder = async (req, res) => {
+export const createPaymentPendingOrder = async (req, res) => {
     const { eventId, seatIds, customer, serviceFee = 0, bookedBy, paymentMode, couponId } = req.body;
     try {
         // 1. Fetch Event
@@ -695,7 +695,7 @@ exports.createPaymentPendingOrder = async (req, res) => {
                 const seatObjects = event.seats.filter(s => seatIds.includes(s.id));
                 const subtotal = seatObjects.reduce((acc, s) => acc + (s.price || 0), 0);
 
-                const crypto = require('crypto');
+                // using imported crypto
                 const TICKET_PREFIX = process.env.TICKET_PREFIX || 'JH';
                 const generateTicketId = () => {
                     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -777,7 +777,6 @@ exports.createPaymentPendingOrder = async (req, res) => {
         let appliedCouponCode = null;
         if (couponId) {
             try {
-                const mongoose = require('mongoose');
                 if (mongoose.Types.ObjectId.isValid(String(couponId))) {
                     const coupon = await Coupon.findById(couponId);
                     if (coupon) {
@@ -796,7 +795,7 @@ exports.createPaymentPendingOrder = async (req, res) => {
         const totalAmount = Math.max(0, subtotal - (discount || 0)) + serviceFee;
 
         // 5. Generate Ticket Objects (without QR codes, as payment hasn't been made yet)
-        const crypto = require('crypto');
+        // using imported crypto
         const TICKET_PREFIX = process.env.TICKET_PREFIX || 'JH';
         const generateTicketId = () => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -854,7 +853,6 @@ exports.createPaymentPendingOrder = async (req, res) => {
 
         // 9. Send Payment Pending Email (async - don't block response)
         try {
-            const { sendPaymentPendingEmail } = require('../utils/emailService');
             await sendPaymentPendingEmail({
                 order,
                 event,
@@ -874,7 +872,7 @@ exports.createPaymentPendingOrder = async (req, res) => {
 };
 
 // Update only the refund status of a cancelled order
-exports.updateRefundStatus = async (req, res) => {
+export const updateRefundStatus = async (req, res) => {
     const { id } = req.params;
     const { organizerId, refundStatus } = req.body;
     try {
@@ -917,12 +915,11 @@ exports.updateRefundStatus = async (req, res) => {
  * Get a single order by ID
  * Used for payment completion page to load order details
  */
-exports.getOrderById = async (req, res) => {
+export const getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Validate ObjectId format
-        const mongoose = require('mongoose');
+        // Validate ObjectId format using imported mongoose
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'Invalid order ID format' });
         }

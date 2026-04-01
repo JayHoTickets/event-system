@@ -1,9 +1,8 @@
+import User from '../models/User.js';
+import Staff from '../models/Staff.js';
+import { generateToken } from '../middleware/auth.js';
 
-const User = require('../models/User');
-const Staff = require('../models/Staff');
-const { generateToken } = require('../middleware/auth');
-
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
     let { email, password } = req.body;
     try {
         if (typeof email === 'string') email = email.trim().toLowerCase();
@@ -33,7 +32,7 @@ exports.login = async (req, res) => {
     }
 };
 
-exports.mockLogin = async (req, res) => {
+export const mockLogin = async (req, res) => {
     const { role } = req.body;
     try {
         const user = await User.findOne({ role });

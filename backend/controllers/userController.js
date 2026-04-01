@@ -1,7 +1,6 @@
+import User from '../models/User.js';
 
-const User = require('../models/User');
-
-exports.getUsers = async (req, res) => {
+export const getUsers = async (req, res) => {
     try {
         const query = req.query.role ? { role: req.query.role } : {};
         const users = await User.find(query);
@@ -11,7 +10,7 @@ exports.getUsers = async (req, res) => {
     }
 };
 
-exports.createOrganizer = async (req, res) => {
+export const createOrganizer = async (req, res) => {
     const { name, email, password } = req.body;
     try {
         const exists = await User.findOne({ email });
@@ -27,7 +26,7 @@ exports.createOrganizer = async (req, res) => {
 };
 
 // Set organizer-level complimentary limit
-exports.setComplimentaryLimit = async (req, res) => {
+export const setComplimentaryLimit = async (req, res) => {
     try {
         const { id } = req.params;
         const { complimentaryLimit } = req.body;
