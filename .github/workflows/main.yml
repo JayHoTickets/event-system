@@ -54,7 +54,6 @@ jobs:
           echo "✅ Frontend deployed!"
 
           # ---------- Backend ----------
-          echo "🧹 Cleaning previous backend..."
           cd backend
           echo "📦 Installing backend dependencies..."
           npm install
@@ -80,24 +79,29 @@ jobs:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      - name: 🚀 Deploy to Hostinger VPS
+      - name: 🔧 Install sshpass
+        run: sudo apt-get install -y sshpass
+
+      - name: 🔌 Test SSH connection to Hostinger
         env:
           HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
           HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
-          HOSTINGER_SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+          HOSTINGER_PASSWORD: ${{ secrets.HOSTINGER_PASSWORD }}
         run: |
-          echo "$HOSTINGER_SSH_KEY" > hostinger_key.pem
-          chmod 600 hostinger_key.pem
-
           echo "🔌 Testing SSH connection to Hostinger VPS..."
-          ssh -i hostinger_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=10 $HOSTINGER_USER@$HOSTINGER_HOST "echo '✅ SSH connection successful!'"
+          sshpass -p "$HOSTINGER_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 $HOSTINGER_USER@$HOSTINGER_HOST "echo '✅ SSH connection successful!'"
           if [ $? -ne 0 ]; then
             echo "❌ SSH connection failed. Exiting."
             exit 1
           fi
 
-          echo "🚀 Deploying React app on Hostinger VPS..."
-          ssh -i hostinger_key.pem -o StrictHostKeyChecking=no $HOSTINGER_USER@$HOSTINGER_HOST <<'EOF'
+      - name: 🚀 Deploy to Hostinger VPS
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_PASSWORD: ${{ secrets.HOSTINGER_PASSWORD }}
+        run: |
+          sshpass -p "$HOSTINGER_PASSWORD" ssh -o StrictHostKeyChecking=no $HOSTINGER_USER@$HOSTINGER_HOST <<'EOF'
           set -e
 
           # ---------- Frontend ----------
