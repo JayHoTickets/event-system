@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
-        allowedHosts: ['jayhotickets.com', 'www.jayhotickets.com'],
+        allowedHosts: ['jayhotickets.com', 'www.jayhotickets.com', 'https://jayhoshow.com/'],
       },
       plugins: [react()],
       define: {
