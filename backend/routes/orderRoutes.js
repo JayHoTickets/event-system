@@ -1,4 +1,4 @@
-import { authenticateJWT } from '../middleware/auth';
+import { authenticateJWT } from '../middleware/auth.js';
 
 const express = require('express');
 const router = express.Router();
