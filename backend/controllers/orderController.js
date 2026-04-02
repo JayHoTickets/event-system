@@ -25,13 +25,16 @@ export const getOrders = async (req, res) => {
 export const createOrder = async (req, res) => {
     const { customer, event, seats, serviceFee, appliedCharges, couponId, paymentMode, transactionId, bookedBy } = req.body;
     try {
-        // 1. Compute subtotal and determine any applicable coupon (auto-apply best)
+        const isComplimentary = String(paymentMode || '').toUpperCase() === 'COMPLIMENTARY';
+
+        // 1. Compute subtotal and determine any applicable coupon (auto-apply best).
+        // Complimentary tickets are $0 charged — do not apply coupons or store a pseudo "discount".
         let couponCode;
         let discount = 0;
         let appliedCoupon = null;
         const subtotal = seats.reduce((acc, s) => acc + (s.price || 0), 0);
 
-        if (couponId) {
+        if (!isComplimentary && couponId) {
             // Only attempt to lookup coupon if couponId looks like a valid ObjectId
             // using imported mongoose
             try {
@@ -52,7 +55,7 @@ export const createOrder = async (req, res) => {
             } catch (e) {
                 console.error('createOrder - coupon lookup failed', e);
             }
-        } else {
+        } else if (!isComplimentary) {
             // auto-apply best coupon for this event/organizer
             const eventDoc = await Event.findById(event.id);
             const organizerId = eventDoc ? eventDoc.organizerId : null;
@@ -75,7 +78,6 @@ export const createOrder = async (req, res) => {
         // 2. Update Event Seats/Inventory
         const eventDoc = await Event.findById(event.id);
         // Enforce complimentary limits if this is a complimentary order
-        const isComplimentary = String(paymentMode || '').toUpperCase() === 'COMPLIMENTARY';
         if (isComplimentary && eventDoc) {
             try {
                 // Count already-used complimentary tickets for this event
@@ -283,11 +285,12 @@ export const createOrder = async (req, res) => {
         let finalServiceFee = Number(serviceFee || 0);
         let finalAppliedCharges = Array.isArray(normalizedAppliedCharges) ? normalizedAppliedCharges : [];
         let finalDiscountApplied = discount;
-        if (String(paymentMode || '').toUpperCase() === 'COMPLIMENTARY') {
+        if (isComplimentary) {
             finalTotal = 0;
             finalServiceFee = 0;
             finalAppliedCharges = [];
-            finalDiscountApplied = subtotal;
+            finalDiscountApplied = 0;
+            couponCode = undefined;
         }
 
         const order = await Order.create({
@@ -300,7 +303,7 @@ export const createOrder = async (req, res) => {
             serviceFee: finalServiceFee,
             appliedCharges: finalAppliedCharges,
             discountApplied: finalDiscountApplied,
-            couponCode,
+            couponCode: couponCode || undefined,
             paymentMode,
             transactionId: transactionId || null, // Store Stripe ID
             // Persist bookedBy info if provided, otherwise infer from customer
@@ -844,7 +847,7 @@ export const createPaymentPendingOrder = async (req, res) => {
                     tickets,
                     totalAmount: 0,
                     serviceFee: 0,
-                    discountApplied: subtotal,
+                    discountApplied: 0,
                     status: 'PAID',
                     paymentPendingUntil: null,
                     paymentUrl: null,

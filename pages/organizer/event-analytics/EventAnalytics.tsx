@@ -503,23 +503,30 @@ const EventAnalytics: React.FC = () => {
     }
 
       try {
-      // Ask server for authoritative quote for this payment mode so charges apply correctly
+      const isComplimentaryBo = boMode === PaymentMode.COMPLIMENTARY;
+      // Ask server for authoritative quote for this payment mode so charges apply correctly (not for complimentary)
       let serverQuote: any = null;
-      try {
-        const couponId = boCoupon ? boCoupon.id : undefined;
-        serverQuote = await fetchChargesQuote(selectedSeatObjs, couponId, event.id, boMode);
-      } catch (e) {
-        console.debug('BoxOffice - failed to fetch server quote, falling back to 0 service fee', e);
+      if (!isComplimentaryBo) {
+        try {
+          const couponId = boCoupon ? boCoupon.id : undefined;
+          serverQuote = await fetchChargesQuote(selectedSeatObjs, couponId, event.id, boMode);
+        } catch (e) {
+          console.debug('BoxOffice - failed to fetch server quote, falling back to 0 service fee', e);
+        }
       }
-      let serviceFeeToUse = serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0;
-      let appliedChargesToUse = serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined;
+      let serviceFeeToUse = isComplimentaryBo
+        ? 0
+        : (serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0);
+      let appliedChargesToUse = isComplimentaryBo
+        ? undefined
+        : (serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined);
       await processPayment(
         { name: boName, email: boEmail, phone: boPhone },
         event,
         selectedSeatObjs,
         serviceFeeToUse,
         appliedChargesToUse,
-        boCoupon ? boCoupon.id : undefined,
+        isComplimentaryBo ? undefined : (boCoupon ? boCoupon.id : undefined),
         boMode,
         undefined,
         // bookedBy: organizer/staff performing box-office action
@@ -1053,22 +1060,37 @@ const EventAnalytics: React.FC = () => {
 
               {/* Price breakdown */}
               <div className="mb-4 p-3 bg-white border rounded-lg text-sm">
-                <div className="flex justify-between text-slate-600 mb-1">
-                  <span>Subtotal</span>
-                  <span className="font-medium">${selectionTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600 mb-1">
-                  <span>Discount</span>
-                  <span className="font-medium">${((boQuote && boQuote.discount) || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600 mb-1">
-                  <span>Service Fee</span>
-                  <span className="font-medium">${((boQuote && boQuote.serviceFee) || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-900 font-bold mt-2">
-                  <span>Total</span>
-                  <span>${( (selectionTotal - ((boQuote && boQuote.discount) || 0)) + ((boQuote && boQuote.serviceFee) || 0) ).toFixed(2)}</span>
-                </div>
+                {boMode === PaymentMode.COMPLIMENTARY ? (
+                  <>
+                    <div className="flex justify-between text-slate-600 mb-1">
+                      <span>Face value (not charged)</span>
+                      <span className="font-medium">${selectionTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-900 font-bold mt-2 border-t pt-2">
+                      <span>Total charged</span>
+                      <span>$0.00</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-slate-600 mb-1">
+                      <span>Subtotal</span>
+                      <span className="font-medium">${selectionTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 mb-1">
+                      <span>Discount</span>
+                      <span className="font-medium">${((boQuote && boQuote.discount) || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 mb-1">
+                      <span>Service Fee</span>
+                      <span className="font-medium">${((boQuote && boQuote.serviceFee) || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-900 font-bold mt-2">
+                      <span>Total</span>
+                      <span>${( (selectionTotal - ((boQuote && boQuote.discount) || 0)) + ((boQuote && boQuote.serviceFee) || 0) ).toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <form onSubmit={handleBoxOfficeSubmit}>
@@ -1110,6 +1132,7 @@ const EventAnalytics: React.FC = () => {
                       onChange={(e) => setBoPhone(e.target.value)}
                     />
                   </div>
+                  {boMode !== PaymentMode.COMPLIMENTARY && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Coupon Code (optional)</label>
                     <div className="flex gap-2">
@@ -1161,6 +1184,7 @@ const EventAnalytics: React.FC = () => {
                     )}
                     {boCouponError && <p className="text-xs text-red-600 mt-1">{boCouponError}</p>}
                   </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       Payment Mode
@@ -1168,7 +1192,17 @@ const EventAnalytics: React.FC = () => {
                       <div className="grid grid-cols-3 gap-3">
                       <button
                         type="button"
-                        onClick={() => setBoMode(PaymentMode.CASH)}
+                        onClick={async () => {
+                          setBoMode(PaymentMode.CASH);
+                          if (!event) return;
+                          try {
+                            const selectedSeatObjsLocal = event.seats.filter((s) => selectedSeatIds.includes(s.id));
+                            const quote = await fetchChargesQuote(selectedSeatObjsLocal, undefined, event.id, PaymentMode.CASH);
+                            setBoQuote(quote);
+                          } catch {
+                            setBoQuote(null);
+                          }
+                        }}
                         className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.CASH ? "bg-green-50 border-green-500 text-green-700" : "hover:bg-slate-50"}`}
                       >
                         <DollarSign className="w-5 h-5" />
@@ -1185,7 +1219,13 @@ const EventAnalytics: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => setBoMode(PaymentMode.COMPLIMENTARY)}
+                        onClick={() => {
+                          setBoMode(PaymentMode.COMPLIMENTARY);
+                          setBoCoupon(null);
+                          setBoCouponCode('');
+                          setBoCouponError(null);
+                          setBoQuote(null);
+                        }}
                         className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.COMPLIMENTARY ? "bg-indigo-50 border-indigo-500 text-indigo-700" : "hover:bg-slate-50"}`}
                       >
                         <Ban className="w-5 h-5" />
