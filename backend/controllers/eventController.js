@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Event from '../models/Event.js';
 import Venue from '../models/Venue.js';
 import Theater from '../models/Theater.js';
+import Staff from '../models/Staff.js';
 
 // Parse incoming date/time values from the client. The frontend sends
 // the wall-clock value (e.g. "2026-01-26T18:00") together with an
@@ -536,6 +537,30 @@ export const updateSeats = async (req, res) => {
     try {
         const event = await Event.findById(req.params.id);
         if(!event) return res.status(404).json({});
+
+        // Authorization:
+        // - ADMIN can update any event seats
+        // - ORGANIZER can update only seats for their own event
+        // - STAFF can update only if they have `live_map` permission and belong to the event's organizer
+        const callerRole = req.user && req.user.role;
+        if (callerRole === 'ORGANIZER') {
+            if (String(event.organizerId) !== String(req.user.id)) {
+                return res.status(403).json({ message: 'Forbidden: cannot modify seats for this event' });
+            }
+        } else if (callerRole === 'STAFF') {
+            const staff = await Staff.findById(req.user.id);
+            if (!staff || !staff.active) {
+                return res.status(403).json({ message: 'Forbidden: staff account inactive' });
+            }
+            if (!Array.isArray(staff.permissions) || !staff.permissions.includes('live_map')) {
+                return res.status(403).json({ message: 'Forbidden: missing permission to update seat map' });
+            }
+            if (String(staff.organizerId) !== String(event.organizerId)) {
+                return res.status(403).json({ message: 'Forbidden: staff cannot modify seats for this organizer' });
+            }
+        } else if (callerRole !== 'ADMIN') {
+            return res.status(403).json({ message: 'Forbidden: insufficient role' });
+        }
 
         const seatIdSet = new Set(seatIds);
         event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s, status } : s);
