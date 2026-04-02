@@ -177,37 +177,29 @@ const EventAnalytics: React.FC = () => {
     return <div className="p-10 text-center text-red-500">Event not found</div>;
 
     // --- Stats Calculation ---
-    // Exclude cancelled orders from revenue and ticket counts
     const activeOrders = orders.filter(o => o.status !== 'CANCELLED');
-    const totalRevenue = activeOrders.reduce((acc, o) => acc + (o.totalAmount - (o.serviceFee || 0)), 0);
+    const orderActualEarning = (o: Order) => o.totalAmount - (o.serviceFee || 0);
+    const paidOrders = activeOrders.filter(o => o.status === 'PAID');
+    const onlinePaidOrders = paidOrders.filter(
+      (o) => (o.paymentMode || PaymentMode.ONLINE) === PaymentMode.ONLINE,
+    );
+    const cashPaidOrders = paidOrders.filter((o) => o.paymentMode === PaymentMode.CASH);
+
+    const totalOnlinePaid = onlinePaidOrders.reduce((a, o) => a + o.totalAmount, 0);
+    const onlineServiceFeesPaid = onlinePaidOrders.reduce((a, o) => a + (o.serviceFee || 0), 0);
+    const onlineTotalEarning = onlinePaidOrders.reduce((a, o) => a + orderActualEarning(o), 0);
+
+    const totalCashCollected = cashPaidOrders.reduce((a, o) => a + o.totalAmount, 0);
+    const dueCashServiceFee = cashPaidOrders.reduce((a, o) => a + (o.serviceFee || 0), 0);
+    const estimatedCashEarning = cashPaidOrders.reduce((a, o) => a + orderActualEarning(o), 0);
+
+    const totalEarningFromPlatform = onlineTotalEarning + estimatedCashEarning;
+    const onlineEarningMinusDueCashService = onlineTotalEarning - dueCashServiceFee;
+
     const totalTicketsSold = activeOrders.reduce((acc, o) => acc + o.tickets.length, 0);
-    const totalCapacity = event.seats.length;
-    const percentageSold = totalCapacity > 0 ? Math.round((totalTicketsSold / totalCapacity) * 100) : 0;
-    
-    // Check-in Stats
+
     const totalCheckedIn = orders.reduce((acc, o) => acc + o.tickets.filter(t => t.checkedIn).length, 0);
     const percentageCheckedIn = totalTicketsSold > 0 ? Math.round((totalCheckedIn / totalTicketsSold) * 100) : 0;
-
-  // --- Chart Data Preparation ---
-  const salesByType: Record<string, number> = {};
-  orders.forEach((o) => {
-    o.tickets.forEach((t) => {
-      const type = t.ticketType || "Unknown";
-      salesByType[type] = (salesByType[type] || 0) + 1;
-    });
-  });
-
-  const chartData = Object.entries(salesByType).map(([name, count]) => ({
-    name,
-    count,
-  }));
-  const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f43f5e"];
-  const CHECKIN_COLORS = ["#22c55e", "#e2e8f0"]; // Green for checked in, Grey for pending
-
-  const checkInData = [
-    { name: "Checked In", value: totalCheckedIn },
-    { name: "Pending", value: totalTicketsSold - totalCheckedIn },
-  ];
 
   // --- Filtering Orders ---
   const filteredOrders = orders
@@ -700,14 +692,14 @@ const EventAnalytics: React.FC = () => {
       {activeView === "STATS" && (!isStaff || perms.includes('revenue')) && (
         <EventAnalyticsStats
           event={event}
-          totalRevenue={totalRevenue}
-          totalTicketsSold={totalTicketsSold}
-          totalCapacity={totalCapacity}
-          percentageSold={percentageSold}
-          totalCheckedIn={totalCheckedIn}
-          percentageCheckedIn={percentageCheckedIn}
-          chartData={chartData}
-          COLORS={COLORS}
+          totalOnlinePaid={totalOnlinePaid}
+          onlineServiceFeesPaid={onlineServiceFeesPaid}
+          onlineTotalEarning={onlineTotalEarning}
+          totalCashCollected={totalCashCollected}
+          dueCashServiceFee={dueCashServiceFee}
+          estimatedCashEarning={estimatedCashEarning}
+          totalEarningFromPlatform={totalEarningFromPlatform}
+          onlineEarningMinusDueCashService={onlineEarningMinusDueCashService}
           filteredOrders={filteredOrders}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
@@ -720,7 +712,6 @@ const EventAnalytics: React.FC = () => {
           orderModeFilter={orderModeFilter}
           setOrderModeFilter={setOrderModeFilter}
           handleExportOrders={handleExportOrders}
-          usersMap={usersMap}
           setSelectedOrder={setSelectedOrder}
         />
       )}

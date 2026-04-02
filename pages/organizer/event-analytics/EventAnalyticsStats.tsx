@@ -1,19 +1,21 @@
 import React from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
-import { Search, Download, Eye, Ticket, DollarSign } from 'lucide-react';
+import { Search, Download, Eye } from 'lucide-react';
 import { formatDateInTimeZone, formatTimeInTimeZone } from '../../../utils/date';
+
+const fmtMoney = (n: number) =>
+  `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const EventAnalyticsStats: React.FC<any> = (props) => {
   const {
     event,
-    totalRevenue,
-    totalTicketsSold,
-    totalCapacity,
-    percentageSold,
-    totalCheckedIn,
-    percentageCheckedIn,
-    chartData,
-    COLORS,
+    totalOnlinePaid,
+    onlineServiceFeesPaid,
+    onlineTotalEarning,
+    totalCashCollected,
+    dueCashServiceFee,
+    estimatedCashEarning,
+    totalEarningFromPlatform,
+    onlineEarningMinusDueCashService,
     filteredOrders,
     searchTerm,
     setSearchTerm,
@@ -29,68 +31,37 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
     setSelectedOrder,
   } = props;
 
+  const row = (label: string, value: number) => (
+    <div className="flex justify-between items-baseline gap-3 text-sm">
+      <span className="text-slate-600 shrink-0">{label}</span>
+      <span className="font-semibold text-slate-900 tabular-nums text-right">{fmtMoney(value)}</span>
+    </div>
+  );
+
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-slate-500 uppercase">Total Revenue</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">${totalRevenue.toLocaleString()}</h3>
-            </div>
-            <div className="p-3 bg-green-100 text-green-600 rounded-lg">
-              <DollarSign className="w-6 h-6" />
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div className="space-y-3">
+            {row('Total Online Paid :-', totalOnlinePaid)}
+            {row('Service Fees Paid:-', onlineServiceFeesPaid)}
+            {row('Online Total Earning :-', onlineTotalEarning)}
           </div>
         </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-slate-500 uppercase">Tickets Sold</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalTicketsSold} <span className="text-sm font-normal text-slate-400">{totalCapacity > 0 ? `/ ${totalCapacity}` : ""}</span></h3>
-            </div>
-            <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-              <Ticket className="w-6 h-6" />
-            </div>
-          </div>
-          {totalCapacity > 0 && (
-            <div className="w-full bg-slate-100 h-1.5 mt-4 rounded-full overflow-hidden">
-              <div className="bg-indigo-600 h-full" style={{ width: `${percentageSold}%` }} />
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-slate-500 uppercase">Attendance</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalCheckedIn} <span className="text-sm font-normal text-slate-400">/ {totalTicketsSold}</span></h3>
-            </div>
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-              <Ticket className="w-6 h-6" />
-            </div>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 mt-4 rounded-full overflow-hidden">
-            <div className="bg-blue-600 h-full" style={{ width: `${percentageCheckedIn}%` }} />
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div className="space-y-3">
+            {row('Total Cash Collected :-', totalCashCollected)}
+            {row('Due Service Fee:-', dueCashServiceFee)}
+            {row('Estimated Cash Earning:-', estimatedCashEarning)}
           </div>
         </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <p className="text-sm font-medium text-slate-500 uppercase mb-4">Sales by Ticket Type</p>
-          <div className="h-20">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <Tooltip cursor={{ fill: "#f8fafc" }} />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" hide />
-                <Bar dataKey="count" barSize={10} radius={[0, 4, 4, 0]}>
-                  {chartData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div className="space-y-3">
+            {row('Total Earning From Platform', totalEarningFromPlatform)}
+            <div className="flex justify-between items-baseline gap-3 text-sm">
+              <span className="text-slate-600 shrink-0 leading-snug">Online Total Earning - Due Service Fee</span>
+              <span className="font-semibold text-slate-900 tabular-nums text-right">{fmtMoney(onlineEarningMinusDueCashService)}</span>
+            </div>
           </div>
         </div>
       </div>
