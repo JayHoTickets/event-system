@@ -338,7 +338,7 @@ const EventAnalytics: React.FC = () => {
         'Refund Status',
         'Coupon',
         'Service Fee',
-        'Discount Amount'
+        // Intentionally no Discount column in orders export
       ];
 
       const rows = filteredOrders.map(o => [
@@ -354,7 +354,7 @@ const EventAnalytics: React.FC = () => {
         o.refundStatus || '',
         o.couponCode || '',
         (o.serviceFee || 0).toFixed(2),
-        ((o.discountApplied || 0) > 0 ? -(o.discountApplied || 0) : 0).toFixed(2)
+        // Intentionally no Discount column in orders export
       ]);
 
       const escapeCell = (v: any) => {
