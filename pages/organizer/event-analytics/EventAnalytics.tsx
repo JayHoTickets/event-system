@@ -78,6 +78,9 @@ const EventAnalytics: React.FC = () => {
   const [holdCouponApplying, setHoldCouponApplying] = useState(false);
   const [holdQuote, setHoldQuote] = useState<any | null>(null);
 
+  // Organizer-only: block/unblock seats action in-flight.
+  const [seatStatusProcessing, setSeatStatusProcessing] = useState(false);
+
   // Check-in Report State
   const [ticketSearch, setTicketSearch] = useState("");
   const [checkInFilter, setCheckInFilter] = useState<
@@ -413,6 +416,8 @@ const EventAnalytics: React.FC = () => {
 
   const isReserved = event.seatingType === SeatingType.RESERVED;
 
+  const showSeatActionOverlay = boProcessing || holdProcessing || seatStatusProcessing;
+
   // --- Map Interactions ---
   const handleSeatClick = (seat: Seat) => {
     if (seat.status === SeatStatus.SOLD) return;
@@ -429,16 +434,32 @@ const EventAnalytics: React.FC = () => {
 
   const handleBlockSeats = async () => {
     if (!event) return;
-    await updateSeatStatus(event.id, selectedSeatIds, SeatStatus.UNAVAILABLE);
-    setSelectedSeatIds([]);
-    loadData();
+    if (seatStatusProcessing) return;
+    setSeatStatusProcessing(true);
+    try {
+      await updateSeatStatus(event.id, selectedSeatIds, SeatStatus.UNAVAILABLE);
+      setSelectedSeatIds([]);
+      loadData();
+    } catch (err: any) {
+      alert('Failed to block seats. ' + (err?.message || String(err)));
+    } finally {
+      setSeatStatusProcessing(false);
+    }
   };
 
   const handleUnblockSeats = async () => {
     if (!event) return;
-    await updateSeatStatus(event.id, selectedSeatIds, SeatStatus.AVAILABLE);
-    setSelectedSeatIds([]);
-    loadData();
+    if (seatStatusProcessing) return;
+    setSeatStatusProcessing(true);
+    try {
+      await updateSeatStatus(event.id, selectedSeatIds, SeatStatus.AVAILABLE);
+      setSelectedSeatIds([]);
+      loadData();
+    } catch (err: any) {
+      alert('Failed to unblock seats. ' + (err?.message || String(err)));
+    } finally {
+      setSeatStatusProcessing(false);
+    }
   };
 
   const handleOpenBoxOffice = () => {
@@ -586,6 +607,14 @@ const EventAnalytics: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 relative">
+      {showSeatActionOverlay && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-xl shadow-2xl px-6 py-5 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600" />
+            <p className="mt-3 text-slate-700 font-medium">Processing...</p>
+          </div>
+        </div>
+      )}
       <button
         onClick={() => navigate("/organizer")}
         className="flex items-center text-slate-500 hover:text-slate-800 mb-6"
