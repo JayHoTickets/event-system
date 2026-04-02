@@ -179,14 +179,7 @@ const EventAnalytics: React.FC = () => {
     // --- Stats Calculation ---
     // Exclude cancelled orders from revenue and ticket counts
     const activeOrders = orders.filter(o => o.status !== 'CANCELLED');
-    const orderActualEarning = (o: Order) => o.totalAmount - (o.serviceFee || 0);
-    const totalRevenue = activeOrders.reduce((acc, o) => acc + orderActualEarning(o), 0);
-    const totalEarningOnline = activeOrders
-      .filter((o) => (o.paymentMode || PaymentMode.ONLINE) === PaymentMode.ONLINE)
-      .reduce((acc, o) => acc + orderActualEarning(o), 0);
-    const totalEarningCash = activeOrders
-      .filter((o) => o.paymentMode === PaymentMode.CASH)
-      .reduce((acc, o) => acc + orderActualEarning(o), 0);
+    const totalRevenue = activeOrders.reduce((acc, o) => acc + (o.totalAmount - (o.serviceFee || 0)), 0);
     const totalTicketsSold = activeOrders.reduce((acc, o) => acc + o.tickets.length, 0);
     const totalCapacity = event.seats.length;
     const percentageSold = totalCapacity > 0 ? Math.round((totalTicketsSold / totalCapacity) * 100) : 0;
@@ -711,8 +704,8 @@ const EventAnalytics: React.FC = () => {
           totalTicketsSold={totalTicketsSold}
           totalCapacity={totalCapacity}
           percentageSold={percentageSold}
-          totalEarningOnline={totalEarningOnline}
-          totalEarningCash={totalEarningCash}
+          totalCheckedIn={totalCheckedIn}
+          percentageCheckedIn={percentageCheckedIn}
           chartData={chartData}
           COLORS={COLORS}
           filteredOrders={filteredOrders}
