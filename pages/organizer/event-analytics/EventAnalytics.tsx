@@ -337,7 +337,8 @@ const EventAnalytics: React.FC = () => {
         'Status',
         'Refund Status',
         'Coupon',
-        'Service Fee'
+        'Service Fee',
+        'Discount Amount'
       ];
 
       const rows = filteredOrders.map(o => [
@@ -352,7 +353,8 @@ const EventAnalytics: React.FC = () => {
         o.status,
         o.refundStatus || '',
         o.couponCode || '',
-        (o.serviceFee || 0).toFixed(2)
+        (o.serviceFee || 0).toFixed(2),
+        ((o.discountApplied || 0) > 0 ? -(o.discountApplied || 0) : 0).toFixed(2)
       ]);
 
       const escapeCell = (v: any) => {

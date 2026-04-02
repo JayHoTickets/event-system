@@ -1,7 +1,6 @@
 import React from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 import { Search, Download, Eye, Ticket, DollarSign } from 'lucide-react';
-import clsx from 'clsx';
 import { formatDateInTimeZone, formatTimeInTimeZone } from '../../../utils/date';
 
 const EventAnalyticsStats: React.FC<any> = (props) => {
@@ -27,7 +26,6 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
     orderModeFilter,
     setOrderModeFilter,
     handleExportOrders,
-    usersMap,
     setSelectedOrder,
   } = props;
 
@@ -133,7 +131,10 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Booked By</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Items</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total (Net)</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Sub Total</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total Service Charge</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Discount Amount</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Mode</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Status</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Refund Status</th>
@@ -143,7 +144,7 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
             <tbody className="divide-y divide-slate-100">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-400">No orders found matching criteria.</td>
+                  <td colSpan={13} className="px-6 py-12 text-center text-slate-400">No orders found matching criteria.</td>
                 </tr>
               ) : (
                 filteredOrders.map((order: any) => (
@@ -153,7 +154,10 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
                     <td className="px-6 py-4"><p className="text-sm font-medium text-slate-900">{order.customerName}</p><p className="text-xs text-slate-500">{order.customerEmail}</p></td>
                     <td className="px-6 py-4"><p className="text-sm font-medium text-slate-900">{(order.bookedBy && (order.bookedBy.name || order.bookedBy.id)) ? `${order.bookedBy.name || order.bookedBy.id}${order.bookedBy.role ? ` (${order.bookedBy.role})` : ''}` : (order.userId && !String(order.userId).startsWith('guest-') ? order.userId : order.customerName)}</p></td>
                     <td className="px-6 py-4 text-sm text-slate-600">{order.tickets.length} Tickets {order.couponCode && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">{order.couponCode}</span>}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-slate-900">${(order.totalAmount - (order.serviceFee || 0)).toFixed(2)}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-slate-900">${(((order.totalAmount || 0) - (order.serviceFee || 0))).toFixed(2)}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-slate-900">${(order.serviceFee || 0).toFixed(2)}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-slate-900">{(order.discountApplied || 0) > 0 ? `-$${(order.discountApplied || 0).toFixed(2)}` : '$0.00'}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-slate-900">${(order.totalAmount || 0).toFixed(2)}</td>
                     <td className="px-6 py-4"><span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">{order.paymentMode || 'ONLINE'}</span></td>
                     <td className="px-6 py-4"><span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'PAID' ? 'bg-green-100 text-green-800' : order.status === 'REFUNDED' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{order.status}</span></td>
                     <td className="px-6 py-4">{order.status === 'CANCELLED' ? (<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(order.refundStatus || 'PENDING') === 'PROCESSED' ? 'bg-green-100 text-green-800' : (order.refundStatus || 'PENDING') === 'FAILED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{(order.refundStatus || 'PENDING')}</span>) : (<span className="text-sm text-slate-400">—</span>)}</td>
