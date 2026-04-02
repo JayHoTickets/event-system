@@ -935,6 +935,10 @@ const EventAnalytics: React.FC = () => {
                                         const discount = selectedOrder.discountApplied || 0;
                                         const service = selectedOrder.serviceFee || 0;
                                         const total = selectedOrder.totalAmount ?? 0;
+                                        const isComplimentaryOrder = selectedOrder.paymentMode === PaymentMode.COMPLIMENTARY;
+                                        const actualEarning = isComplimentaryOrder
+                                            ? 0
+                                            : lineSubtotal + service - discount;
                                         return (
                                             <>
                                                 <div className="flex justify-between text-slate-600">
@@ -950,6 +954,10 @@ const EventAnalytics: React.FC = () => {
                                                 <div className="flex justify-between text-slate-600">
                                                     <span>Service charge applied</span>
                                                     <span className="font-medium text-slate-900">${service.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-slate-700 border-t border-dashed border-slate-200 pt-2 mt-2">
+                                                    <span className="font-semibold">Actual earning</span>
+                                                    <span className="font-semibold text-slate-900">${actualEarning.toFixed(2)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center font-bold text-base text-slate-900 border-t border-slate-200 pt-2 mt-2">
                                                     <span>Total paid</span>
