@@ -558,7 +558,7 @@ const EventAnalytics: React.FC = () => {
           email: holdEmail,
           phone: holdPhone
         },
-        0, // No service fee for holds
+        typeof (holdQuote as any)?.serviceFee === 'number' ? (holdQuote as any).serviceFee : 0,
         // bookedBy: organizer/staff placing the hold
         { id: user?.id, role: (user as any)?.role, name: (user as any)?.name },
         holdCoupon ? holdCoupon.id : undefined,

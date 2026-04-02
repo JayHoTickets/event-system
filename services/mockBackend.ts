@@ -367,6 +367,16 @@ export const createPaymentPendingOrder = (
     });
 };
 
+export const createPaymentIntentForOrder = (
+    orderId: string,
+    paymentMode: PaymentMode = PaymentMode.ONLINE
+): Promise<{ clientSecret: string, paymentIntentId?: string }> => {
+    return fetchJson(`/orders/${orderId}/create-payment-intent`, {
+        method: 'POST',
+        body: JSON.stringify({ paymentMode })
+    });
+};
+
 export const completePaymentPendingOrder = (
     orderId: string,
     paymentMode: PaymentMode = PaymentMode.ONLINE,

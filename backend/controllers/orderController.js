@@ -523,14 +523,91 @@ export const cancelOrder = async (req, res) => {
 };
 
 /**
+ * Create (or reuse) a Stripe PaymentIntent for a PAYMENT_PENDING order.
+ * The frontend uses the returned `clientSecret` to confirm card payment.
+ */
+export const createPaymentIntentForPendingOrder = async (req, res) => {
+    const { id } = req.params;
+    const { paymentMode } = req.body || {};
+
+    try {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid order ID format' });
+        }
+
+        const order = await Order.findById(id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        if (order.status !== 'PAYMENT_PENDING') {
+            return res.status(400).json({ message: 'Order is not in payment pending state' });
+        }
+
+        const now = new Date();
+        if (order.paymentPendingUntil && new Date(order.paymentPendingUntil) < now) {
+            return res.status(400).json({ message: 'Payment hold has expired. Please contact support to rebook.' });
+        }
+
+        if (!stripe) {
+            return res.status(500).json({ message: 'Stripe not configured on the server.' });
+        }
+
+        const amountInCents = Math.round(Number(order.totalAmount || 0) * 100);
+        if (amountInCents < 50) {
+            return res.status(400).json({ message: 'Order amount is too low for online payment.' });
+        }
+
+        // Reuse existing PaymentIntent id if it belongs to this order + amount.
+        let paymentIntent = null;
+        if (order.transactionId) {
+            try {
+                const retrieved = await stripe.paymentIntents.retrieve(order.transactionId);
+                const metaOrderId = retrieved?.metadata?.orderId ? String(retrieved.metadata.orderId) : null;
+                const matchesOrder = metaOrderId === String(order._id);
+                const matchesAmount = typeof retrieved?.amount === 'number' && retrieved.amount === amountInCents;
+                if (matchesOrder && matchesAmount) paymentIntent = retrieved;
+            } catch {
+                // ignore; create a new intent
+            }
+        }
+
+        if (!paymentIntent) {
+            paymentIntent = await stripe.paymentIntents.create(
+                {
+                    amount: amountInCents,
+                    currency: 'usd',
+                    automatic_payment_methods: { enabled: true },
+                    metadata: { orderId: String(order._id), paymentMode: paymentMode || 'ONLINE' }
+                },
+                { idempotencyKey: `pending_order_${String(order._id)}_payment_intent` }
+            );
+
+            order.transactionId = paymentIntent.id;
+            await order.save();
+        }
+
+        res.json({ clientSecret: paymentIntent.client_secret, paymentIntentId: paymentIntent.id });
+    } catch (err) {
+        res.status(500).json({ message: err.message || 'Failed to create payment intent' });
+    }
+};
+
+/**
  * Complete payment for a payment-pending order
  * Updates order status from PAYMENT_PENDING to PAID
  * Updates seat status from HOLD to SOLD
  * Sends confirmation email with QR codes and tickets
  */
 export const completePaymentPendingOrder = async (req, res) => {
-    const { orderId, paymentMode, transactionId } = req.body;
+    const { paymentMode, transactionId } = req.body;
+    const orderId = req.params?.id || req.body?.orderId;
     try {
+        if (!orderId) {
+            return res.status(400).json({ message: 'Missing orderId' });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(String(orderId))) {
+            return res.status(400).json({ message: 'Invalid order ID format' });
+        }
+
         const order = await Order.findById(orderId);
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
@@ -547,6 +624,38 @@ export const completePaymentPendingOrder = async (req, res) => {
             return res.status(400).json({ message: 'Payment hold has expired. Please contact support to rebook.' });
         }
 
+        // Verify Stripe payment succeeded for this order.
+        if (!stripe) {
+            return res.status(500).json({ message: 'Stripe not configured on the server.' });
+        }
+        if (!transactionId) {
+            return res.status(400).json({ message: 'Missing payment intent id.' });
+        }
+
+        const expectedAmountInCents = Math.round(Number(order.totalAmount || 0) * 100);
+        let paymentIntent;
+        try {
+            paymentIntent = await stripe.paymentIntents.retrieve(transactionId);
+        } catch {
+            return res.status(400).json({ message: 'Payment intent not found.' });
+        }
+
+        const metaOrderId = paymentIntent?.metadata?.orderId ? String(paymentIntent.metadata.orderId) : null;
+        if (metaOrderId !== String(order._id)) {
+            return res.status(400).json({ message: 'Payment intent does not belong to this order.' });
+        }
+        if (typeof paymentIntent?.amount !== 'number' || paymentIntent.amount !== expectedAmountInCents) {
+            return res.status(400).json({ message: 'Payment amount mismatch.' });
+        }
+        if (paymentIntent?.status !== 'succeeded') {
+            return res.status(400).json({ message: 'Payment not completed. Please try again.' });
+        }
+
+        // Enforce match with stored intent id (defensive: prevents reusing another intent).
+        if (order.transactionId && String(order.transactionId) !== String(paymentIntent.id)) {
+            return res.status(400).json({ message: 'Payment intent id mismatch for this order.' });
+        }
+
         // 1. Fetch the event
         const eventId = order.tickets && order.tickets.length ? order.tickets[0].eventId : null;
         if (!eventId) {
@@ -561,7 +670,7 @@ export const completePaymentPendingOrder = async (req, res) => {
         // 2. Update order status to PAID
         order.status = 'PAID';
         order.paymentMode = paymentMode || 'STRIPE';
-        order.transactionId = transactionId || null;
+        order.transactionId = paymentIntent.id;
         order.paymentPendingUntil = null; // Clear the pending deadline
         order.paymentUrl = null; // Clear the payment URL
 
