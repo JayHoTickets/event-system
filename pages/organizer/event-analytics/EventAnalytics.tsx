@@ -193,7 +193,6 @@ const EventAnalytics: React.FC = () => {
     const dueCashServiceFee = cashPaidOrders.reduce((a, o) => a + (o.serviceFee || 0), 0);
     const estimatedCashEarning = cashPaidOrders.reduce((a, o) => a + orderActualEarning(o), 0);
 
-    const totalEarningFromPlatform = onlineTotalEarning + estimatedCashEarning;
     const onlineEarningMinusDueCashService = onlineTotalEarning - dueCashServiceFee;
 
     const totalTicketsSold = activeOrders.reduce((acc, o) => acc + o.tickets.length, 0);
@@ -698,7 +697,6 @@ const EventAnalytics: React.FC = () => {
           totalCashCollected={totalCashCollected}
           dueCashServiceFee={dueCashServiceFee}
           estimatedCashEarning={estimatedCashEarning}
-          totalEarningFromPlatform={totalEarningFromPlatform}
           onlineEarningMinusDueCashService={onlineEarningMinusDueCashService}
           filteredOrders={filteredOrders}
           searchTerm={searchTerm}

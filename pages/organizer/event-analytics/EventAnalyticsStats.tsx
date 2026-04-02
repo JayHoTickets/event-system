@@ -14,7 +14,6 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
     totalCashCollected,
     dueCashServiceFee,
     estimatedCashEarning,
-    totalEarningFromPlatform,
     onlineEarningMinusDueCashService,
     filteredOrders,
     searchTerm,
@@ -31,12 +30,21 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
     setSelectedOrder,
   } = props;
 
-  const row = (label: string, value: number) => (
-    <div className="flex justify-between items-baseline gap-3 text-sm">
-      <span className="text-slate-600 shrink-0">{label}</span>
-      <span className="font-semibold text-slate-900 tabular-nums text-right">{fmtMoney(value)}</span>
-    </div>
-  );
+  const row = (
+    label: string,
+    value: number,
+    options?: { valueClassName?: string; format?: (n: number) => string },
+  ) => {
+    const valueClassName =
+      options?.valueClassName ?? 'font-semibold text-slate-900 tabular-nums text-right';
+    const display = options?.format ? options.format(value) : fmtMoney(value);
+    return (
+      <div className="flex justify-between items-baseline gap-3 text-sm">
+        <span className="text-slate-600 shrink-0">{label}</span>
+        <span className={valueClassName}>{display}</span>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -51,17 +59,18 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
             {row('Total Cash Collected :-', totalCashCollected)}
-            {row('Due Service Fee:-', dueCashServiceFee)}
+            {row('Due Service Fee:-', dueCashServiceFee, {
+              valueClassName: 'font-semibold text-red-600 tabular-nums text-right',
+              format: (n) => `-${fmtMoney(n)}`,
+            })}
             {row('Estimated Cash Earning:-', estimatedCashEarning)}
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
-            {row('Total Earning From Platform', totalEarningFromPlatform)}
-            <div className="flex justify-between items-baseline gap-3 text-sm">
-              <span className="text-slate-600 shrink-0 leading-snug">Online Total Earning - Due Service Fee</span>
-              <span className="font-semibold text-slate-900 tabular-nums text-right">{fmtMoney(onlineEarningMinusDueCashService)}</span>
-            </div>
+            {row('Total Earning From Platform', onlineEarningMinusDueCashService, {
+              valueClassName: 'font-semibold text-green-600 tabular-nums text-right',
+            })}
           </div>
         </div>
       </div>
