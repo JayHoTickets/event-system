@@ -379,7 +379,7 @@ const EventAnalytics: React.FC = () => {
     }
   };
 
-    // Open cancel form prefilled for selected order
+    // Open refund modal prefilled for selected order
     const handleCancelOrder = (order: Order) => {
         setSelectedOrder(order);
         setCancelRefundAmount(order.refundAmount || 0);
@@ -405,11 +405,11 @@ const EventAnalytics: React.FC = () => {
                 setSelectedOrder(res.order);
                 setShowCancelModal(false);
             } else {
-                alert('Failed to cancel order');
+                alert('Failed to process refund');
             }
         } catch (err: any) {
-            console.error('Cancel failed', err);
-            alert('Cancel failed: ' + (err.message || err));
+            console.error('Refund failed', err);
+            alert('Refund failed: ' + (err.message || err));
         } finally {
             setCancelProcessing(false);
         }
@@ -963,10 +963,10 @@ const EventAnalytics: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => handleCancelOrder(selectedOrder)}
-                                        className="self-start sm:self-end px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 shrink-0"
-                                        title="Cancel Order"
+                                        className="self-start sm:self-end px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 shrink-0"
+                                        title="Process refund and cancel this order"
                                     >
-                                        Cancel Order
+                                        Refund
                                     </button>
                                 )}
                             </div>
@@ -975,16 +975,16 @@ const EventAnalytics: React.FC = () => {
                 </div>
             )}
 
-            {/* Cancel Order Modal */}
+            {/* Refund order modal (cancels order on the server) */}
             {showCancelModal && selectedOrder && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
                         <div className="p-4 border-b flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-lg text-slate-900">Cancel Order</h3>
+                            <h3 className="font-bold text-lg text-slate-900">Refund</h3>
                             <button onClick={() => setShowCancelModal(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"><X className="w-5 h-5"/></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <p className="text-sm text-slate-600">You are cancelling Order <span className="font-mono text-slate-700">{selectedOrder.id}</span>. This action will mark the order as <strong>CANCELLED</strong> and block tickets from scanning.</p>
+                            <p className="text-sm text-slate-600">Refund order <span className="font-mono text-slate-700">{selectedOrder.id}</span>. Recording the refund will mark the order as <strong>CANCELLED</strong> and block tickets from being scanned.</p>
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Refund Amount</label>
@@ -1001,15 +1001,16 @@ const EventAnalytics: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Cancellation Notes</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Refund notes</label>
                                 <textarea className="w-full border rounded-lg px-3 py-2" rows={4} value={cancelNotes} onChange={e => setCancelNotes(e.target.value)} />
                             </div>
 
                             <div className="flex justify-end gap-2">
-                                <button onClick={() => setShowCancelModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
+                                <button type="button" onClick={() => setShowCancelModal(false)} className="px-4 py-2 rounded-lg border">Close</button>
                                 <button 
+                                    type="button"
                                     onClick={confirmCancelOrder} 
-                                    className="px-4 py-2 rounded-lg bg-red-600 text-white disabled:opacity-60 flex items-center gap-2"
+                                    className="px-4 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60 flex items-center gap-2"
                                     disabled={cancelProcessing}
                                 >
                                     {cancelProcessing ? (
@@ -1020,7 +1021,7 @@ const EventAnalytics: React.FC = () => {
                                             </svg>
                                             Processing...
                                         </>
-                                    ) : 'Confirm Cancel'}
+                                    ) : 'Confirm refund'}
                                 </button>
                             </div>
                         </div>
