@@ -10,8 +10,8 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
     totalTicketsSold,
     totalCapacity,
     percentageSold,
-    totalCheckedIn,
-    percentageCheckedIn,
+    totalEarningOnline,
+    totalEarningCash,
     chartData,
     COLORS,
     filteredOrders,
@@ -31,7 +31,7 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
           <div className="flex justify-between items-start">
             <div>
@@ -62,21 +62,6 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-slate-500 uppercase">Attendance</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalCheckedIn} <span className="text-sm font-normal text-slate-400">/ {totalTicketsSold}</span></h3>
-            </div>
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-              <Ticket className="w-6 h-6" />
-            </div>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 mt-4 rounded-full overflow-hidden">
-            <div className="bg-blue-600 h-full" style={{ width: `${percentageCheckedIn}%` }} />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
           <p className="text-sm font-medium text-slate-500 uppercase mb-4">Sales by Ticket Type</p>
           <div className="h-20">
             <ResponsiveContainer width="100%" height="100%">
@@ -92,6 +77,33 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+        <div className="p-6 border-b border-slate-200">
+          <h2 className="text-lg font-bold text-slate-900">Earnings by payment channel</h2>
+          <p className="text-sm text-slate-500 mt-1">Actual earning (total paid minus service fees), non-cancelled orders only.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Channel</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700 text-right">Total earning</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              <tr className="hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4 text-sm font-medium text-slate-900">Online</td>
+                <td className="px-6 py-4 text-sm font-bold text-slate-900 text-right">${totalEarningOnline.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
+              <tr className="hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4 text-sm font-medium text-slate-900">Cash</td>
+                <td className="px-6 py-4 text-sm font-bold text-slate-900 text-right">${totalEarningCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
