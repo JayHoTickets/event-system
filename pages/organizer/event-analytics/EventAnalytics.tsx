@@ -938,7 +938,7 @@ const EventAnalytics: React.FC = () => {
                                         const isComplimentaryOrder = selectedOrder.paymentMode === PaymentMode.COMPLIMENTARY;
                                         const actualEarning = isComplimentaryOrder
                                             ? 0
-                                            : lineSubtotal + service - discount;
+                                            : lineSubtotal - discount;
                                         return (
                                             <>
                                                 <div className="flex justify-between text-slate-600">
@@ -951,14 +951,15 @@ const EventAnalytics: React.FC = () => {
                                                         {discount > 0 ? `-$${discount.toFixed(2)}` : '$0.00'}
                                                     </span>
                                                 </div>
-                                                <div className="flex justify-between text-slate-600">
-                                                    <span>Service charge applied</span>
-                                                    <span className="font-medium text-slate-900">${service.toFixed(2)}</span>
-                                                </div>
                                                 <div className="flex justify-between text-slate-700 border-t border-dashed border-slate-200 pt-2 mt-2">
                                                     <span className="font-semibold">Actual earning</span>
                                                     <span className="font-semibold text-slate-900">${actualEarning.toFixed(2)}</span>
                                                 </div>
+                                                <div className="flex justify-between text-slate-600">
+                                                    <span>Service charge applied</span>
+                                                    <span className="font-medium text-slate-900">${service.toFixed(2)}</span>
+                                                </div>
+                                               
                                                 <div className="flex justify-between items-center font-bold text-base text-slate-900 border-t border-slate-200 pt-2 mt-2">
                                                     <span>Total paid</span>
                                                     <span>${total.toFixed(2)}</span>
