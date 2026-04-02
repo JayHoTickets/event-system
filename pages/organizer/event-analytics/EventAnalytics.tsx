@@ -927,30 +927,49 @@ const EventAnalytics: React.FC = () => {
                                 </table>
                             </div>
                             
-                            {/* Totals - Show simplified view to Organizer */}
-                            <div className="flex justify-end">
-                                <div className="w-64 space-y-2">
-                                    {selectedOrder.discountApplied > 0 && (
-                                        <div className="flex justify-between text-sm text-green-600">
-                                            <span>Discount</span>
-                                            <span>-${selectedOrder.discountApplied.toFixed(2)}</span>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between items-center font-bold text-xl text-slate-900 border-t pt-3 mt-2">
-                                        <span>Total Paid</span>
-                                        <span>${selectedOrder.totalAmount.toFixed(2)}</span>
-                                    </div>
+                            {/* Order totals */}
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mt-2">
+                                <div className="w-full sm:max-w-sm sm:ml-auto space-y-1.5 text-sm border border-slate-200 rounded-lg p-4 bg-slate-50">
+                                    {(() => {
+                                        const lineSubtotal = selectedOrder.tickets.reduce((acc, t) => acc + (t.price || 0), 0);
+                                        const discount = selectedOrder.discountApplied || 0;
+                                        const service = selectedOrder.serviceFee || 0;
+                                        const total = selectedOrder.totalAmount ?? 0;
+                                        return (
+                                            <>
+                                                <div className="flex justify-between text-slate-600">
+                                                    <span>Subtotal</span>
+                                                    <span className="font-medium text-slate-900">${lineSubtotal.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-slate-600">
+                                                    <span>Discount applied</span>
+                                                    <span className={`font-medium ${discount > 0 ? 'text-green-700' : 'text-slate-900'}`}>
+                                                        {discount > 0 ? `-$${discount.toFixed(2)}` : '$0.00'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between text-slate-600">
+                                                    <span>Service charge applied</span>
+                                                    <span className="font-medium text-slate-900">${service.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center font-bold text-base text-slate-900 border-t border-slate-200 pt-2 mt-2">
+                                                    <span>Total paid</span>
+                                                    <span>${total.toFixed(2)}</span>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
-                            </div>
-                                        {currentOrganizerId && String(currentOrganizerId) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
+                                {currentOrganizerId && String(currentOrganizerId) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
                                     <button
+                                        type="button"
                                         onClick={() => handleCancelOrder(selectedOrder)}
-                                        className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                        className="self-start sm:self-end px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 shrink-0"
                                         title="Cancel Order"
                                     >
                                         Cancel Order
                                     </button>
                                 )}
+                            </div>
                         </div>
                     </div>
                 </div>
