@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Event, Seat, SeatingType, SeatStatus, EventStatus } from '../types';
@@ -358,35 +357,8 @@ return (
             <p className="text-slate-600">{event.location}</p>
             
             <div className="flex items-center gap-2 text-slate-600">
-              {/* <Tag className="w-4 h-4 flex-shrink-0" /> */}
-              {/* <span>{event.seatingType === SeatingType.RESERVED ? 'Reserved Seating' : 'General Admission'}</span> */}
             </div>
           </div>
-          
-          {/* Ticket Types */}
-          {/* <div className="mb-6">
-            <h3 className="font-semibold text-slate-900 mb-3">Ticket Types</h3>
-            <div className="space-y-2">
-              {event.ticketTypes.map(tt => (
-                <div 
-                  key={tt.id} 
-                  className="flex justify-between items-center p-3 border border-slate-200 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-4 h-4 rounded-sm" 
-                      style={{backgroundColor: tt.color}}
-                    ></div>
-                    <div>
-                      <p className="font-medium text-slate-900">{tt.name}</p>
-                      <p className="text-sm text-slate-500">{tt.description}</p>
-                    </div>
-                  </div>
-                  <span className="font-bold text-slate-900">${tt.price.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          </div> */}
         </div>
       </div>
       
@@ -421,20 +393,23 @@ return (
               </div>
             </div>
             
-            {/* Map Canvas */}
-            <div ref={mapContainerRef} className="flex-1 bg-slate-50 overflow-auto flex items-center justify-center p-4 relative">
-              <SeatGrid 
-                seats={event.seats.map(s => {
-                  const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
-                  return { ...s, color: t ? t.color : s.color };
-                })}
-                stage={event.stage}
-                selectedSeatIds={selectedSeats.map(s => s.id)}
-                onSeatClick={handleSeatClick}
-                scale={zoom}
-              />
+            {/* Map Canvas — wrapper is relative+overflow-hidden so zoom controls stay fixed inside */}
+            <div className="flex-1 relative overflow-hidden">
+              {/* Scrollable map area */}
+              <div ref={mapContainerRef} className="absolute inset-0 bg-slate-50 overflow-auto flex items-start justify-start p-1">
+                <SeatGrid 
+                  seats={event.seats.map(s => {
+                    const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
+                    return { ...s, color: t ? t.color : s.color };
+                  })}
+                  stage={event.stage}
+                  selectedSeatIds={selectedSeats.map(s => s.id)}
+                  onSeatClick={handleSeatClick}
+                  scale={zoom}
+                />
+              </div>
               
-              {/* Floating Zoom Controls */}
+              {/* Floating Zoom Controls — sticky, outside scroll container */}
               <div className="absolute bottom-6 right-4 flex flex-col gap-2 bg-white rounded-lg shadow-lg border border-slate-200 p-1.5 z-20">
                 <button 
                   onClick={() => setZoom(z => Math.min(2, z + 0.1))} 
@@ -448,13 +423,13 @@ return (
                 >
                   <ZoomOut className="w-5 h-5"/>
                 </button>
-                <button 
+                {/* <button 
                   onClick={fitMapToContainer} 
                   className="p-2 hover:bg-slate-100 rounded text-slate-700 border-t mt-1" 
                   title="Fit to Screen"
                 >
                   <Maximize className="w-5 h-5"/>
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -505,7 +480,7 @@ return (
               <p className="text-slate-500">Total</p>
               <p className="text-3xl font-bold text-slate-900">${selectedTotal.toFixed(2)}</p>
               <p className="text-sm text-slate-500 mt-1">{selectedCount} items selected</p>
-              {/* Selection summary: show seat numbers for reserved seating, or ticket type counts for GA */}
+              {/* Selection summary */}
               <div className="text-sm text-slate-600 mt-2">
                 {event.seatingType === SeatingType.RESERVED ? (
                   selectedSeats.length > 0 ? (
@@ -534,15 +509,15 @@ return (
               </div>
             </div>
             {/* Ticket type chips - visible on desktop */}
-                <div className="hidden md:flex items-center gap-3 flex-wrap text-sm">
-                  {event.ticketTypes.map(tt => (
-                    <div key={tt.id} className="flex items-center gap-2 px-3 py-1 rounded-full border bg-white shadow-sm">
-                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: tt.color }} />
-                      <div className="text-slate-700 font-medium">{tt.name}</div>
-                      <div className="text-slate-500 ml-2">${tt.price.toFixed(0)}</div>
-                    </div>
-                  ))}
+            <div className="hidden md:flex items-center gap-3 flex-wrap text-sm">
+              {event.ticketTypes.map(tt => (
+                <div key={tt.id} className="flex items-center gap-2 px-3 py-1 rounded-full border bg-white shadow-sm">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: tt.color }} />
+                  <div className="text-slate-700 font-medium">{tt.name}</div>
+                  <div className="text-slate-500 ml-2">${tt.price.toFixed(0)}</div>
                 </div>
+              ))}
+            </div>
             <button
               onClick={handleCheckout}
               disabled={selectedCount === 0}
@@ -578,7 +553,6 @@ return (
             {formatDateInTimeZone(event.startTime, event.timezone)} &bull; {formatTimeInTimeZone(event.startTime, event.timezone)}
           </p>
           <p className="text-slate-500 text-sm mt-1">{event.location}</p>
-          {/* <p className="text-slate-500 text-sm mt-1">{event.seatingType === SeatingType.RESERVED ? 'Reserved Seating' : 'General Admission'}</p> */}
         </div>
 
         {/* Small poster on the right for mobile */}
@@ -595,9 +569,9 @@ return (
       
       {/* MAP / SELECTION AREA */}
       {event.seatingType === SeatingType.RESERVED ? (
-        <div className="flex-1 bg-slate-100 flex flex-col relative overflow-hidden">
+        <div className="flex-1 bg-slate-100 flex flex-col overflow-hidden">
           
-          {/* Legend Bar - wrap ticket types on mobile (no horizontal scroll) */}
+          {/* Legend Bar */}
           <div className="p-3 border-b bg-white shrink-0 z-10 shadow-sm">
             <div className="flex flex-wrap gap-3 items-center text-xs font-medium text-slate-600 px-2">
               <div className="flex items-center gap-1.5">
@@ -628,22 +602,23 @@ return (
             </div>
           </div>
           
-          {/* Map Canvas */}
-          <div ref={mapContainerRef} className="flex-1 bg-slate-100 overflow-auto flex items-center justify-center p-4 relative">
-            <SeatGrid 
-              // Ensure seats show ticket-type color when assigned (ticketTypeId -> ticketTypes)
-              seats={event.seats.map(s => {
-                const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
-                return { ...s, color: t ? t.color : s.color };
-              })}
-              stage={event.stage}
-              selectedSeatIds={selectedSeats.map(s => s.id)}
-              onSeatClick={handleSeatClick}
-              scale={zoom}
-              // Blocked seats not selectable by user
-            />
+          {/* Map Canvas wrapper — relative+overflow-hidden keeps zoom controls sticky */}
+          <div className="flex-1 relative overflow-hidden">
+            {/* Scrollable map area */}
+            <div ref={mapContainerRef} className="absolute inset-0 bg-slate-100 overflow-auto flex items-start justify-start p-1">
+              <SeatGrid 
+                seats={event.seats.map(s => {
+                  const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
+                  return { ...s, color: t ? t.color : s.color };
+                })}
+                stage={event.stage}
+                selectedSeatIds={selectedSeats.map(s => s.id)}
+                onSeatClick={handleSeatClick}
+                scale={zoom}
+              />
+            </div>
             
-            {/* Floating Zoom Controls */}
+            {/* Floating Zoom Controls — sticky, outside scroll container */}
             <div className="absolute bottom-6 right-4 flex flex-col gap-2 bg-white rounded-lg shadow-lg border border-slate-200 p-1.5 z-20">
               <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-2 hover:bg-slate-100 rounded text-slate-700 bg-slate-50 border border-slate-200">
                 <ZoomIn className="w-5 h-5"/>
@@ -651,9 +626,9 @@ return (
               <button onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} className="p-2 hover:bg-slate-100 rounded text-slate-700 bg-slate-50 border border-slate-200">
                 <ZoomOut className="w-5 h-5"/>
               </button>
-              <button onClick={fitMapToContainer} className="p-2 hover:bg-slate-100 rounded text-slate-700 border-t mt-1" title="Fit to Screen">
+              {/* <button onClick={fitMapToContainer} className="p-2 hover:bg-slate-100 rounded text-slate-700 border-t mt-1" title="Fit to Screen">
                 <Maximize className="w-5 h-5"/>
-              </button>
+              </button> */}
             </div>
           </div>
         </div>
@@ -693,7 +668,7 @@ return (
     </div>
 
     {/* MOBILE STICKY FOOTER */}
-      <div className="bg-white border-t border-slate-200 p-4 safe-area-pb shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
+    <div className="bg-white border-t border-slate-200 p-4 safe-area-pb shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
       <div className="flex justify-between items-center mb-2">
         <div>
           <p className="text-xs text-slate-500 font-medium">{selectedCount} tickets selected</p>
