@@ -131,8 +131,8 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Booked By</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Items</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Sub Total</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total Service Charge</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Actual Earning</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Service Fee</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Mode</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Status</th>
