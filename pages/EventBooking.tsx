@@ -396,17 +396,20 @@ return (
             {/* Map Canvas — wrapper is relative+overflow-hidden so zoom controls stay fixed inside */}
             <div className="flex-1 relative overflow-hidden">
               {/* Scrollable map area */}
-              <div ref={mapContainerRef} className="absolute inset-0 bg-slate-50 overflow-auto flex items-start justify-start p-1">
-                <SeatGrid 
-                  seats={event.seats.map(s => {
-                    const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
-                    return { ...s, color: t ? t.color : s.color };
-                  })}
-                  stage={event.stage}
-                  selectedSeatIds={selectedSeats.map(s => s.id)}
-                  onSeatClick={handleSeatClick}
-                  scale={zoom}
-                />
+              {/* Outer = scroll only; inner = min full viewport + flex center so zoomed maps scroll fully (top rows / stage) */}
+              <div ref={mapContainerRef} className="absolute inset-0 bg-slate-50 overflow-auto">
+                <div className="flex min-h-full min-w-full justify-center items-center p-2 box-border">
+                  <SeatGrid 
+                    seats={event.seats.map(s => {
+                      const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
+                      return { ...s, color: t ? t.color : s.color };
+                    })}
+                    stage={event.stage}
+                    selectedSeatIds={selectedSeats.map(s => s.id)}
+                    onSeatClick={handleSeatClick}
+                    scale={zoom}
+                  />
+                </div>
               </div>
               
               {/* Floating Zoom Controls — sticky, outside scroll container */}
@@ -605,17 +608,19 @@ return (
           {/* Map Canvas wrapper — relative+overflow-hidden keeps zoom controls sticky */}
           <div className="flex-1 relative overflow-hidden">
             {/* Scrollable map area */}
-            <div ref={mapContainerRef} className="absolute inset-0 bg-slate-100 overflow-auto flex items-start justify-start p-1">
-              <SeatGrid 
-                seats={event.seats.map(s => {
-                  const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
-                  return { ...s, color: t ? t.color : s.color };
-                })}
-                stage={event.stage}
-                selectedSeatIds={selectedSeats.map(s => s.id)}
-                onSeatClick={handleSeatClick}
-                scale={zoom}
-              />
+            <div ref={mapContainerRef} className="absolute inset-0 bg-slate-100 overflow-auto">
+              <div className="flex min-h-full min-w-full justify-center items-center p-2 box-border">
+                <SeatGrid 
+                  seats={event.seats.map(s => {
+                    const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
+                    return { ...s, color: t ? t.color : s.color };
+                  })}
+                  stage={event.stage}
+                  selectedSeatIds={selectedSeats.map(s => s.id)}
+                  onSeatClick={handleSeatClick}
+                  scale={zoom}
+                />
+              </div>
             </div>
             
             {/* Floating Zoom Controls — sticky, outside scroll container */}
