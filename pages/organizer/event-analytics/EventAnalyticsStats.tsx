@@ -109,7 +109,7 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order ID</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700 whitespace-nowrap">Order ID</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700 whitespace-nowrap min-w-[13.5rem]">Order Date</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Booked By</th>
@@ -131,8 +131,8 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
               ) : (
                 filteredOrders.map((order: any) => (
                   <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-mono text-slate-600 max-w-[11rem] break-all align-top" title={order.id}>{order.id}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap min-w-[13rem] align-top">{formatDateInTimeZone(order.date, event.timezone)} at {formatTimeInTimeZone(order.date, event.timezone)}</td>
+                    <td className="px-6 py-4 text-sm font-mono text-slate-600 whitespace-nowrap">{order.id}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap min-w-[13.5rem]">{formatDateInTimeZone(order.date, event.timezone)} at {formatTimeInTimeZone(order.date, event.timezone)}</td>
                     <td className="px-6 py-4"><p className="text-sm font-medium text-slate-900">{order.customerName}</p><p className="text-xs text-slate-500">{order.customerEmail}</p></td>
                     <td className="px-6 py-4"><p className="text-sm font-medium text-slate-900">{(order.bookedBy && (order.bookedBy.name || order.bookedBy.id)) ? `${order.bookedBy.name || order.bookedBy.id}${order.bookedBy.role ? ` (${order.bookedBy.role})` : ''}` : (order.userId && !String(order.userId).startsWith('guest-') ? order.userId : order.customerName)}</p></td>
                     <td className="px-6 py-4 text-sm text-slate-600">{order.tickets.length} Tickets {order.couponCode && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">{order.couponCode}</span>}</td>

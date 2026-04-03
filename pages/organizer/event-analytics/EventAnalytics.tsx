@@ -934,12 +934,14 @@ const EventAnalytics: React.FC = () => {
                                                     <span>Subtotal</span>
                                                     <span className="font-medium text-slate-900">${lineSubtotal.toFixed(2)}</span>
                                                 </div>
-                                                <div className="flex justify-between text-slate-600">
-                                                    <span>Discount</span>
-                                                    <span className={`font-medium ${discount > 0 ? 'text-green-700' : 'text-slate-900'}`}>
-                                                        {discount > 0 ? `-$${discount.toFixed(2)}` : '$0.00'}
-                                                    </span>
-                                                </div>
+                                                {!isComplimentaryOrder && (
+                                                    <div className="flex justify-between text-slate-600">
+                                                        <span>Discount</span>
+                                                        <span className={`font-medium ${discount > 0 ? 'text-green-700' : 'text-slate-900'}`}>
+                                                            {discount > 0 ? `-$${discount.toFixed(2)}` : '$0.00'}
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 <div className="flex justify-between text-slate-700 border-t border-dashed border-slate-200 pt-2 mt-2">
                                                     <span className="font-semibold">Net Sales</span>
                                                     <span className="font-semibold text-slate-900">${actualEarning.toFixed(2)}</span>
