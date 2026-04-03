@@ -131,10 +131,10 @@ const Confirmation: React.FC = () => {
             <span>Confirmation email sent to your inbox.</span>
           </div>
 
-          {order.couponCode && order.discountApplied > 0 && (
+          {(order.discountApplied ?? 0) > 0 && order.couponCode && (
             <div className="mb-6 p-4 rounded bg-green-50 text-green-800 border border-green-100">
               <strong>Coupon applied:</strong> {order.couponCode} — you saved $
-              {order.discountApplied.toFixed(2)}
+              {(order.discountApplied ?? 0).toFixed(2)}
             </div>
           )}
 
@@ -243,10 +243,10 @@ const Confirmation: React.FC = () => {
                 ).toFixed(2)}
               </span>
             </div>
-            {order.discountApplied > 0 && (
+            {(order.discountApplied ?? 0) > 0 && (
               <div className="flex justify-between text-green-600 text-sm mb-1">
                 <span>Discount</span>
-                <span>-${order.discountApplied.toFixed(2)}</span>
+                <span>-${(order.discountApplied ?? 0).toFixed(2)}</span>
               </div>
             )}
             {order.appliedCharges && order.appliedCharges.length > 0 ? (
