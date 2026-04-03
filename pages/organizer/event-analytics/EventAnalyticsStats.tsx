@@ -53,7 +53,7 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
           <div className="space-y-3">
             {row('Online Sales (Gross)', totalOnlinePaid)}
             {row('Fees Collected', onlineServiceFeesPaid)}
-            {row('Net Sales(Online)', onlineTotalEarning)}
+            {row('Net Sales (Online)', onlineTotalEarning)}
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
