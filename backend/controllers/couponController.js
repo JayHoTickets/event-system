@@ -1,9 +1,9 @@
+import Coupon from '../models/Coupon.js';
+import Event from '../models/Event.js';
+import { computeCouponDiscount } from '../utils/discountService.js';
+import Staff from '../models/Staff.js';
 
-const Coupon = require('../models/Coupon');
-const Event = require('../models/Event');
-const { computeCouponDiscount } = require('../utils/discountService');
-
-exports.getCoupons = async (req, res) => {
+export const getCoupons = async (req, res) => {
     try {
         const query = { deleted: false };
         if (req.query.organizerId) query.organizerId = req.query.organizerId;
@@ -14,8 +14,39 @@ exports.getCoupons = async (req, res) => {
     }
 };
 
-exports.createCoupon = async (req, res) => {
+export const createCoupon = async (req, res) => {
     try {
+        // Authorization:
+        // - ADMIN can manage coupons for any organizerId
+        // - ORGANIZER can manage only their own organizer coupons
+        // - STAFF can manage only their own organizer coupons and only if they have `coupons` permission
+        const callerRole = req.user && req.user.role;
+        let staff = null;
+        if (callerRole === 'STAFF') {
+            staff = await Staff.findById(req.user.id);
+            if (!staff || !staff.active) return res.status(403).json({ message: 'Forbidden: staff account inactive' });
+            if (!Array.isArray(staff.permissions) || !staff.permissions.includes('coupons')) {
+                return res.status(403).json({ message: 'Forbidden: missing permission to manage coupons' });
+            }
+        }
+
+        const bodyOrganizerId = req.body.organizerId;
+        if (callerRole === 'ORGANIZER') {
+            if (!bodyOrganizerId || String(bodyOrganizerId) !== String(req.user.id)) {
+                return res.status(403).json({ message: 'Forbidden: cannot create coupons for other organizers' });
+            }
+        } else if (callerRole === 'STAFF') {
+            if (!bodyOrganizerId || String(bodyOrganizerId) !== String(staff.organizerId)) {
+                return res.status(403).json({ message: 'Forbidden: staff cannot create coupons for other organizers' });
+            }
+        } else if (callerRole === 'ADMIN') {
+            if (!bodyOrganizerId) return res.status(403).json({ message: 'Forbidden: organizerId required' });
+        } else {
+            return res.status(403).json({ message: 'Forbidden: insufficient role' });
+        }
+
+        const resolvedOrganizerId = callerRole === 'ORGANIZER' ? req.user.id : (callerRole === 'STAFF' ? staff.organizerId : bodyOrganizerId);
+
         const exists = await Coupon.findOne({ code: req.body.code, active: true, deleted: false });
         if (exists) return res.status(400).json({ message: 'Code exists' });
         // Sanitize and map explicit fields to avoid unexpected payloads
@@ -30,7 +61,7 @@ exports.createCoupon = async (req, res) => {
             eventId: req.body.eventId || null,
             applicableTicketTypeIds: Array.isArray(req.body.applicableTicketTypeIds) ? req.body.applicableTicketTypeIds : [],
             startDate: req.body.startDate ? new Date(req.body.startDate) : null,
-            organizerId: req.body.organizerId,
+            organizerId: resolvedOrganizerId,
             maxUses: req.body.maxUses ? Number(req.body.maxUses) : 0,
             expiryDate: req.body.expiryDate ? new Date(req.body.expiryDate) : null,
             active: typeof req.body.active === 'boolean' ? req.body.active : true
@@ -52,10 +83,33 @@ exports.createCoupon = async (req, res) => {
     }
 };
 
-exports.updateCoupon = async (req, res) => {
+export const updateCoupon = async (req, res) => {
     try {
         // Load existing coupon to merge legacy ruleParams if needed
         const existing = await Coupon.findById(req.params.id);
+        if (!existing) return res.status(404).json({ message: 'Coupon not found' });
+
+        // Authorization:
+        // - ADMIN can update any coupon
+        // - ORGANIZER can update coupons for their own organizerId
+        // - STAFF can update coupons for their organizerId only if they have `coupons` permission
+        const callerRole = req.user && req.user.role;
+        if (callerRole === 'ORGANIZER') {
+            if (String(existing.organizerId) !== String(req.user.id)) {
+                return res.status(403).json({ message: 'Forbidden: cannot update coupons for other organizers' });
+            }
+        } else if (callerRole === 'STAFF') {
+            const staff = await Staff.findById(req.user.id);
+            if (!staff || !staff.active) return res.status(403).json({ message: 'Forbidden: staff account inactive' });
+            if (!Array.isArray(staff.permissions) || !staff.permissions.includes('coupons')) {
+                return res.status(403).json({ message: 'Forbidden: missing permission to manage coupons' });
+            }
+            if (String(existing.organizerId) !== String(staff.organizerId)) {
+                return res.status(403).json({ message: 'Forbidden: staff cannot update coupons for other organizers' });
+            }
+        } else if (callerRole !== 'ADMIN') {
+            return res.status(403).json({ message: 'Forbidden: insufficient role' });
+        }
 
         const updates = {
             ...(req.body.code ? { code: req.body.code.toString().toUpperCase() } : {}),
@@ -93,8 +147,33 @@ exports.updateCoupon = async (req, res) => {
     }
 };
 
-exports.deleteCoupon = async (req, res) => {
+export const deleteCoupon = async (req, res) => {
     try {
+        const existing = await Coupon.findById(req.params.id);
+        if (!existing) return res.status(404).json({ message: 'Coupon not found' });
+
+        // Authorization:
+        // - ADMIN can delete any coupon
+        // - ORGANIZER can delete coupons for their own organizerId
+        // - STAFF can delete coupons only for their organizerId if they have `coupons` permission
+        const callerRole = req.user && req.user.role;
+        if (callerRole === 'ORGANIZER') {
+            if (String(existing.organizerId) !== String(req.user.id)) {
+                return res.status(403).json({ message: 'Forbidden: cannot delete coupons for other organizers' });
+            }
+        } else if (callerRole === 'STAFF') {
+            const staff = await Staff.findById(req.user.id);
+            if (!staff || !staff.active) return res.status(403).json({ message: 'Forbidden: staff account inactive' });
+            if (!Array.isArray(staff.permissions) || !staff.permissions.includes('coupons')) {
+                return res.status(403).json({ message: 'Forbidden: missing permission to manage coupons' });
+            }
+            if (String(existing.organizerId) !== String(staff.organizerId)) {
+                return res.status(403).json({ message: 'Forbidden: staff cannot delete coupons for other organizers' });
+            }
+        } else if (callerRole !== 'ADMIN') {
+            return res.status(403).json({ message: 'Forbidden: insufficient role' });
+        }
+
         await Coupon.findByIdAndUpdate(req.params.id, { deleted: true });
         res.json({ success: true });
     } catch (err) {
@@ -102,7 +181,7 @@ exports.deleteCoupon = async (req, res) => {
     }
 };
 
-exports.validateCoupon = async (req, res) => {
+export const validateCoupon = async (req, res) => {
     const { code, eventId, seats } = req.body;
     try {
         const coupon = await Coupon.findOne({ code, active: true, deleted: false });
@@ -127,7 +206,7 @@ exports.validateCoupon = async (req, res) => {
 };
 
 // Returns the best applicable coupon for a given event and seats
-exports.getBestCoupon = async (req, res) => {
+export const getBestCoupon = async (req, res) => {
     const { eventId, seats } = req.body;
     try {
         const eventDoc = eventId ? await Event.findById(eventId) : null;

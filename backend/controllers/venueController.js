@@ -1,7 +1,6 @@
+import Venue from '../models/Venue.js';
 
-const Venue = require('../models/Venue');
-
-exports.getVenues = async (req, res) => {
+export const getVenues = async (req, res) => {
     try {
         const venues = await Venue.find({ deleted: false });
         res.json(venues);
@@ -10,7 +9,7 @@ exports.getVenues = async (req, res) => {
     }
 };
 
-exports.createVenue = async (req, res) => {
+export const createVenue = async (req, res) => {
     try {
         const venue = await Venue.create(req.body);
         res.json(venue);
@@ -19,7 +18,7 @@ exports.createVenue = async (req, res) => {
     }
 };
 
-exports.updateVenue = async (req, res) => {
+export const updateVenue = async (req, res) => {
     try {
         const venue = await Venue.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(venue);
@@ -28,7 +27,7 @@ exports.updateVenue = async (req, res) => {
     }
 };
 
-exports.deleteVenue = async (req, res) => {
+export const deleteVenue = async (req, res) => {
     try {
         await Venue.findByIdAndUpdate(req.params.id, { deleted: true });
         res.json({ success: true });

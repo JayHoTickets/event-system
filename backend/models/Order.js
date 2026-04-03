@@ -1,5 +1,4 @@
-
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const OrderTicketSchema = new mongoose.Schema({
     id: String,
@@ -62,4 +61,4 @@ const OrderSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('Order', OrderSchema);
+export default mongoose.model('Order', OrderSchema);

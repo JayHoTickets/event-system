@@ -1,5 +1,5 @@
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const ServiceChargeSchema = new mongoose.Schema({
     name: String,
@@ -23,4 +23,4 @@ const ServiceChargeSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('ServiceCharge', ServiceChargeSchema);
+export default mongoose.model('ServiceCharge', ServiceChargeSchema);

@@ -1,11 +1,11 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 /**
  * Compute discount amount for a single coupon given the context.
  * context: { subtotal: Number, seats: Array<{price,...}>, seatsCount: Number, eventId: String }
  * Returns { discount: Number, usedCountIncrement: Number }
  */
-function computeCouponDiscount(coupon, context) {
+export function computeCouponDiscount(coupon, context) {
     const now = new Date();
     if (!coupon || !coupon.active || coupon.deleted) return { discount: 0, usedCountIncrement: 0 };
     if (coupon.expiryDate && new Date(coupon.expiryDate) < now) return { discount: 0, usedCountIncrement: 0 };
@@ -91,7 +91,3 @@ function computeCouponDiscount(coupon, context) {
 
     return { discount, usedCountIncrement: usedInc };
 }
-
-module.exports = {
-    computeCouponDiscount
-};

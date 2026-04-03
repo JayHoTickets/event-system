@@ -3,17 +3,20 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Event, Order, PaymentMode } from '../types';
-import { completePaymentPendingOrder, fetchEventById, fetchOrderById } from '../services/mockBackend';
-import { AlertTriangle, CheckCircle, CreditCard, ArrowLeft } from 'lucide-react';
+import { createPaymentIntentForOrder, completePaymentPendingOrder, fetchEventById, fetchOrderById } from '../services/mockBackend';
+import { AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Npw4pKUXa8cL1IH4peMAyX0L2VQZfdd3geTwYivtTZUDtCE83NcGuP3vibkB8ndW6vhOzzDOLTtNTfGbzeJFC1600s4Jkldwa');
 
 interface PaymentFormProps {
-    orderId: string;
+    clientSecret: string;
+    customerName: string;
+    customerEmail: string;
+    customerPhone?: string;
     onSuccess: (transactionId: string) => Promise<void>;
 }
 
-const PaymentForm: React.FC<PaymentFormProps> = ({ orderId, onSuccess }) => {
+const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, customerName, customerEmail, customerPhone, onSuccess }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState<string | null>(null);
@@ -22,29 +25,46 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ orderId, onSuccess }) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!stripe || !elements) return;
+        if (!clientSecret) return;
 
         setProcessing(true);
         setError(null);
 
         try {
-            // In a real scenario, you would create a payment intent on the backend
-            // For now, we'll simulate a successful payment
             const cardElement = elements.getElement(CardElement);
             if (!cardElement) throw new Error("Card Element not found");
 
-            // Create a token for testing (in production, use payment intents)
-            const { token, error: tokenError } = await stripe.createToken(cardElement);
-            
-            if (tokenError) {
-                setError(tokenError.message || "Payment failed");
+            const result = await stripe.confirmCardPayment(clientSecret, {
+                payment_method: {
+                    card: cardElement,
+                    billing_details: {
+                        name: customerName,
+                        email: customerEmail,
+                        phone: customerPhone
+                    }
+                }
+            });
+
+            if (result.error) {
+                setError(result.error.message || 'Payment failed');
                 setProcessing(false);
                 return;
             }
 
-            if (token) {
-                // Call backend to complete the payment
-                await onSuccess(token.id);
+            const pi = result.paymentIntent;
+            if (!pi) {
+                setError('Payment did not return a PaymentIntent.');
+                setProcessing(false);
+                return;
             }
+
+            if (pi.status !== 'succeeded') {
+                setError(`Payment not completed (status: ${pi.status}). Please try again.`);
+                setProcessing(false);
+                return;
+            }
+
+            await onSuccess(pi.id);
         } catch (err: any) {
             console.error(err);
             setError(err.message || "An unexpected error occurred.");
@@ -100,6 +120,7 @@ const PaymentCompletion: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
+    const [clientSecret, setClientSecret] = useState<string | null>(null);
 
     const orderId = searchParams.get('orderId');
     const eventId = searchParams.get('eventId');
@@ -113,26 +134,29 @@ const PaymentCompletion: React.FC = () => {
                     return;
                 }
 
+                setClientSecret(null);
                 // Load event data
                 const eventData = await fetchEventById(eventId);
                 if (eventData) setEvent(eventData);
 
                 // Load order data (this requires backend support)
+                let orderForIntent: Order | null = null;
                 try {
                     const orderData = await fetchOrderById(orderId);
                     if (orderData) {
                         setOrder(orderData);
+                        const now = new Date();
+                        const isExpired = !!(orderData.paymentPendingUntil && new Date(orderData.paymentPendingUntil) < now);
+
                         // Check if order is still valid (not expired, not already paid)
                         if (orderData.status === 'PAID') {
                             setError('This order has already been paid. Please check your confirmation email.');
                         } else if (orderData.status === 'CANCELLED') {
                             setError('This order has been cancelled. The seats have been released.');
-                        } else if (orderData.paymentPendingUntil) {
-                            const deadline = new Date(orderData.paymentPendingUntil);
-                            const now = new Date();
-                            if (deadline < now) {
-                                setError('This hold has expired. Please contact support to rebook.');
-                            }
+                        } else if (orderData.status === 'PAYMENT_PENDING' && isExpired) {
+                            setError('This hold has expired. Please contact support to rebook.');
+                        } else if (orderData.status === 'PAYMENT_PENDING' && !isExpired) {
+                            orderForIntent = orderData;
                         }
                     }
                 } catch (err: any) {
@@ -144,6 +168,16 @@ const PaymentCompletion: React.FC = () => {
                     } else {
                         // Silent fail - let user proceed with payment, order will be fetched on submit
                         console.log('Order not found in initial load:', err.message);
+                    }
+                }
+
+                // If order is valid for payment, request a PaymentIntent clientSecret.
+                if (orderForIntent) {
+                    try {
+                        const res = await createPaymentIntentForOrder(orderForIntent.id || orderId, PaymentMode.ONLINE);
+                        setClientSecret(res.clientSecret);
+                    } catch (e: any) {
+                        setError(e.message || 'Failed to prepare payment. Please try again.');
                     }
                 }
 
@@ -282,9 +316,22 @@ const PaymentCompletion: React.FC = () => {
                         )}
 
                         {!error && !processing && (
-                            <Elements stripe={stripePromise}>
-                                <PaymentForm orderId={orderId || ''} onSuccess={handlePaymentSuccess} />
-                            </Elements>
+                            clientSecret ? (
+                                <Elements stripe={stripePromise}>
+                                    <PaymentForm
+                                        clientSecret={clientSecret}
+                                        customerName={order?.customerName || ''}
+                                        customerEmail={order?.customerEmail || ''}
+                                        customerPhone={order?.customerPhone || undefined}
+                                        onSuccess={handlePaymentSuccess}
+                                    />
+                                </Elements>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <div className="w-12 h-12 border-4 border-slate-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+                                    <p className="text-slate-600">Preparing secure payment...</p>
+                                </div>
+                            )
                         )}
 
                         {processing && (

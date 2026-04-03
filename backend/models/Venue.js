@@ -1,5 +1,5 @@
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const VenueSchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -20,4 +20,4 @@ const VenueSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('Venue', VenueSchema);
+export default mongoose.model('Venue', VenueSchema);

@@ -5,8 +5,11 @@ const API_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost
 
 const fetchJson = async (url: string, options?: RequestInit) => {
     try {
+        const token = localStorage.getItem('eventhorizon_token');
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
         const res = await fetch(`${API_URL}${url}`, {
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             ...options
         });
         if (!res.ok) {
@@ -361,6 +364,16 @@ export const createPaymentPendingOrder = (
     return fetchJson('/orders/payment-pending', {
         method: 'POST',
         body: JSON.stringify({ eventId, seatIds, customer, serviceFee, bookedBy, couponId, paymentMode })
+    });
+};
+
+export const createPaymentIntentForOrder = (
+    orderId: string,
+    paymentMode: PaymentMode = PaymentMode.ONLINE
+): Promise<{ clientSecret: string, paymentIntentId?: string }> => {
+    return fetchJson(`/orders/${orderId}/create-payment-intent`, {
+        method: 'POST',
+        body: JSON.stringify({ paymentMode })
     });
 };
 

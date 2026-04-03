@@ -1,6 +1,6 @@
-const Staff = require('../models/Staff');
+import Staff from '../models/Staff.js';
 
-exports.getStaff = async (req, res) => {
+export const getStaff = async (req, res) => {
     try {
         const query = {};
         // Organizers can only view their own staff
@@ -16,7 +16,7 @@ exports.getStaff = async (req, res) => {
     }
 };
 
-exports.getStaffById = async (req, res) => {
+export const getStaffById = async (req, res) => {
     try {
         const s = await Staff.findById(req.params.id);
         if (!s) return res.status(404).json({ message: 'Not found' });
@@ -29,7 +29,7 @@ exports.getStaffById = async (req, res) => {
     }
 };
 
-exports.createStaff = async (req, res) => {
+export const createStaff = async (req, res) => {
     try {
         // If organizer, force organizerId to the authenticated user's id
         const organizerId = (req.user && req.user.role === 'ORGANIZER') ? req.user.id : req.body.organizerId;
@@ -52,7 +52,7 @@ exports.createStaff = async (req, res) => {
     }
 };
 
-exports.updateStaff = async (req, res) => {
+export const updateStaff = async (req, res) => {
     try {
         const staffRecord = await Staff.findById(req.params.id);
         if (!staffRecord) return res.status(404).json({ message: 'Not found' });
@@ -73,7 +73,7 @@ exports.updateStaff = async (req, res) => {
     }
 };
 
-exports.deleteStaff = async (req, res) => {
+export const deleteStaff = async (req, res) => {
     try {
         const staffRecord = await Staff.findById(req.params.id);
         if (!staffRecord) return res.status(404).json({ message: 'Not found' });

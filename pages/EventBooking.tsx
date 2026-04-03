@@ -23,6 +23,31 @@ const EventBooking: React.FC = () => {
     // Track seat ids currently being processed to avoid race conditions
     const pendingSeatIdsRef = useRef<Set<string>>(new Set());
 
+    // Full-overlay loader while booking/hold operations are in-flight.
+    const pendingRequestsRef = useRef(0);
+    const [fullOverlayLoading, setFullOverlayLoading] = useState(false);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+      return () => {
+        isMountedRef.current = false;
+      };
+    }, []);
+
+    const setOverlayLoading = (val: boolean) => {
+      if (isMountedRef.current) setFullOverlayLoading(val);
+    };
+
+    const beginFullOverlayLoading = () => {
+      pendingRequestsRef.current += 1;
+      setOverlayLoading(true);
+    };
+
+    const endFullOverlayLoading = () => {
+      pendingRequestsRef.current = Math.max(0, pendingRequestsRef.current - 1);
+      if (pendingRequestsRef.current === 0) setOverlayLoading(false);
+    };
+
   // GA State: ticketTypeId -> count
   const [gaSelection, setGaSelection] = useState<Record<string, number>>({});
 
@@ -131,6 +156,7 @@ const EventBooking: React.FC = () => {
       } else {
           // Mark this seat as pending so rapid clicks don't cause duplicate adds
           pendingSeatIdsRef.current.add(seat.id);
+          beginFullOverlayLoading();
           // Check backend availability (mock)
           try {
               const isAvailable = await holdSeat(event.id, seat.id);
@@ -144,8 +170,12 @@ const EventBooking: React.FC = () => {
               } else {
                   setError(`Seat ${seat.rowLabel}${seat.seatNumber} is no longer available.`);
               }
+          } catch (err: any) {
+              console.error('Hold seat error', err);
+              setError(err?.message || 'Failed to hold seat. Please try again.');
           } finally {
               pendingSeatIdsRef.current.delete(seat.id);
+              endFullOverlayLoading();
           }
       }
   };
@@ -168,6 +198,7 @@ const EventBooking: React.FC = () => {
         // Try to atomically lock seats on the backend. Backend should
         // respond with { success: true } or { success: false, conflicts: [seatIds] }
         (async () => {
+            beginFullOverlayLoading();
             try {
                 const seatIds = selectedSeats.map(s => s.id);
                 const res: any = await lockSeats(event.id, seatIds);
@@ -185,6 +216,8 @@ const EventBooking: React.FC = () => {
             } catch (err: any) {
                 console.error('Lock seats error', err);
                 setError(err.message || 'Failed to lock seats.');
+            } finally {
+                endFullOverlayLoading();
             }
         })();
       } else {
@@ -231,6 +264,14 @@ const EventBooking: React.FC = () => {
 return (
     !isMobile ?
   <div className="h-[calc(100vh-64px)] flex flex-col bg-white md:bg-transparent">
+    {fullOverlayLoading && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-xl shadow-2xl px-6 py-5 flex flex-col items-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600" />
+          <p className="mt-3 text-slate-700 font-medium">Processing...</p>
+        </div>
+      </div>
+    )}
     {/* HEADER: Back button and title - only on mobile */}
     <div className="relative mb-6 md:hidden">
         <div className="w-full h-56 rounded-b-xl overflow-hidden relative bg-slate-900">
@@ -355,17 +396,20 @@ return (
             {/* Map Canvas — wrapper is relative+overflow-hidden so zoom controls stay fixed inside */}
             <div className="flex-1 relative overflow-hidden">
               {/* Scrollable map area */}
-              <div ref={mapContainerRef} className="absolute inset-0 bg-slate-50 overflow-auto flex items-start justify-start p-1">
-                <SeatGrid 
-                  seats={event.seats.map(s => {
-                    const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
-                    return { ...s, color: t ? t.color : s.color };
-                  })}
-                  stage={event.stage}
-                  selectedSeatIds={selectedSeats.map(s => s.id)}
-                  onSeatClick={handleSeatClick}
-                  scale={zoom}
-                />
+              {/* Outer = scroll only; inner = min full viewport + flex center so zoomed maps scroll fully (top rows / stage) */}
+              <div ref={mapContainerRef} className="absolute inset-0 bg-slate-50 overflow-auto">
+                <div className="flex min-h-full min-w-full justify-center items-center p-2 box-border">
+                  <SeatGrid 
+                    seats={event.seats.map(s => {
+                      const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
+                      return { ...s, color: t ? t.color : s.color };
+                    })}
+                    stage={event.stage}
+                    selectedSeatIds={selectedSeats.map(s => s.id)}
+                    onSeatClick={handleSeatClick}
+                    scale={zoom}
+                  />
+                </div>
               </div>
               
               {/* Floating Zoom Controls — sticky, outside scroll container */}
@@ -493,6 +537,14 @@ return (
   </div>
   :
   <div className="h-[calc(100vh-64px)] flex flex-col bg-white">
+    {fullOverlayLoading && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-xl shadow-2xl px-6 py-5 flex flex-col items-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600" />
+          <p className="mt-3 text-slate-700 font-medium">Processing...</p>
+        </div>
+      </div>
+    )}
     
     {/* Mobile: details left, small poster image on the right */}
     <div className="block px-4 mt-3">
@@ -556,17 +608,19 @@ return (
           {/* Map Canvas wrapper — relative+overflow-hidden keeps zoom controls sticky */}
           <div className="flex-1 relative overflow-hidden">
             {/* Scrollable map area */}
-            <div ref={mapContainerRef} className="absolute inset-0 bg-slate-100 overflow-auto flex items-start justify-start p-1">
-              <SeatGrid 
-                seats={event.seats.map(s => {
-                  const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
-                  return { ...s, color: t ? t.color : s.color };
-                })}
-                stage={event.stage}
-                selectedSeatIds={selectedSeats.map(s => s.id)}
-                onSeatClick={handleSeatClick}
-                scale={zoom}
-              />
+            <div ref={mapContainerRef} className="absolute inset-0 bg-slate-100 overflow-auto">
+              <div className="flex min-h-full min-w-full justify-center items-center p-2 box-border">
+                <SeatGrid 
+                  seats={event.seats.map(s => {
+                    const t = event.ticketTypes?.find(tt => tt.id === s.ticketTypeId);
+                    return { ...s, color: t ? t.color : s.color };
+                  })}
+                  stage={event.stage}
+                  selectedSeatIds={selectedSeats.map(s => s.id)}
+                  onSeatClick={handleSeatClick}
+                  scale={zoom}
+                />
+              </div>
             </div>
             
             {/* Floating Zoom Controls — sticky, outside scroll container */}

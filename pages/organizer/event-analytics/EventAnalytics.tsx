@@ -1,14 +1,17 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder, fetchChargesQuote, fetchUsersByRole, validateCoupon } from '../../services/mockBackend';
-import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat } from '../../types';
+import { fetchEventById, fetchEventOrders, updateSeatStatus, processPayment, cancelOrder, updateRefundStatus, createPaymentPendingOrder, fetchChargesQuote, fetchUsersByRole, validateCoupon } from '../../../services/mockBackend';
+import { Event, Order, SeatingType, SeatStatus, PaymentMode, Seat, UserRole } from '../../../types';
 import { ArrowLeft, DollarSign, Ticket, Calendar, Search, Filter, Download, Eye, X, Map as MapIcon, BarChart2, ZoomIn, ZoomOut, Maximize, Ban, CheckCircle, CreditCard, User as UserIcon, UserCheck, PieChart as PieChartIcon } from 'lucide-react';
-import { formatDateInTimeZone, formatTimeInTimeZone } from '../../utils/date';
-import { useAuth } from '../../context/AuthContext';
+import { formatDateInTimeZone, formatTimeInTimeZone } from '../../../utils/date';
+import { useAuth } from '../../../context/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
-import SeatGrid, { CELL_SIZE } from '../../components/SeatGrid';
+import SeatGrid, { CELL_SIZE } from '../../../components/SeatGrid';
 import clsx from 'clsx';
+import EventAnalyticsStats from './EventAnalyticsStats';
+import EventAnalyticsCheckin from './EventAnalyticsCheckin';
+import EventAnalyticsMap from './EventAnalyticsMap';
 
 const EventAnalytics: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -75,6 +78,9 @@ const EventAnalytics: React.FC = () => {
   const [holdCouponApplying, setHoldCouponApplying] = useState(false);
   const [holdQuote, setHoldQuote] = useState<any | null>(null);
 
+  // Organizer-only: block/unblock seats action in-flight.
+  const [seatStatusProcessing, setSeatStatusProcessing] = useState(false);
+
   // Check-in Report State
   const [ticketSearch, setTicketSearch] = useState("");
   const [checkInFilter, setCheckInFilter] = useState<
@@ -90,9 +96,9 @@ const EventAnalytics: React.FC = () => {
         Promise.all([
           fetchEventById(id),
           fetchEventOrders(id),
-          fetchUsersByRole('ORGANIZER'),
-          fetchUsersByRole('STAFF'),
-          fetchUsersByRole('USER')
+          fetchUsersByRole(UserRole.ORGANIZER),
+          fetchUsersByRole(UserRole.STAFF),
+          fetchUsersByRole(UserRole.USER)
         ]).then(([eData, oData, orgs, staffs, users]) => {
           setEvent(eData || null);
           setOrders(oData);
@@ -171,37 +177,28 @@ const EventAnalytics: React.FC = () => {
     return <div className="p-10 text-center text-red-500">Event not found</div>;
 
     // --- Stats Calculation ---
-    // Exclude cancelled orders from revenue and ticket counts
     const activeOrders = orders.filter(o => o.status !== 'CANCELLED');
-    const totalRevenue = activeOrders.reduce((acc, o) => acc + (o.totalAmount - (o.serviceFee || 0)), 0);
+    const orderActualEarning = (o: Order) => o.totalAmount - (o.serviceFee || 0);
+    const paidOrders = activeOrders.filter(o => o.status === 'PAID');
+    const onlinePaidOrders = paidOrders.filter(
+      (o) => (o.paymentMode || PaymentMode.ONLINE) === PaymentMode.ONLINE,
+    );
+    const cashPaidOrders = paidOrders.filter((o) => o.paymentMode === PaymentMode.CASH);
+
+    const totalOnlinePaid = onlinePaidOrders.reduce((a, o) => a + o.totalAmount, 0);
+    const onlineServiceFeesPaid = onlinePaidOrders.reduce((a, o) => a + (o.serviceFee || 0), 0);
+    const onlineTotalEarning = onlinePaidOrders.reduce((a, o) => a + orderActualEarning(o), 0);
+
+    const totalCashCollected = cashPaidOrders.reduce((a, o) => a + o.totalAmount, 0);
+    const dueCashServiceFee = cashPaidOrders.reduce((a, o) => a + (o.serviceFee || 0), 0);
+    const estimatedCashEarning = cashPaidOrders.reduce((a, o) => a + orderActualEarning(o), 0);
+
+    const onlineEarningMinusDueCashService = onlineTotalEarning - dueCashServiceFee;
+
     const totalTicketsSold = activeOrders.reduce((acc, o) => acc + o.tickets.length, 0);
-    const totalCapacity = event.seats.length;
-    const percentageSold = totalCapacity > 0 ? Math.round((totalTicketsSold / totalCapacity) * 100) : 0;
-    
-    // Check-in Stats
+
     const totalCheckedIn = orders.reduce((acc, o) => acc + o.tickets.filter(t => t.checkedIn).length, 0);
     const percentageCheckedIn = totalTicketsSold > 0 ? Math.round((totalCheckedIn / totalTicketsSold) * 100) : 0;
-
-  // --- Chart Data Preparation ---
-  const salesByType: Record<string, number> = {};
-  orders.forEach((o) => {
-    o.tickets.forEach((t) => {
-      const type = t.ticketType || "Unknown";
-      salesByType[type] = (salesByType[type] || 0) + 1;
-    });
-  });
-
-  const chartData = Object.entries(salesByType).map(([name, count]) => ({
-    name,
-    count,
-  }));
-  const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f43f5e"];
-  const CHECKIN_COLORS = ["#22c55e", "#e2e8f0"]; // Green for checked in, Grey for pending
-
-  const checkInData = [
-    { name: "Checked In", value: totalCheckedIn },
-    { name: "Pending", value: totalTicketsSold - totalCheckedIn },
-  ];
 
   // --- Filtering Orders ---
   const filteredOrders = orders
@@ -273,6 +270,14 @@ const EventAnalytics: React.FC = () => {
       return 0;
     });
 
+  const escapeCell = (v: unknown) => {
+    if (v === null || v === undefined) return '';
+    return `"${String(v).replace(/"/g, '""')}"`;
+  };
+
+  const fmtMoneySummary = (n: number) =>
+    `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   // --- Export Handler (CSV) ---
   const handleExport = () => {
     try {
@@ -319,42 +324,73 @@ const EventAnalytics: React.FC = () => {
   // --- Orders Export Handler (CSV) ---
   const handleExportOrders = () => {
     try {
+      const tz = event.timezone;
       const headers = [
         'Order ID',
-        'Received',
-        'Customer Name',
-        'Customer Email',
+        'Order Date',
+        'Customer',
         'Booked By',
-        'Items',
-        'Total Amount',
-        'Payment Mode',
+        'Tickets',
+        'Net Revenue',
+        'Service Fee',
+        'Order Amount',
+        'Mode',
         'Status',
         'Refund Status',
-        'Coupon',
-        'Service Fee'
       ];
 
-      const rows = filteredOrders.map(o => [
-        o.id,
-        o.date ? new Date(o.date).toISOString() : '',
-        o.customerName,
-        o.customerEmail,
-        (o.bookedBy && (o.bookedBy.name || o.bookedBy.id)) ? `${o.bookedBy.name || o.bookedBy.id} ${o.bookedBy && o.bookedBy.role ? `(${o.bookedBy.role})` : ''}` : (o.userId && !String(o.userId).startsWith('guest-') ? o.userId : o.customerName),
-        o.tickets.length,
-        (o.totalAmount || 0).toFixed(2),
-        o.paymentMode || 'ONLINE',
-        o.status,
-        o.refundStatus || '',
-        o.couponCode || '',
-        (o.serviceFee || 0).toFixed(2)
-      ]);
+      const bookedByLabel = (o: Order) =>
+        o.bookedBy && (o.bookedBy.name || o.bookedBy.id)
+          ? `${o.bookedBy.name || o.bookedBy.id}${o.bookedBy.role ? ` (${o.bookedBy.role})` : ''}`
+          : o.userId && !String(o.userId).startsWith('guest-')
+            ? String(o.userId)
+            : o.customerName;
 
-      const escapeCell = (v: any) => {
-        if (v === null || v === undefined) return '';
-        return `"${String(v).replace(/"/g, '""')}"`;
+      const ticketsLabel = (o: Order) => {
+        const base = `${o.tickets.length} Tickets`;
+        return o.couponCode ? `${base} ${o.couponCode}` : base;
       };
 
-      const csv = [headers, ...rows].map(r => r.map(escapeCell).join(',')).join('\n');
+      const orderDateLabel = (o: Order) => {
+        if (!o.date) return '';
+        return `${formatDateInTimeZone(o.date, tz)} at ${formatTimeInTimeZone(o.date, tz)}`;
+      };
+
+      const refundLabel = (o: Order) =>
+        o.status === 'CANCELLED' ? o.refundStatus || 'PENDING' : '—';
+
+      const rows = filteredOrders.map((o) => [
+        o.id,
+        orderDateLabel(o),
+        `${o.customerName}\n${o.customerEmail}`,
+        bookedByLabel(o),
+        ticketsLabel(o),
+        `$${((o.totalAmount || 0) - (o.serviceFee || 0)).toFixed(2)}`,
+        `$${(o.serviceFee || 0).toFixed(2)}`,
+        `$${(o.totalAmount || 0).toFixed(2)}`,
+        o.paymentMode || 'ONLINE',
+        o.status,
+        refundLabel(o),
+      ]);
+
+      const pad9 = ['', '', '', '', '', '', '', '', ''];
+      const summary: string[][] = [
+        ['', '', '', '', '', '', '', '', '', '', ''],
+        [
+          'Analytics summary (dashboard cards; all paid orders, excludes cancelled)',
+          '',
+          ...pad9,
+        ],
+        ['Online Sales (Gross)', fmtMoneySummary(totalOnlinePaid), ...pad9],
+        ['Fees Collected', fmtMoneySummary(onlineServiceFeesPaid), ...pad9],
+        ['Net Sales (Online)', fmtMoneySummary(onlineTotalEarning), ...pad9],
+        ['Offline Sales', fmtMoneySummary(totalCashCollected), ...pad9],
+        ['Outstanding Fees', `-${fmtMoneySummary(dueCashServiceFee)}`, ...pad9],
+        ['Net Sales (Offline)', fmtMoneySummary(estimatedCashEarning), ...pad9],
+        ['Total Payout', fmtMoneySummary(onlineEarningMinusDueCashService), ...pad9],
+      ];
+
+      const csv = [headers, ...rows, ...summary].map((r) => r.map(escapeCell).join(',')).join('\n');
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -371,7 +407,7 @@ const EventAnalytics: React.FC = () => {
     }
   };
 
-    // Open cancel form prefilled for selected order
+    // Open refund modal prefilled for selected order
     const handleCancelOrder = (order: Order) => {
         setSelectedOrder(order);
         setCancelRefundAmount(order.refundAmount || 0);
@@ -397,11 +433,11 @@ const EventAnalytics: React.FC = () => {
                 setSelectedOrder(res.order);
                 setShowCancelModal(false);
             } else {
-                alert('Failed to cancel order');
+                alert('Failed to process refund');
             }
         } catch (err: any) {
-            console.error('Cancel failed', err);
-            alert('Cancel failed: ' + (err.message || err));
+            console.error('Refund failed', err);
+            alert('Refund failed: ' + (err.message || err));
         } finally {
             setCancelProcessing(false);
         }
@@ -409,6 +445,8 @@ const EventAnalytics: React.FC = () => {
 
 
   const isReserved = event.seatingType === SeatingType.RESERVED;
+
+  const showSeatActionOverlay = boProcessing || holdProcessing || seatStatusProcessing;
 
   // --- Map Interactions ---
   const handleSeatClick = (seat: Seat) => {
@@ -426,16 +464,32 @@ const EventAnalytics: React.FC = () => {
 
   const handleBlockSeats = async () => {
     if (!event) return;
-    await updateSeatStatus(event.id, selectedSeatIds, SeatStatus.UNAVAILABLE);
-    setSelectedSeatIds([]);
-    loadData();
+    if (seatStatusProcessing) return;
+    setSeatStatusProcessing(true);
+    try {
+      await updateSeatStatus(event.id, selectedSeatIds, SeatStatus.UNAVAILABLE);
+      setSelectedSeatIds([]);
+      loadData();
+    } catch (err: any) {
+      alert('Failed to block seats. ' + (err?.message || String(err)));
+    } finally {
+      setSeatStatusProcessing(false);
+    }
   };
 
   const handleUnblockSeats = async () => {
     if (!event) return;
-    await updateSeatStatus(event.id, selectedSeatIds, SeatStatus.AVAILABLE);
-    setSelectedSeatIds([]);
-    loadData();
+    if (seatStatusProcessing) return;
+    setSeatStatusProcessing(true);
+    try {
+      await updateSeatStatus(event.id, selectedSeatIds, SeatStatus.AVAILABLE);
+      setSelectedSeatIds([]);
+      loadData();
+    } catch (err: any) {
+      alert('Failed to unblock seats. ' + (err?.message || String(err)));
+    } finally {
+      setSeatStatusProcessing(false);
+    }
   };
 
   const handleOpenBoxOffice = () => {
@@ -477,23 +531,30 @@ const EventAnalytics: React.FC = () => {
     }
 
       try {
-      // Ask server for authoritative quote for this payment mode so charges apply correctly
+      const isComplimentaryBo = boMode === PaymentMode.COMPLIMENTARY;
+      // Ask server for authoritative quote for this payment mode so charges apply correctly (not for complimentary)
       let serverQuote: any = null;
-      try {
-        const couponId = boCoupon ? boCoupon.id : undefined;
-        serverQuote = await fetchChargesQuote(selectedSeatObjs, couponId, event.id, boMode);
-      } catch (e) {
-        console.debug('BoxOffice - failed to fetch server quote, falling back to 0 service fee', e);
+      if (!isComplimentaryBo) {
+        try {
+          const couponId = boCoupon ? boCoupon.id : undefined;
+          serverQuote = await fetchChargesQuote(selectedSeatObjs, couponId, event.id, boMode);
+        } catch (e) {
+          console.debug('BoxOffice - failed to fetch server quote, falling back to 0 service fee', e);
+        }
       }
-      let serviceFeeToUse = serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0;
-      let appliedChargesToUse = serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined;
+      let serviceFeeToUse = isComplimentaryBo
+        ? 0
+        : (serverQuote && typeof serverQuote.serviceFee === 'number' ? serverQuote.serviceFee : 0);
+      let appliedChargesToUse = isComplimentaryBo
+        ? undefined
+        : (serverQuote && Array.isArray(serverQuote.appliedCharges) ? serverQuote.appliedCharges : undefined);
       await processPayment(
         { name: boName, email: boEmail, phone: boPhone },
         event,
         selectedSeatObjs,
         serviceFeeToUse,
         appliedChargesToUse,
-        boCoupon ? boCoupon.id : undefined,
+        isComplimentaryBo ? undefined : (boCoupon ? boCoupon.id : undefined),
         boMode,
         undefined,
         // bookedBy: organizer/staff performing box-office action
@@ -555,7 +616,7 @@ const EventAnalytics: React.FC = () => {
           email: holdEmail,
           phone: holdPhone
         },
-        0, // No service fee for holds
+        typeof (holdQuote as any)?.serviceFee === 'number' ? (holdQuote as any).serviceFee : 0,
         // bookedBy: organizer/staff placing the hold
         { id: user?.id, role: (user as any)?.role, name: (user as any)?.name },
         holdCoupon ? holdCoupon.id : undefined,
@@ -583,6 +644,14 @@ const EventAnalytics: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 relative">
+      {showSeatActionOverlay && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-xl shadow-2xl px-6 py-5 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600" />
+            <p className="mt-3 text-slate-700 font-medium">Processing...</p>
+          </div>
+        </div>
+      )}
       <button
         onClick={() => navigate("/organizer")}
         className="flex items-center text-slate-500 hover:text-slate-800 mb-6"
@@ -657,563 +726,64 @@ const EventAnalytics: React.FC = () => {
       </div>
 
       {activeView === "STATS" && (!isStaff || perms.includes('revenue')) && (
-        <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-slate-500 uppercase">
-                    Total Revenue
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900 mt-1">
-                    ${totalRevenue.toLocaleString()}
-                  </h3>
-                </div>
-                <div className="p-3 bg-green-100 text-green-600 rounded-lg">
-                  <DollarSign className="w-6 h-6" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-slate-500 uppercase">
-                    Tickets Sold
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900 mt-1">
-                    {totalTicketsSold}{" "}
-                    <span className="text-sm font-normal text-slate-400">
-                      {totalCapacity > 0 ? `/ ${totalCapacity}` : ""}
-                    </span>
-                  </h3>
-                </div>
-                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-                  <Ticket className="w-6 h-6" />
-                </div>
-              </div>
-              {totalCapacity > 0 && (
-                <div className="w-full bg-slate-100 h-1.5 mt-4 rounded-full overflow-hidden">
-                  <div
-                    className="bg-indigo-600 h-full"
-                    style={{ width: `${percentageSold}%` }}
-                  ></div>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-slate-500 uppercase">
-                    Attendance
-                  </p>
-                  <h3 className="text-2xl font-bold text-slate-900 mt-1">
-                    {totalCheckedIn}{" "}
-                    <span className="text-sm font-normal text-slate-400">
-                      / {totalTicketsSold}
-                    </span>
-                  </h3>
-                </div>
-                <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-                  <UserCheck className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="w-full bg-slate-100 h-1.5 mt-4 rounded-full overflow-hidden">
-                <div
-                  className="bg-blue-600 h-full"
-                  style={{ width: `${percentageCheckedIn}%` }}
-                ></div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <p className="text-sm font-medium text-slate-500 uppercase mb-4">
-                Sales by Ticket Type
-              </p>
-              <div className="h-20">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={chartData}
-                    layout="vertical"
-                    margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-                  >
-                    <Tooltip cursor={{ fill: "#f8fafc" }} />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" hide />
-                    <Bar dataKey="count" barSize={10} radius={[0, 4, 4, 0]}>
-                      {chartData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-                    {/* Orders Table */}
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <h2 className="text-lg font-bold text-slate-900">Order Management</h2>
-                            <div className="flex gap-2 items-center w-full sm:w-auto">
-                                    <div className="relative w-full sm:w-64">
-                                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                        <input 
-                                            type="text" 
-                                            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                            placeholder="Search order ID, email..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                    </div>
-                                    <input
-                                        type="date"
-                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
-                                        value={orderDateFrom}
-                                        onChange={e => setOrderDateFrom(e.target.value)}
-                                        title="From date"
-                                    />
-                                    <input
-                                        type="date"
-                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
-                                        value={orderDateTo}
-                                        onChange={e => setOrderDateTo(e.target.value)}
-                                        title="To date"
-                                    />
-                                    <select
-                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
-                                        value={orderStatusFilter}
-                                        onChange={e => setOrderStatusFilter(e.target.value as any)}
-                                    >
-                                        <option value="ALL">All Status</option>
-                                        <option value="PAID">Paid</option>
-                                        <option value="FAILED">Failed</option>
-                                        <option value="REFUNDED">Refunded</option>
-                                        <option value="CANCELLED">Cancelled</option>
-                                    </select>
-                                    <select
-                                        className="border rounded-lg px-3 py-2 text-sm bg-white"
-                                        value={orderModeFilter}
-                                        onChange={e => setOrderModeFilter(e.target.value as any)}
-                                    >
-                                        <option value="ALL">All Modes</option>
-                                        <option value="ONLINE">Online</option>
-                                        <option value="CASH">Cash</option>
-                                        <option value="CHARITY">Charity</option>
-                                    </select>
-                                    <button
-                                      onClick={handleExportOrders}
-                                      className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg flex items-center hover:bg-slate-50 text-sm font-medium"
-                                    >
-                                      <Download className="w-4 h-4 mr-2" /> Export
-                                    </button>
-                                </div>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-50 border-b border-slate-200">
-                                    <tr>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order ID</th>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Received</th>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
-                                      <th className="px-6 py-4 text-sm font-semibold text-slate-700">Booked By</th>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Items</th>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total (Net)</th>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Mode</th>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Status</th>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700">Refund Status</th>
-                                        <th className="px-6 py-4 text-sm font-semibold text-slate-700 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {filteredOrders.length === 0 ? (
-                                      <tr>
-                                        <td colSpan={10} className="px-6 py-12 text-center text-slate-400">
-                                          No orders found matching criteria.
-                                        </td>
-                                      </tr>
-                                    ) : (
-                                        filteredOrders.map(order => (
-                                            <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                                                <td className="px-6 py-4 text-sm font-mono text-slate-600">{order.id}</td>
-                                                <td className="px-6 py-4 text-sm text-slate-600">{formatDateInTimeZone(order.date, event.timezone)} at {formatTimeInTimeZone(order.date, event.timezone)}</td>
-                                                <td className="px-6 py-4">
-                                                    <p className="text-sm font-medium text-slate-900">{order.customerName}</p>
-                                                    <p className="text-xs text-slate-500">{order.customerEmail}</p>
-                                                </td>
-                                          <td className="px-6 py-4">
-                                            <p className="text-sm font-medium text-slate-900">
-                                              {(() => {
-                                                if (order.bookedBy && (order.bookedBy.name || order.bookedBy.id)) {
-                                                  return `${order.bookedBy.name || order.bookedBy.id}${order.bookedBy.role ? ` (${order.bookedBy.role})` : ''}`;
-                                                }
-                                                const uid = order.userId || '';
-                                                if (!uid || String(uid).startsWith('guest-')) return order.customerName || 'Customer';
-                                                if (usersMap && usersMap[uid]) return usersMap[uid];
-                                                return order.customerName || uid;
-                                              })()}
-                                            </p>
-                                          </td>
-                                                <td className="px-6 py-4 text-sm text-slate-600">
-                                                    {order.tickets.length} Tickets
-                                                    {order.couponCode && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">{order.couponCode}</span>}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                                                    ${(order.totalAmount - (order.serviceFee || 0)).toFixed(2)}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                                                        {order.paymentMode || 'ONLINE'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                        order.status === 'PAID' ? 'bg-green-100 text-green-800' : 
-                                                        order.status === 'REFUNDED' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {order.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    {order.status === 'CANCELLED' ? (
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                            (order.refundStatus || 'PENDING') === 'PROCESSED' ? 'bg-green-100 text-green-800' : 
-                                                            (order.refundStatus || 'PENDING') === 'FAILED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                                                        }`}>
-                                                            {(order.refundStatus || 'PENDING')}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-sm text-slate-400">—</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <button 
-                                                        onClick={() => setSelectedOrder(order)}
-                                                        className="text-slate-500 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-lg transition"
-                                                        title="View Details"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </>
-            )}
+        <EventAnalyticsStats
+          event={event}
+          totalOnlinePaid={totalOnlinePaid}
+          onlineServiceFeesPaid={onlineServiceFeesPaid}
+          onlineTotalEarning={onlineTotalEarning}
+          totalCashCollected={totalCashCollected}
+          dueCashServiceFee={dueCashServiceFee}
+          estimatedCashEarning={estimatedCashEarning}
+          onlineEarningMinusDueCashService={onlineEarningMinusDueCashService}
+          filteredOrders={filteredOrders}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          orderDateFrom={orderDateFrom}
+          setOrderDateFrom={setOrderDateFrom}
+          orderDateTo={orderDateTo}
+          setOrderDateTo={setOrderDateTo}
+          orderStatusFilter={orderStatusFilter}
+          setOrderStatusFilter={setOrderStatusFilter}
+          orderModeFilter={orderModeFilter}
+          setOrderModeFilter={setOrderModeFilter}
+          handleExportOrders={handleExportOrders}
+          setSelectedOrder={setSelectedOrder}
+        />
+      )}
 
       {activeView === "CHECKIN" && (!isStaff || perms.includes('checkin')) && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {/* Left Column: Summary */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-900 mb-4">
-                Check-in Progress
-              </h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={checkInData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {checkInData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={CHECKIN_COLORS[index % CHECKIN_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend verticalAlign="bottom" height={36} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="text-center mt-2">
-                <p className="text-3xl font-bold text-slate-900">
-                  {totalCheckedIn}
-                </p>
-                <p className="text-sm text-slate-500">
-                  Checked In out of {totalTicketsSold}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
-              <h4 className="font-bold text-indigo-900 mb-2">Quick Stats</h4>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-indigo-700">Percentage</span>
-                  <span className="font-bold text-indigo-900">
-                    {percentageCheckedIn}%
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-indigo-700">Remaining</span>
-                  <span className="font-bold text-indigo-900">
-                    {totalTicketsSold - totalCheckedIn}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-indigo-700">Last Scan</span>
-                  <span className="font-bold text-indigo-900">
-                    {/* Find most recent check-in */}
-                    {allTickets
-                      .filter((t) => t.checkedIn)
-                      .sort(
-                        (a, b) =>
-                          new Date(b.checkInDate!).getTime() -
-                          new Date(a.checkInDate!).getTime(),
-                      )[0]?.checkInDate
-                      ? new Date(
-                          allTickets
-                            .filter((t) => t.checkedIn)
-                            .sort(
-                              (a, b) =>
-                                new Date(b.checkInDate!).getTime() -
-                                new Date(a.checkInDate!).getTime(),
-                            )[0].checkInDate!,
-                        ).toLocaleTimeString()
-                      : "N/A"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Detailed List */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-[800px]">
-            <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50 rounded-t-xl">
-              <h3 className="font-bold text-slate-900">
-                Attendee List ({filteredTickets.length})
-              </h3>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-48">
-                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Search name, ticket ID..."
-                    value={ticketSearch}
-                    onChange={(e) => setTicketSearch(e.target.value)}
-                  />
-                </div>
-                <select
-                  className="border rounded-lg px-3 py-2 text-sm bg-white"
-                  value={checkInFilter}
-                  onChange={(e) => setCheckInFilter(e.target.value as any)}
-                >
-                  <option value="ALL">All Tickets</option>
-                  <option value="CHECKED_IN">Checked In</option>
-                  <option value="PENDING">Pending</option>
-                </select>
-                <button
-                  onClick={handleExport}
-                  className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg flex items-center hover:bg-slate-50 text-sm font-medium"
-                >
-                  <Download className="w-4 h-4 mr-2" /> Export
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {filteredTickets.length === 0 ? (
-                <div className="text-center py-20 text-slate-400">
-                  No tickets found matching your filters.
-                </div>
-              ) : (
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
-                    <tr>
-                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Ticket Info
-                      </th>
-                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Customer
-                      </th>
-                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
-                        Time
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredTickets.map((ticket) => (
-                      <tr key={ticket.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                          <p className="font-bold text-slate-900 text-sm">
-                            {ticket.seatLabel}
-                          </p>
-                          <p className="text-xs font-mono text-slate-400">
-                            {ticket.id}
-                          </p>
-                          <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 mt-1 inline-block">
-                            {ticket.ticketType || "Standard"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm font-medium text-slate-900">
-                            {ticket.customerName}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          {ticket.checkedIn ? (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
-                              <CheckCircle className="w-3 h-3 mr-1" /> Checked
-                              In
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">
-                              Pending
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm text-slate-500">
-                          {ticket.checkedIn && ticket.checkInDate
-                            ? new Date(ticket.checkInDate).toLocaleTimeString(
-                                [],
-                                { hour: "2-digit", minute: "2-digit" },
-                              )
-                            : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
+        <EventAnalyticsCheckin
+          filteredTickets={filteredTickets}
+          ticketSearch={ticketSearch}
+          setTicketSearch={setTicketSearch}
+          checkInFilter={checkInFilter}
+          setCheckInFilter={setCheckInFilter}
+          handleExport={handleExport}
+          totalCheckedIn={totalCheckedIn}
+          totalTicketsSold={totalTicketsSold}
+          percentageCheckedIn={percentageCheckedIn}
+          allTickets={allTickets}
+        />
       )}
 
       {activeView === "MAP" && (!isStaff || perms.includes('live_map')) && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col min-h-[600px] relative">
-          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <div className="flex items-center gap-4">
-              <h2 className="font-bold text-slate-900">Seating Status</h2>
-              <div className="flex gap-4 text-xs">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-slate-200 border border-slate-300 rounded"></div>
-                  <span>Sold</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-amber-200 border border-amber-300 rounded animate-pulse"></div>
-                  <span>Booking (In-progress)</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-slate-800 border border-slate-800 flex items-center justify-center rounded">
-                    <div className="w-2 h-px bg-slate-500 rotate-45 transform absolute"></div>
-                    <div className="w-2 h-px bg-slate-500 -rotate-45 transform absolute"></div>
-                  </div>
-                  <span>Blocked</span>
-                </div>
-                {event.ticketTypes.map((tt) => (
-                  <div key={tt.id} className="flex items-center gap-1">
-                    <div
-                      className="w-3 h-3 rounded"
-                      style={{ backgroundColor: tt.color }}
-                    ></div>
-                    <span>{tt.name} (Avail)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-1 bg-white p-1 rounded border shadow-sm">
-              <button
-                onClick={() => setZoom((z) => Math.max(0.2, z - 0.1))}
-                className="p-1.5 hover:bg-slate-100 rounded text-slate-600"
-              >
-                <ZoomOut className="w-4 h-4" />
-              </button>
-              <span className="text-xs font-bold text-slate-500 w-12 text-center">
-                {Math.round(zoom * 100)}%
-              </span>
-              <button
-                onClick={() => setZoom((z) => Math.min(2, z + 0.1))}
-                className="p-1.5 hover:bg-slate-100 rounded text-slate-600"
-              >
-                <ZoomIn className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setZoom(1)}
-                className="p-1.5 hover:bg-slate-100 rounded text-slate-600 border-l ml-1"
-                title="Reset"
-              >
-                <Maximize className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          <div
-            ref={mapContainerRef}
-            className="flex-1 bg-slate-100 overflow-hidden flex items-center justify-center p-4"
-          >
-            <SeatGrid
-              seats={event.seats}
-              stage={event.stage}
-              selectedSeatIds={selectedSeatIds}
-              totalRows={event.rows}
-              totalCols={event.cols}
-              scale={zoom}
-              onSeatClick={handleSeatClick}
-              allowDragSelect={true}
-              onBulkSelect={handleBulkSelect}
-              canSelectUnavailable={true}
-            />
-          </div>
-
-          {/* Floating Action Bar */}
-          {selectedSeatIds.length > 0 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 flex gap-2 animate-in slide-in-from-bottom-4 duration-200 z-10">
-              <div className="flex items-center px-4 border-r border-slate-200 mr-2">
-                <span className="font-bold text-indigo-600">
-                  {selectedSeatIds.length}
-                </span>
-                <span className="text-sm text-slate-500 ml-1">selected</span>
-              </div>
-              <button
-                onClick={handleBlockSeats}
-                className="flex items-center px-4 py-2 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition"
-              >
-                <Ban className="w-4 h-4 mr-2 text-red-500" /> Block
-              </button>
-              <button
-                onClick={handleUnblockSeats}
-                className="flex items-center px-4 py-2 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition"
-              >
-                <CheckCircle className="w-4 h-4 mr-2 text-green-500" /> Unblock
-              </button>
-              <div className="w-px bg-slate-200 mx-1"></div>
-              <button
-                onClick={handleOpenBoxOffice}
-                className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition shadow-sm"
-              >
-                <Ticket className="w-4 h-4 mr-2" /> Book
-              </button>
-              <button
-                onClick={handleOpenHoldOrder}
-                className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-bold hover:bg-yellow-600 transition shadow-sm"
-              >
-                <Ticket className="w-4 h-4 mr-2" /> Held
-              </button>
-            </div>
-          )}
-        </div>
+        <EventAnalyticsMap
+          event={event}
+          selectedSeatIds={selectedSeatIds}
+          setSelectedSeatIds={setSelectedSeatIds}
+          selectedSeatObjs={selectedSeatObjs}
+          selectionTotal={selectionTotal}
+          zoom={zoom}
+          setZoom={setZoom}
+          mapContainerRef={mapContainerRef}
+          handleSeatClick={handleSeatClick}
+          handleBulkSelect={handleBulkSelect}
+          handleBlockSeats={handleBlockSeats}
+          handleUnblockSeats={handleUnblockSeats}
+          handleOpenBoxOffice={handleOpenBoxOffice}
+          handleOpenHoldOrder={handleOpenHoldOrder}
+          isReserved={isReserved}
+        />
       )}
 
             {/* Order Details Modal */}
@@ -1222,9 +792,9 @@ const EventAnalytics: React.FC = () => {
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="p-6 border-b flex justify-between items-center bg-slate-50">
                             <div>
-                                <h3 className="font-bold text-lg text-slate-900">Order Details</h3>
+                                <h3 className="font-bold text-lg text-slate-900">Order Summery</h3>
                                 <p className="text-sm text-slate-500 font-mono">{selectedOrder.id}</p>
-                                <p className="text-sm text-slate-500">Received: {formatDateInTimeZone(selectedOrder.date, event.timezone)} at {formatTimeInTimeZone(selectedOrder.date, event.timezone)}</p>
+                                <p className="text-sm text-slate-500">Order Date: {formatDateInTimeZone(selectedOrder.date, event.timezone)} at {formatTimeInTimeZone(selectedOrder.date, event.timezone)}</p>
                             </div>
                             <div className="text-right hidden sm:block">
                                 <div className="text-sm text-slate-500">Event</div>
@@ -1383,45 +953,75 @@ const EventAnalytics: React.FC = () => {
                                 </table>
                             </div>
                             
-                            {/* Totals - Show simplified view to Organizer */}
-                            <div className="flex justify-end">
-                                <div className="w-64 space-y-2">
-                                    {selectedOrder.discountApplied > 0 && (
-                                        <div className="flex justify-between text-sm text-green-600">
-                                            <span>Discount</span>
-                                            <span>-${selectedOrder.discountApplied.toFixed(2)}</span>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between items-center font-bold text-xl text-slate-900 border-t pt-3 mt-2">
-                                        <span>Total Paid</span>
-                                        <span>${selectedOrder.totalAmount.toFixed(2)}</span>
-                                    </div>
+                            {/* Order totals */}
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mt-2">
+                                <div className="w-full sm:max-w-sm sm:ml-auto space-y-1.5 text-sm border border-slate-200 rounded-lg p-4 bg-slate-50">
+                                    {(() => {
+                                        const lineSubtotal = selectedOrder.tickets.reduce((acc, t) => acc + (t.price || 0), 0);
+                                        const discount = selectedOrder.discountApplied || 0;
+                                        const service = selectedOrder.serviceFee || 0;
+                                        const total = selectedOrder.totalAmount ?? 0;
+                                        const isComplimentaryOrder = selectedOrder.paymentMode === PaymentMode.COMPLIMENTARY;
+                                        const actualEarning = isComplimentaryOrder
+                                            ? 0
+                                            : lineSubtotal - discount;
+                                        return (
+                                            <>
+                                                <div className="flex justify-between text-slate-600">
+                                                    <span>Subtotal</span>
+                                                    <span className="font-medium text-slate-900">${lineSubtotal.toFixed(2)}</span>
+                                                </div>
+                                                {!isComplimentaryOrder && (
+                                                    <div className="flex justify-between text-slate-600">
+                                                        <span>Discount</span>
+                                                        <span className={`font-medium ${discount > 0 ? 'text-green-700' : 'text-slate-900'}`}>
+                                                            {discount > 0 ? `-$${discount.toFixed(2)}` : '$0.00'}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between text-slate-700 border-t border-dashed border-slate-200 pt-2 mt-2">
+                                                    <span className="font-semibold">Net Sales</span>
+                                                    <span className="font-semibold text-slate-900">${actualEarning.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-slate-600">
+                                                    <span>Service Fees</span>
+                                                    <span className="font-medium text-slate-900">${service.toFixed(2)}</span>
+                                                </div>
+                                               
+                                                <div className="flex justify-between items-center font-bold text-base text-slate-900 border-t border-slate-200 pt-2 mt-2">
+                                                    <span>Total paid</span>
+                                                    <span>${total.toFixed(2)}</span>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
-                            </div>
-                                        {currentOrganizerId && String(currentOrganizerId) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
+                                {currentOrganizerId && String(currentOrganizerId) === String(event.organizerId) && selectedOrder.status === 'PAID' && (
                                     <button
+                                        type="button"
                                         onClick={() => handleCancelOrder(selectedOrder)}
-                                        className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
-                                        title="Cancel Order"
+                                        className="self-start sm:self-end px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 shrink-0"
+                                        title="Process refund and cancel this order"
                                     >
-                                        Cancel Order
+                                        Refund
                                     </button>
                                 )}
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Cancel Order Modal */}
+            {/* Refund order modal (cancels order on the server) */}
             {showCancelModal && selectedOrder && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
                         <div className="p-4 border-b flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-lg text-slate-900">Cancel Order</h3>
+                            <h3 className="font-bold text-lg text-slate-900">Refund</h3>
                             <button onClick={() => setShowCancelModal(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"><X className="w-5 h-5"/></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <p className="text-sm text-slate-600">You are cancelling Order <span className="font-mono text-slate-700">{selectedOrder.id}</span>. This action will mark the order as <strong>CANCELLED</strong> and block tickets from scanning.</p>
+                            <p className="text-sm text-slate-600">Refund order <span className="font-mono text-slate-700">{selectedOrder.id}</span>. Recording the refund will mark the order as <strong>CANCELLED</strong> and block tickets from being scanned.</p>
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Refund Amount</label>
@@ -1438,15 +1038,16 @@ const EventAnalytics: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Cancellation Notes</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Refund notes</label>
                                 <textarea className="w-full border rounded-lg px-3 py-2" rows={4} value={cancelNotes} onChange={e => setCancelNotes(e.target.value)} />
                             </div>
 
                             <div className="flex justify-end gap-2">
-                                <button onClick={() => setShowCancelModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
+                                <button type="button" onClick={() => setShowCancelModal(false)} className="px-4 py-2 rounded-lg border">Close</button>
                                 <button 
+                                    type="button"
                                     onClick={confirmCancelOrder} 
-                                    className="px-4 py-2 rounded-lg bg-red-600 text-white disabled:opacity-60 flex items-center gap-2"
+                                    className="px-4 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60 flex items-center gap-2"
                                     disabled={cancelProcessing}
                                 >
                                     {cancelProcessing ? (
@@ -1457,7 +1058,7 @@ const EventAnalytics: React.FC = () => {
                                             </svg>
                                             Processing...
                                         </>
-                                    ) : 'Confirm Cancel'}
+                                    ) : 'Confirm refund'}
                                 </button>
                             </div>
                         </div>
@@ -1516,22 +1117,37 @@ const EventAnalytics: React.FC = () => {
 
               {/* Price breakdown */}
               <div className="mb-4 p-3 bg-white border rounded-lg text-sm">
-                <div className="flex justify-between text-slate-600 mb-1">
-                  <span>Subtotal</span>
-                  <span className="font-medium">${selectionTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600 mb-1">
-                  <span>Discount</span>
-                  <span className="font-medium">${((boQuote && boQuote.discount) || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600 mb-1">
-                  <span>Service Fee</span>
-                  <span className="font-medium">${((boQuote && boQuote.serviceFee) || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-900 font-bold mt-2">
-                  <span>Total</span>
-                  <span>${( (selectionTotal - ((boQuote && boQuote.discount) || 0)) + ((boQuote && boQuote.serviceFee) || 0) ).toFixed(2)}</span>
-                </div>
+                {boMode === PaymentMode.COMPLIMENTARY ? (
+                  <>
+                    <div className="flex justify-between text-slate-600 mb-1">
+                      <span>Face value (not charged)</span>
+                      <span className="font-medium">${selectionTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-900 font-bold mt-2 border-t pt-2">
+                      <span>Total charged</span>
+                      <span>$0.00</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-slate-600 mb-1">
+                      <span>Subtotal</span>
+                      <span className="font-medium">${selectionTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 mb-1">
+                      <span>Discount</span>
+                      <span className="font-medium">${((boQuote && boQuote.discount) || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 mb-1">
+                      <span>Service Fee</span>
+                      <span className="font-medium">${((boQuote && boQuote.serviceFee) || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-900 font-bold mt-2">
+                      <span>Total</span>
+                      <span>${( (selectionTotal - ((boQuote && boQuote.discount) || 0)) + ((boQuote && boQuote.serviceFee) || 0) ).toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <form onSubmit={handleBoxOfficeSubmit}>
@@ -1573,6 +1189,7 @@ const EventAnalytics: React.FC = () => {
                       onChange={(e) => setBoPhone(e.target.value)}
                     />
                   </div>
+                  {boMode !== PaymentMode.COMPLIMENTARY && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Coupon Code (optional)</label>
                     <div className="flex gap-2">
@@ -1624,6 +1241,7 @@ const EventAnalytics: React.FC = () => {
                     )}
                     {boCouponError && <p className="text-xs text-red-600 mt-1">{boCouponError}</p>}
                   </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       Payment Mode
@@ -1631,7 +1249,17 @@ const EventAnalytics: React.FC = () => {
                       <div className="grid grid-cols-3 gap-3">
                       <button
                         type="button"
-                        onClick={() => setBoMode(PaymentMode.CASH)}
+                        onClick={async () => {
+                          setBoMode(PaymentMode.CASH);
+                          if (!event) return;
+                          try {
+                            const selectedSeatObjsLocal = event.seats.filter((s) => selectedSeatIds.includes(s.id));
+                            const quote = await fetchChargesQuote(selectedSeatObjsLocal, undefined, event.id, PaymentMode.CASH);
+                            setBoQuote(quote);
+                          } catch {
+                            setBoQuote(null);
+                          }
+                        }}
                         className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.CASH ? "bg-green-50 border-green-500 text-green-700" : "hover:bg-slate-50"}`}
                       >
                         <DollarSign className="w-5 h-5" />
@@ -1648,7 +1276,13 @@ const EventAnalytics: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => setBoMode(PaymentMode.COMPLIMENTARY)}
+                        onClick={() => {
+                          setBoMode(PaymentMode.COMPLIMENTARY);
+                          setBoCoupon(null);
+                          setBoCouponCode('');
+                          setBoCouponError(null);
+                          setBoQuote(null);
+                        }}
                         className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-1 transition ${boMode === PaymentMode.COMPLIMENTARY ? "bg-indigo-50 border-indigo-500 text-indigo-700" : "hover:bg-slate-50"}`}
                       >
                         <Ban className="w-5 h-5" />

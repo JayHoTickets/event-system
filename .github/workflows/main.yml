@@ -4,28 +4,30 @@ on:
   push:
     branches:
       - master
+      - develop
 
 jobs:
-  build-and-deploy:
+  # ─────────────────────────────────────────
+  # 🚀 Deploy to EC2 (master branch)
+  # ─────────────────────────────────────────
+  deploy-ec2:
+    name: Deploy to EC2 (Production)
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
 
     steps:
-      # Step 1: Checkout the code
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Deploy to EC2
       - name: 🚀 Deploy to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          # Write SSH key to a file and set permissions
           echo "$EC2_SSH_KEY" > ec2_key.pem
           chmod 600 ec2_key.pem
 
-          # Test SSH connection
           echo "🔌 Testing SSH connection to EC2..."
           ssh -i ec2_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=10 $EC2_USER@$EC2_HOST "echo '✅ SSH connection successful!'"
           if [ $? -ne 0 ]; then
@@ -33,36 +35,99 @@ jobs:
             exit 1
           fi
 
-          # Deploy on EC2
           echo "🚀 Deploying React app on EC2..."
           ssh -i ec2_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST <<'EOF'
-          set -e  # Exit immediately if any command fails
+          set -e
 
-          # ---------- Frontend Deployment ----------
+          # ---------- Frontend ----------
           echo "🧹 Cleaning previous frontend build..."
           cd ~/version-2/event-system
           git reset --hard
           git pull origin master
           echo "📦 Installing frontend dependencies..."
           npm install
-          echo "📦 Building frontend..."
+          echo "🏗️ Building frontend..."
           export VITE_API_BASE_URL=https://jayhotickets.com/api
           npm run build
           echo "🔄 Restarting frontend PM2 process..."
           pm2 restart frontend
-          echo "✅ Frontend deployed successfully!"
+          echo "✅ Frontend deployed!"
 
-          # ---------- Backend Deployment ----------
-          echo "🧹 Cleaning previous backend build..."
+          # ---------- Backend ----------
           cd backend
           echo "📦 Installing backend dependencies..."
           npm install
           echo "🔄 Restarting backend PM2 process..."
           pm2 restart backend
-          echo "✅ Backend deployed successfully!"
+          echo "✅ Backend deployed!"
 
-          # ---------- Restart Nginx ----------
+          # ---------- Nginx ----------
           echo "🔁 Restarting Nginx..."
           sudo systemctl restart nginx
-          echo "✅ Deployment complete!"
+          echo "✅ EC2 Deployment complete!"
+          EOF
 
+  # ─────────────────────────────────────────
+  # 🚀 Deploy to Hostinger VPS (develop branch)
+  # ─────────────────────────────────────────
+  deploy-hostinger:
+    name: Deploy to Hostinger VPS (Staging)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Install sshpass
+        run: sudo apt-get install -y sshpass
+
+      - name: 🔌 Test SSH connection to Hostinger
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_PASSWORD: ${{ secrets.HOSTINGER_PASSWORD }}
+        run: |
+          echo "🔌 Testing SSH connection to Hostinger VPS..."
+          sshpass -p "$HOSTINGER_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 $HOSTINGER_USER@$HOSTINGER_HOST "echo '✅ SSH connection successful!'"
+          if [ $? -ne 0 ]; then
+            echo "❌ SSH connection failed. Exiting."
+            exit 1
+          fi
+
+      - name: 🚀 Deploy to Hostinger VPS
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_PASSWORD: ${{ secrets.HOSTINGER_PASSWORD }}
+        run: |
+          sshpass -p "$HOSTINGER_PASSWORD" ssh -o StrictHostKeyChecking=no $HOSTINGER_USER@$HOSTINGER_HOST <<'EOF'
+          set -e
+
+          # ---------- Frontend ----------
+          echo "🧹 Cleaning previous frontend build..."
+          cd /home/ubuntu/Git-Syatem/event-system
+          git reset --hard
+          git pull origin develop
+          echo "📦 Installing frontend dependencies..."
+          npm install
+          echo "🏗️ Building frontend..."
+          npm run build
+          echo "🔄 Restarting frontend PM2 process..."
+          pm2 restart event_frontend
+          echo "✅ Frontend deployed!"
+
+          # ---------- Backend ----------
+          echo "🧹 Cleaning previous backend..."
+          cd backend
+          echo "📦 Installing backend dependencies..."
+          npm install
+          echo "🔄 Restarting backend PM2 process..."
+          pm2 restart event_backend
+          echo "✅ Backend deployed!"
+
+          # ---------- Nginx ----------
+          echo "🔁 Restarting Nginx..."
+          sudo systemctl restart nginx
+          echo "✅ Hostinger Deployment complete!"
+          EOF

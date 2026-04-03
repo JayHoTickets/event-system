@@ -1,6 +1,5 @@
-
-const { DateTime } = require('luxon');
-const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+import { DateTime } from 'luxon';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 const REGION = process.env.AWS_REGION || 'us-east-1';
 const sesClient = new SESClient({ region: REGION });
@@ -37,7 +36,7 @@ const sendEmail = async (to, subject, htmlContent) => {
 
 const formatCurrency = (amount) => `$${amount.toFixed(2)}`;
 
-exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, organizerEmail, adminEmail }) => {
+export const sendOrderEmails = async ({ order, event, customerName, customerEmail, organizerEmail, adminEmail }) => {
     let dateStr = '';
     let timeStr = '';
     try {
@@ -271,7 +270,7 @@ This event is organized and produced by a third party. Jay-Ho! is acting solely 
     }
 };
 
-exports.sendCancellationEmails = async ({ order, event, organizerEmail, adminEmail }) => {
+export const sendCancellationEmails = async ({ order, event, organizerEmail, adminEmail }) => {
     const formatCurrency = (amount) => `$${(amount || 0).toFixed(2)}`;
     const subject = `Order Cancelled: ${event.title} — ${order.id}`;
     const body = `
@@ -306,11 +305,11 @@ exports.sendCancellationEmails = async ({ order, event, organizerEmail, adminEma
  * Send "Payment Pending" email when organizer places a hold on seats
  * This email includes a payment link but NO QR codes or tickets (since payment hasn't been completed)
  */
-exports.sendPaymentPendingEmail = async ({ order, event, customerName, customerEmail, paymentUrl, paymentDueAt }) => {
+export const sendPaymentPendingEmail = async ({ order, event, customerName, customerEmail, paymentUrl, paymentDueAt }) => {
     let dateStr = '';
     let timeStr = '';
     try {
-        const { DateTime } = require('luxon');
+        // using imported DateTime
         let dt = null;
         const jsDate = event.startTime ? new Date(event.startTime) : null;
         if (jsDate && !isNaN(jsDate.getTime())) {
@@ -342,7 +341,6 @@ exports.sendPaymentPendingEmail = async ({ order, event, customerName, customerE
     // Format when the hold expires
     let expiryStr = '';
     try {
-        const { DateTime } = require('luxon');
         const expiryDate = new Date(paymentDueAt);
         const expiryDt = DateTime.fromJSDate(expiryDate);
         if (expiryDt.isValid) {

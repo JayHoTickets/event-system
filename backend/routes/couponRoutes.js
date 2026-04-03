@@ -1,13 +1,15 @@
 
-const express = require('express');
+import express from 'express';
+import { getCoupons, createCoupon, updateCoupon, deleteCoupon, validateCoupon, getBestCoupon } from '../controllers/couponController.js';
+import { authenticateJWT, requireRole } from '../middleware/auth.js';
+
 const router = express.Router();
-const { getCoupons, createCoupon, updateCoupon, deleteCoupon, validateCoupon, getBestCoupon } = require('../controllers/couponController');
 
 router.get('/', getCoupons);
-router.post('/', createCoupon);
-router.put('/:id', updateCoupon);
-router.delete('/:id', deleteCoupon);
+router.post('/', authenticateJWT, requireRole(['ORGANIZER', 'STAFF']), createCoupon);
+router.put('/:id', authenticateJWT, requireRole(['ORGANIZER', 'STAFF']), updateCoupon);
+router.delete('/:id', authenticateJWT, requireRole(['ORGANIZER', 'STAFF']), deleteCoupon);
 router.post('/validate', validateCoupon);
-router.post('/best', getBestCoupon);
+router.get('/best', getBestCoupon);
 
-module.exports = router;
+export default router;

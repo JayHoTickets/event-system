@@ -1,11 +1,12 @@
+import express from 'express';
+import { getCharges, createCharge, updateCharge, deleteCharge } from '../controllers/serviceChargeController.js';
+import { authenticateJWT, requireRole } from '../middleware/auth.js';
 
-const express = require('express');
 const router = express.Router();
-const { getCharges, createCharge, updateCharge, deleteCharge } = require('../controllers/serviceChargeController');
 
 router.get('/', getCharges);
-router.post('/', createCharge);
-router.put('/:id', updateCharge);
-router.delete('/:id', deleteCharge);
+router.post('/', authenticateJWT, requireRole('ORGANIZER'), createCharge);
+router.put('/:id', authenticateJWT, requireRole('ORGANIZER'), updateCharge);
+router.delete('/:id', authenticateJWT, requireRole('ORGANIZER'), deleteCharge);
 
-module.exports = router;
+export default router;

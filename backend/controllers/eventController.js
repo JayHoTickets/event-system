@@ -1,9 +1,9 @@
-
-const { DateTime } = require('luxon');
-const mongoose = require('mongoose');
-const Event = require('../models/Event');
-const Venue = require('../models/Venue');
-const Theater = require('../models/Theater');
+import { DateTime } from 'luxon';
+import mongoose from 'mongoose';
+import Event from '../models/Event.js';
+import Venue from '../models/Venue.js';
+import Theater from '../models/Theater.js';
+import Staff from '../models/Staff.js';
 
 // Parse incoming date/time values from the client. The frontend sends
 // the wall-clock value (e.g. "2026-01-26T18:00") together with an
@@ -43,9 +43,9 @@ const formatVenueLocation = (v) => {
 
 // Cleanup job: find seats where holdUntil has expired and revert them to AVAILABLE
 // Also handles payment pending orders that have expired
-exports.cleanupExpiredHolds = async () => {
+export const cleanupExpiredHolds = async () => {
     try {
-        const Order = require('../models/Order');
+        const Order = (await import('../models/Order.js')).default;
         const now = new Date();
         
         // 1. Clean up expired seat holds (both BOOKING_IN_PROGRESS and HOLD status)
@@ -104,7 +104,7 @@ exports.cleanupExpiredHolds = async () => {
     }
 };
 
-exports.getEvents = async (req, res) => {
+export const getEvents = async (req, res) => {
     try {
         // Default query
         let query = {};
@@ -155,7 +155,7 @@ exports.getEvents = async (req, res) => {
     }
 };
 
-exports.getEventById = async (req, res) => {
+export const getEventById = async (req, res) => {
     try {
         const lookup = req.params.id;
         let event = null;
@@ -247,13 +247,13 @@ const validateTicketTypes = (types, allowFreeTickets = false) => {
         // price === 0 is only allowed when allowFreeTickets is true
         if (price === 0 && !allowFreeTickets) {
             const name = (t && (t.name || t.id)) || 'Unnamed ticket type';
-            return { valid: false, message: `Ticket type \"${name}\" is free; free tickets not allowed for this event` };
+            return { valid: false, message: `Ticket type \"${name}\" with charge 0; 0 charge tickets not allowed for this event` };
         }
     }
     return { valid: true };
 };
 
-exports.createEvent = async (req, res) => {
+export const createEvent = async (req, res) => {
     const { seatMappings, ...data } = req.body;
     try {
         const vt = validateTicketTypes(data.ticketTypes, !!data.allowFreeTickets);
@@ -334,7 +334,7 @@ exports.createEvent = async (req, res) => {
     }
 };
 
-exports.updateEvent = async (req, res) => {
+export const updateEvent = async (req, res) => {
     const { seatMappings, ...data } = req.body;
     try {
         const event = await Event.findById(req.params.id);
@@ -493,7 +493,7 @@ exports.updateEvent = async (req, res) => {
 };
 
 // Set complimentary limit for an event (admin/organizer use)
-exports.setComplimentaryLimit = async (req, res) => {
+export const setComplimentaryLimit = async (req, res) => {
     try {
         const { id } = req.params;
         const { complimentaryLimit } = req.body;
@@ -509,7 +509,7 @@ exports.setComplimentaryLimit = async (req, res) => {
 };
 
 // Admin/Organizer: enable or disable creating free (price === 0) ticket types for an event
-exports.setAllowFreeTickets = async (req, res) => {
+export const setAllowFreeTickets = async (req, res) => {
     try {
         const { id } = req.params;
         const { allowFreeTickets } = req.body;
@@ -523,7 +523,7 @@ exports.setAllowFreeTickets = async (req, res) => {
     }
 };
 
-exports.deleteEvent = async (req, res) => {
+export const deleteEvent = async (req, res) => {
     try {
         await Event.findByIdAndUpdate(req.params.id, { deleted: true });
         res.json({ success: true });
@@ -532,11 +532,35 @@ exports.deleteEvent = async (req, res) => {
     }
 };
 
-exports.updateSeats = async (req, res) => {
+export const updateSeats = async (req, res) => {
     const { seatIds, status } = req.body;
     try {
         const event = await Event.findById(req.params.id);
         if(!event) return res.status(404).json({});
+
+        // Authorization:
+        // - ADMIN can update any event seats
+        // - ORGANIZER can update only seats for their own event
+        // - STAFF can update only if they have `live_map` permission and belong to the event's organizer
+        const callerRole = req.user && req.user.role;
+        if (callerRole === 'ORGANIZER') {
+            if (String(event.organizerId) !== String(req.user.id)) {
+                return res.status(403).json({ message: 'Forbidden: cannot modify seats for this event' });
+            }
+        } else if (callerRole === 'STAFF') {
+            const staff = await Staff.findById(req.user.id);
+            if (!staff || !staff.active) {
+                return res.status(403).json({ message: 'Forbidden: staff account inactive' });
+            }
+            if (!Array.isArray(staff.permissions) || !staff.permissions.includes('live_map')) {
+                return res.status(403).json({ message: 'Forbidden: missing permission to update seat map' });
+            }
+            if (String(staff.organizerId) !== String(event.organizerId)) {
+                return res.status(403).json({ message: 'Forbidden: staff cannot modify seats for this organizer' });
+            }
+        } else if (callerRole !== 'ADMIN') {
+            return res.status(403).json({ message: 'Forbidden: insufficient role' });
+        }
 
         const seatIdSet = new Set(seatIds);
         event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s, status } : s);
@@ -548,7 +572,7 @@ exports.updateSeats = async (req, res) => {
     }
 };
 
-exports.holdSeat = async (req, res) => {
+export const holdSeat = async (req, res) => {
     const { eventId, seatId } = req.body;
     try {
         const event = await Event.findById(eventId);
@@ -566,76 +590,12 @@ exports.holdSeat = async (req, res) => {
     }
 };
 
-// Atomically lock a set of seats for a short booking window. Expects body: { seatIds: [] }
-exports.lockSeats = async (req, res) => {
-    const { seatIds } = req.body;
-    try {
-        const event = await Event.findById(req.params.id);
-        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
-        if (event.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
-
-        const conflicts = [];
-        const seatIdSet = new Set(seatIds);
-
-        // First pass: detect conflicts
-        event.seats.forEach(s => {
-            if (seatIdSet.has(s.id) && s.status !== 'AVAILABLE') {
-                conflicts.push(s.id);
-            }
-        });
-
-        if (conflicts.length > 0) {
-            return res.json({ success: false, conflicts });
-        }
-
-        // Second pass: update statuses to BOOKING_IN_PROGRESS and set expiry
-        const holdExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s, status: 'BOOKING_IN_PROGRESS', holdUntil: holdExpiry } : s);
-        await event.save();
-
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
-
-// Release seats previously placed in BOOKING_IN_PROGRESS back to AVAILABLE
-exports.releaseSeats = async (req, res) => {
-    // Accept seatIds either from the JSON body or as a query parameter
-    // (some keepalive/beacon requests may send data via query). The
-    // query form is expected to be a JSON-encoded array string.
-    let seatIds = req.body && req.body.seatIds;
-    if ((!seatIds || seatIds.length === 0) && req.query && req.query.seatIds) {
-        try {
-            seatIds = JSON.parse(req.query.seatIds);
-        } catch (parseErr) {
-            // If parsing fails, try splitting comma separated
-            seatIds = String(req.query.seatIds).split(',').map(s => s.trim()).filter(Boolean);
-        }
-    }
-    try {
-        const event = await Event.findById(req.params.id);
-        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
-        const seatIdSet = new Set(seatIds || []);
-        event.seats = event.seats.map(s => {
-            if (seatIdSet.has(s.id) && s.status === 'BOOKING_IN_PROGRESS') {
-                return { ...s, status: 'AVAILABLE', holdUntil: null };
-            }
-            return s;
-        });
-
-        await event.save();
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
 
 // Lock seats atomically for a short booking window. Only seats that are
 // currently AVAILABLE will be moved to BOOKING_IN_PROGRESS. Returns
 // { success: true } on full success or { success: false, conflicts: [seatIds] }
-exports.lockSeats = async (req, res) => {
+export const lockSeats = async (req, res) => {
     const seatIds = req.body.seatIds || [];
     try {
         const event = await Event.findById(req.params.id);
@@ -669,7 +629,7 @@ exports.lockSeats = async (req, res) => {
 };
 
 // Release seats that are currently in BOOKING_IN_PROGRESS back to AVAILABLE.
-exports.releaseSeats = async (req, res) => {
+export const releaseSeats = async (req, res) => {
     const seatIds = req.body.seatIds || [];
     try {
         const event = await Event.findById(req.params.id);

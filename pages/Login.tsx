@@ -49,7 +49,7 @@ const Login: React.FC = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 mb-4">
                 <Lock className="w-8 h-8 text-indigo-600" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Sign In</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Login In</h1>
             <p className="text-slate-500 mt-2">Access the Jay-Ho Tickets Portal</p>
         </div>
 

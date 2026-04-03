@@ -19,7 +19,7 @@ import OrganizerDashboard from './pages/organizer/OrganizerDashboard';
 import OrganizerProfile from './pages/organizer/OrganizerProfile';
 import CreateEvent from './pages/organizer/CreateEvent';
 import OrganizerCoupons from './pages/organizer/OrganizerCoupons';
-import EventAnalytics from './pages/organizer/EventAnalytics';
+import EventAnalytics from './pages/organizer/event-analytics/EventAnalytics';
 import OrganizerScanner from './pages/organizer/OrganizerScanner';
 import OrganizerStaff from './pages/organizer/OrganizerStaff';
 import PublicOrganizerGuide from './pages/PublicOrganizerGuide';

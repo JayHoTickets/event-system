@@ -5,6 +5,7 @@ import { fetchTheaterById, saveTheaterLayout } from '../../services/mockBackend'
 import { Theater, Seat, SeatStatus, Stage } from '../../types';
 import { ArrowLeft, Save, MousePointer2, Edit2, Eraser, Grip, CheckSquare, ZoomIn, ZoomOut, Maximize, Square, Grid3x3, RotateCcw, Trash2, Spline, ArrowRight, ArrowLeft as ArrowLeftIcon, Hash } from 'lucide-react';
 import clsx from 'clsx';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 type Tool = 'SELECT' | 'DRAW' | 'GRID' | 'ERASE' | 'STAGE';
 
@@ -14,6 +15,7 @@ const AdminTheaterBuilder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [theater, setTheater] = useState<Theater | null>(null);
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
   
   // Canvas State
   const [zoom, setZoom] = useState(1);
@@ -482,8 +484,13 @@ const AdminTheaterBuilder: React.FC = () => {
 
   const handleSave = async () => {
     if(!theater) return;
-    await saveTheaterLayout(theater.id, seats, stage, rows, cols);
-    alert('Layout saved!');
+    setIsSavingLayout(true);
+    try {
+      await saveTheaterLayout(theater.id, seats, stage, rows, cols);
+      alert('Layout saved!');
+    } finally {
+      setIsSavingLayout(false);
+    }
   };
 
   if (!theater) return <div>Loading...</div>;
@@ -509,8 +516,19 @@ const AdminTheaterBuilder: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-            <button onClick={handleSave} className="bg-indigo-600 text-white px-4 py-2 rounded shadow-sm hover:bg-indigo-700 flex items-center gap-2 text-sm font-medium">
-                <Save className="w-4 h-4" /> Save Layout
+            <button
+              onClick={handleSave}
+              disabled={isSavingLayout}
+              className={`bg-indigo-600 text-white px-4 py-2 rounded shadow-sm hover:bg-indigo-700 flex items-center gap-2 text-sm font-medium ${
+                isSavingLayout ? 'opacity-90 cursor-not-allowed' : ''
+              }`}
+            >
+                {isSavingLayout ? (
+                  <LoadingSpinner size={16} label="Saving theater layout" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {isSavingLayout ? 'Saving...' : 'Save Layout'}
             </button>
         </div>
       </div>

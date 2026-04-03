@@ -4,12 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import { Theater, Venue } from '../../types';
 import { fetchTheaters, fetchVenues, createTheater, updateTheaterInfo, deleteTheater } from '../../services/mockBackend';
 import { Armchair, Plus, MapPin, LayoutGrid, Edit2, Trash2 } from 'lucide-react';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const AdminTheaters: React.FC = () => {
   const navigate = useNavigate();
   const [theaters, setTheaters] = useState<Theater[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSavingTheater, setIsSavingTheater] = useState(false);
+  const [deletingTheaterId, setDeletingTheaterId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   
   // Edit State
@@ -52,7 +55,7 @@ const AdminTheaters: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsSavingTheater(true);
     
     try {
         if(editingTheater) {
@@ -73,20 +76,20 @@ const AdminTheaters: React.FC = () => {
     } catch (err) {
         alert("Failed to save theater");
     } finally {
-        setLoading(false);
+        setIsSavingTheater(false);
     }
   };
 
   const handleDelete = async (id: string) => {
       if(window.confirm("Are you sure you want to delete this theater? This cannot be undone.")) {
-          setLoading(true);
+          setDeletingTheaterId(id);
           try {
               await deleteTheater(id);
               await loadData();
           } catch (err) {
               alert("Failed to delete theater");
           } finally {
-              setLoading(false);
+              setDeletingTheaterId(null);
           }
       }
   };
@@ -133,10 +136,19 @@ const AdminTheaters: React.FC = () => {
                              </button>
                              <button 
                                 onClick={() => handleDelete(theater.id)}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                disabled={deletingTheaterId === theater.id}
+                                className={`p-1.5 rounded ${
+                                  deletingTheaterId === theater.id
+                                    ? 'text-slate-300 cursor-not-allowed hover:bg-transparent'
+                                    : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                                }`}
                                 title="Delete"
                              >
-                                <Trash2 className="w-4 h-4" />
+                                {deletingTheaterId === theater.id ? (
+                                  <LoadingSpinner size={16} label="Deleting theater" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
                              </button>
                         </div>
                     </div>
@@ -201,8 +213,23 @@ const AdminTheaters: React.FC = () => {
 
                     <div className="flex justify-end gap-2">
                         <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-                            {editingTheater ? 'Update' : 'Create'}
+                        <button
+                          type="submit"
+                          disabled={isSavingTheater}
+                          className={`px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium ${
+                            isSavingTheater
+                              ? 'bg-indigo-400 text-white cursor-not-allowed opacity-90'
+                              : 'bg-indigo-600 text-white'
+                          } flex items-center justify-center gap-2`}
+                        >
+                            {isSavingTheater ? (
+                              <>
+                                <LoadingSpinner size={16} label={editingTheater ? 'Updating theater' : 'Creating theater'} />
+                                {editingTheater ? 'Updating...' : 'Creating...'}
+                              </>
+                            ) : (
+                              editingTheater ? 'Update' : 'Create'
+                            )}
                         </button>
                     </div>
                 </form>
