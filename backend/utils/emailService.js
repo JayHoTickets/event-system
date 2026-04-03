@@ -171,10 +171,12 @@ exports.sendOrderEmails = async ({ order, event, customerName, customerEmail, or
                         <span>Subtotal</span>
                         <span>${formatCurrency((order.totalAmount || 0) - (order.serviceFee || 0) + (order.discountApplied || 0))}</span>
                     </div>
+                    ${(order.discountApplied || 0) > 0 ? `
                     <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px;">
                         <span style="color:#059669">Discount</span>
                         <span style="color:#059669">-${formatCurrency(order.discountApplied || 0)}</span>
                     </div>
+                    ` : ''}
                     ${order.appliedCharges && order.appliedCharges.length > 0 ? `
                         <div style="margin-bottom:6px;">
                             <strong style="font-size:13px;">Applied Fees</strong>
@@ -422,7 +424,7 @@ exports.sendPaymentPendingEmail = async ({ order, event, customerName, customerE
                             <td style="color: #666;">Subtotal:</td>
                             <td style="text-align: right; font-weight: bold;">${formatCurrency(order.totalAmount - (order.serviceFee || 0) + (order.discountApplied || 0))}</td>
                         </tr>
-                        ${order.discountApplied ? `
+                        ${(order.discountApplied || 0) > 0 ? `
                         <tr>
                             <td style="color: #666;">Discount:</td>
                             <td style="text-align: right; color: #10b981;">-${formatCurrency(order.discountApplied)}</td>
