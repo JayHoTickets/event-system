@@ -247,7 +247,7 @@ const validateTicketTypes = (types, allowFreeTickets = false) => {
         // price === 0 is only allowed when allowFreeTickets is true
         if (price === 0 && !allowFreeTickets) {
             const name = (t && (t.name || t.id)) || 'Unnamed ticket type';
-            return { valid: false, message: `Ticket type \"${name}\" is free; free tickets not allowed for this event` };
+            return { valid: false, message: `Ticket type \"${name}\" with charge 0; 0 charge tickets not allowed for this event` };
         }
     }
     return { valid: true };
