@@ -41,6 +41,7 @@ const OrganizerCoupons: React.FC = () => {
 
     const [formData, setFormData] = useState({ ...initialForm });
     const [availableTicketTypes, setAvailableTicketTypes] = useState<any[]>([]);
+    const [submitError, setSubmitError] = useState('');
 
     useEffect(() => {
         loadData();
@@ -75,6 +76,7 @@ const OrganizerCoupons: React.FC = () => {
         setEditingCoupon(null);
         setFormData({ ...initialForm });
         setAvailableTicketTypes([]);
+        setSubmitError('');
         setShowModal(true);
     };
 
@@ -113,12 +115,47 @@ const OrganizerCoupons: React.FC = () => {
             ,
             applicableTicketTypeIds: (coupon as any).applicableTicketTypeIds || []
         });
+        setSubmitError('');
         setShowModal(true);
+    };
+
+    const validateCouponForm = (): string | null => {
+        const code = formData.code.trim();
+        if (!code) return 'Coupon name is required.';
+
+        if (!formData.startDate?.trim()) return 'Start date is required.';
+        if (!formData.expiryDate?.trim()) return 'Expiry date is required.';
+
+        const startMs = new Date(formData.startDate).getTime();
+        const endMs = new Date(formData.expiryDate).getTime();
+        if (Number.isNaN(startMs) || Number.isNaN(endMs)) return 'Invalid start or expiry date.';
+        if (startMs > endMs) return 'Start date cannot be after the expiry date.';
+
+        const maxUses = Number(formData.maxUses);
+        if (!Number.isFinite(maxUses) || maxUses < 1) return 'Max uses must be at least 1.';
+
+        if (!formData.discountType) return 'Discount type is required.';
+
+        const val = Number(formData.value);
+        if (!Number.isFinite(val)) return 'Discount value is required and must be a number.';
+        if (formData.discountType === 'PERCENTAGE') {
+            if (val <= 0 || val > 100) return 'Percentage discount must be greater than 0 and at most 100.';
+        } else if (val <= 0) return 'Fixed discount amount must be greater than 0.';
+
+        return null;
     };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if(!user) return;
+
+        const err = validateCouponForm();
+        if (err) {
+            setSubmitError(err);
+            return;
+        }
+        setSubmitError('');
+
         setSubmitting(true);
         try {
             // Build payload including new rule fields
@@ -148,20 +185,8 @@ const OrganizerCoupons: React.FC = () => {
             
             loadData();
             setShowModal(false);
-            // reset form to defaults (ensure controlled inputs for next open)
-            setFormData({
-                code: '',
-                discountType: 'PERCENTAGE',
-                value: 10,
-                eventId: '',
-                maxUses: 100,
-                startDate: '',
-                expiryDate: '',
-                ruleType: 'CODE',
-                minAmount: 0,
-                minSeats: 0,
-                applicableTicketTypeIds: []
-            });
+            setSubmitError('');
+            setFormData({ ...initialForm });
         } catch (error) {
             alert('Failed to save coupon: ' + error);
         } finally {
@@ -316,9 +341,15 @@ const OrganizerCoupons: React.FC = () => {
                             {editingCoupon ? 'Edit Coupon' : 'Create Coupon'}
                         </h2>
                         <form onSubmit={handleSave}>
-                            
+                            {submitError && (
+                                <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-800 text-sm border border-red-200" role="alert">
+                                    {submitError}
+                                </div>
+                            )}
+
                             <div className="mb-4">
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Coupon Code</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Coupon name <span className="text-red-600">*</span></label>
+                                <p className="text-xs text-slate-500 mb-1">This is the code customers enter at checkout.</p>
                                 <div className="relative">
                                     <Hash className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                     <input 
@@ -326,7 +357,7 @@ const OrganizerCoupons: React.FC = () => {
                                         className="w-full border rounded-lg pl-9 pr-3 py-2 uppercase font-mono" 
                                         placeholder="e.g. SUMMER25"
                                         value={formData.code}
-                                        onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                                        onChange={e => { setSubmitError(''); setFormData({...formData, code: e.target.value.toUpperCase()}); }}
                                     />
                                 </div>
                             </div>
@@ -344,24 +375,28 @@ const OrganizerCoupons: React.FC = () => {
 
                             <div className="grid grid-cols-2 gap-4 mb-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Type <span className="text-red-600">*</span></label>
                                     <select 
+                                        required
                                         className="w-full border rounded-lg px-3 py-2"
                                         value={formData.discountType}
-                                        onChange={e => setFormData({...formData, discountType: e.target.value})}
+                                        onChange={e => { setSubmitError(''); setFormData({...formData, discountType: e.target.value}); }}
                                     >
                                         <option value="PERCENTAGE">Percentage (%)</option>
                                         <option value="FIXED">Fixed Amount ($)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Value</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Value <span className="text-red-600">*</span></label>
                                     <input 
                                         required
                                         type="number"
+                                        min={0.01}
+                                        max={formData.discountType === 'PERCENTAGE' ? 100 : undefined}
+                                        step="0.01"
                                         className="w-full border rounded-lg px-3 py-2"
                                         value={formData.value}
-                                        onChange={e => setFormData({...formData, value: Number(e.target.value)})}
+                                        onChange={e => { setSubmitError(''); setFormData({...formData, value: Number(e.target.value)}); }}
                                     />
                                 </div>
                             </div>
@@ -436,38 +471,43 @@ const OrganizerCoupons: React.FC = () => {
 
                             <div className="grid grid-cols-2 gap-4 mb-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Max Uses</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Max uses <span className="text-red-600">*</span></label>
                                     <input 
                                         required
                                         type="number"
+                                        min={1}
+                                        step={1}
                                         className="w-full border rounded-lg px-3 py-2"
                                         value={formData.maxUses}
-                                        onChange={e => setFormData({...formData, maxUses: Number(e.target.value)})}
+                                        onChange={e => { setSubmitError(''); setFormData({...formData, maxUses: Number(e.target.value)}); }}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-                                    <input 
-                                        type="datetime-local"
-                                        className="w-full border rounded-lg px-3 py-2"
-                                        value={(formData as any).startDate}
-                                        onChange={e => setFormData({...formData, startDate: e.target.value})}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Date</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Start date <span className="text-red-600">*</span></label>
                                     <input 
                                         required
                                         type="datetime-local"
                                         className="w-full border rounded-lg px-3 py-2"
-                                        value={formData.expiryDate}
-                                        onChange={e => setFormData({...formData, expiryDate: e.target.value})}
+                                        value={(formData as any).startDate}
+                                        onChange={e => { setSubmitError(''); setFormData({...formData, startDate: e.target.value}); }}
                                     />
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Expiry date <span className="text-red-600">*</span></label>
+                                    <input 
+                                        required
+                                        type="datetime-local"
+                                        min={(formData as any).startDate || undefined}
+                                        className="w-full border rounded-lg px-3 py-2"
+                                        value={formData.expiryDate}
+                                        onChange={e => { setSubmitError(''); setFormData({...formData, expiryDate: e.target.value}); }}
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">Must be on or after the start date.</p>
                                 </div>
                             </div>
 
                             <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
+                                <button type="button" onClick={() => { setSubmitError(''); setShowModal(false); }} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
                                 <button 
                                     type="submit" 
                                     disabled={submitting}
