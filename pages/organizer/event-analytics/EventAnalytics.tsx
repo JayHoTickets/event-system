@@ -755,9 +755,9 @@ const EventAnalytics: React.FC = () => {
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="p-6 border-b flex justify-between items-center bg-slate-50">
                             <div>
-                                <h3 className="font-bold text-lg text-slate-900">Order Details</h3>
+                                <h3 className="font-bold text-lg text-slate-900">Order Summery</h3>
                                 <p className="text-sm text-slate-500 font-mono">{selectedOrder.id}</p>
-                                <p className="text-sm text-slate-500">Received: {formatDateInTimeZone(selectedOrder.date, event.timezone)} at {formatTimeInTimeZone(selectedOrder.date, event.timezone)}</p>
+                                <p className="text-sm text-slate-500">Order Date: {formatDateInTimeZone(selectedOrder.date, event.timezone)} at {formatTimeInTimeZone(selectedOrder.date, event.timezone)}</p>
                             </div>
                             <div className="text-right hidden sm:block">
                                 <div className="text-sm text-slate-500">Event</div>
@@ -935,17 +935,17 @@ const EventAnalytics: React.FC = () => {
                                                     <span className="font-medium text-slate-900">${lineSubtotal.toFixed(2)}</span>
                                                 </div>
                                                 <div className="flex justify-between text-slate-600">
-                                                    <span>Discount applied</span>
+                                                    <span>Discount</span>
                                                     <span className={`font-medium ${discount > 0 ? 'text-green-700' : 'text-slate-900'}`}>
                                                         {discount > 0 ? `-$${discount.toFixed(2)}` : '$0.00'}
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between text-slate-700 border-t border-dashed border-slate-200 pt-2 mt-2">
-                                                    <span className="font-semibold">Actual earning</span>
+                                                    <span className="font-semibold">Net Sales</span>
                                                     <span className="font-semibold text-slate-900">${actualEarning.toFixed(2)}</span>
                                                 </div>
                                                 <div className="flex justify-between text-slate-600">
-                                                    <span>Service charge applied</span>
+                                                    <span>Service Fees</span>
                                                     <span className="font-medium text-slate-900">${service.toFixed(2)}</span>
                                                 </div>
                                                

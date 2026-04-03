@@ -51,19 +51,19 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
-            {row('Total Online Sales', totalOnlinePaid)}
-            {row('Service Fees Collected', onlineServiceFeesPaid)}
-            {row('Net Online Revenue', onlineTotalEarning)}
+            {row('Online Sales (Gross)', totalOnlinePaid)}
+            {row('Fees Collected', onlineServiceFeesPaid)}
+            {row('Net Sales(Online)', onlineTotalEarning)}
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
-            {row('Total Offline Sales', totalCashCollected)}
-            {row('Due Service Fees', dueCashServiceFee, {
+            {row('Offline Sales', totalCashCollected)}
+            {row('Outstanding Fees', dueCashServiceFee, {
               valueClassName: 'font-semibold text-red-600 tabular-nums text-right',
               format: (n) => `-${fmtMoney(n)}`,
             })}
-            {row('Net Offline Revenue:-', estimatedCashEarning)}
+            {row('Net Sales (Offline)', estimatedCashEarning)}
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
@@ -110,7 +110,7 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order ID</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order Date</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700 whitespace-nowrap min-w-[13.5rem]">Order Date</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Booked By</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Tickets</th>
@@ -131,8 +131,8 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
               ) : (
                 filteredOrders.map((order: any) => (
                   <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-mono text-slate-600">{order.id}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{formatDateInTimeZone(order.date, event.timezone)} at {formatTimeInTimeZone(order.date, event.timezone)}</td>
+                    <td className="px-6 py-4 text-sm font-mono text-slate-600 max-w-[11rem] break-all align-top" title={order.id}>{order.id}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap min-w-[13rem] align-top">{formatDateInTimeZone(order.date, event.timezone)} at {formatTimeInTimeZone(order.date, event.timezone)}</td>
                     <td className="px-6 py-4"><p className="text-sm font-medium text-slate-900">{order.customerName}</p><p className="text-xs text-slate-500">{order.customerEmail}</p></td>
                     <td className="px-6 py-4"><p className="text-sm font-medium text-slate-900">{(order.bookedBy && (order.bookedBy.name || order.bookedBy.id)) ? `${order.bookedBy.name || order.bookedBy.id}${order.bookedBy.role ? ` (${order.bookedBy.role})` : ''}` : (order.userId && !String(order.userId).startsWith('guest-') ? order.userId : order.customerName)}</p></td>
                     <td className="px-6 py-4 text-sm text-slate-600">{order.tickets.length} Tickets {order.couponCode && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">{order.couponCode}</span>}</td>
