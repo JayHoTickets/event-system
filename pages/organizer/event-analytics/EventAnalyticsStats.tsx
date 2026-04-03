@@ -52,14 +52,14 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
             {row('Total Online Sales', totalOnlinePaid)}
-            {row('Platform Fees Collected', onlineServiceFeesPaid)}
+            {row('Service Fees Collected', onlineServiceFeesPaid)}
             {row('Net Online Revenue', onlineTotalEarning)}
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
             {row('Total Offline Sales', totalCashCollected)}
-            {row('Pending Platform Fees', dueCashServiceFee, {
+            {row('Due Service Fees', dueCashServiceFee, {
               valueClassName: 'font-semibold text-red-600 tabular-nums text-right',
               format: (n) => `-${fmtMoney(n)}`,
             })}
@@ -110,13 +110,13 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order ID</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Received</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order Date</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Customer</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Booked By</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Items</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Actual Earning</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Service Fee</th>
-                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Total</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Tickets</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Net Revenue</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">PLatform Fee</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Order Amount</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Mode</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Status</th>
                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Refund Status</th>
