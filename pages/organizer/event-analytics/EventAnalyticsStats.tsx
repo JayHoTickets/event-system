@@ -51,25 +51,28 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
-            {row('Total Online Paid :-', totalOnlinePaid)}
-            {row('Service Fees Paid:-', onlineServiceFeesPaid)}
-            {row('Online Total Earning :-', onlineTotalEarning)}
+            {row('Total Online Sales', totalOnlinePaid)}
+            {row('Platform Fees Collected', onlineServiceFeesPaid)}
+            {row('Net Online Revenue', onlineTotalEarning)}
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
-            {row('Total Cash Collected :-', totalCashCollected)}
-            {row('Due Service Fee:-', dueCashServiceFee, {
+            {row('Total Offline Sales', totalCashCollected)}
+            {row('Pending Platform Fees', dueCashServiceFee, {
               valueClassName: 'font-semibold text-red-600 tabular-nums text-right',
               format: (n) => `-${fmtMoney(n)}`,
             })}
-            {row('Estimated Cash Earning:-', estimatedCashEarning)}
+            {row('Net Offline Revenue:-', estimatedCashEarning)}
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="space-y-3">
-            {row('Total Earning From Platform', onlineEarningMinusDueCashService, {
-              valueClassName: 'font-semibold text-green-600 tabular-nums text-right',
+            {row('Total Payout', onlineEarningMinusDueCashService, {
+              valueClassName:
+                onlineEarningMinusDueCashService < 0
+                  ? 'font-semibold text-red-600 tabular-nums text-right'
+                  : 'font-semibold text-green-600 tabular-nums text-right',
             })}
           </div>
         </div>
