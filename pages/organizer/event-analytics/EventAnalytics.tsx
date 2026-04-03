@@ -270,6 +270,14 @@ const EventAnalytics: React.FC = () => {
       return 0;
     });
 
+  const escapeCell = (v: unknown) => {
+    if (v === null || v === undefined) return '';
+    return `"${String(v).replace(/"/g, '""')}"`;
+  };
+
+  const fmtMoneySummary = (n: number) =>
+    `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   // --- Export Handler (CSV) ---
   const handleExport = () => {
     try {
@@ -316,44 +324,73 @@ const EventAnalytics: React.FC = () => {
   // --- Orders Export Handler (CSV) ---
   const handleExportOrders = () => {
     try {
+      const tz = event.timezone;
       const headers = [
         'Order ID',
-        'Received',
-        'Customer Name',
-        'Customer Email',
+        'Order Date',
+        'Customer',
         'Booked By',
-        'Items',
-        'Total Amount',
-        'Payment Mode',
+        'Tickets',
+        'Net Revenue',
+        'Service Fee',
+        'Order Amount',
+        'Mode',
         'Status',
         'Refund Status',
-        'Coupon',
-        'Service Fee',
-        // Intentionally no Discount column in orders export
       ];
 
-      const rows = filteredOrders.map(o => [
-        o.id,
-        o.date ? new Date(o.date).toISOString() : '',
-        o.customerName,
-        o.customerEmail,
-        (o.bookedBy && (o.bookedBy.name || o.bookedBy.id)) ? `${o.bookedBy.name || o.bookedBy.id} ${o.bookedBy && o.bookedBy.role ? `(${o.bookedBy.role})` : ''}` : (o.userId && !String(o.userId).startsWith('guest-') ? o.userId : o.customerName),
-        o.tickets.length,
-        (o.totalAmount || 0).toFixed(2),
-        o.paymentMode || 'ONLINE',
-        o.status,
-        o.refundStatus || '',
-        o.couponCode || '',
-        (o.serviceFee || 0).toFixed(2),
-        // Intentionally no Discount column in orders export
-      ]);
+      const bookedByLabel = (o: Order) =>
+        o.bookedBy && (o.bookedBy.name || o.bookedBy.id)
+          ? `${o.bookedBy.name || o.bookedBy.id}${o.bookedBy.role ? ` (${o.bookedBy.role})` : ''}`
+          : o.userId && !String(o.userId).startsWith('guest-')
+            ? String(o.userId)
+            : o.customerName;
 
-      const escapeCell = (v: any) => {
-        if (v === null || v === undefined) return '';
-        return `"${String(v).replace(/"/g, '""')}"`;
+      const ticketsLabel = (o: Order) => {
+        const base = `${o.tickets.length} Tickets`;
+        return o.couponCode ? `${base} ${o.couponCode}` : base;
       };
 
-      const csv = [headers, ...rows].map(r => r.map(escapeCell).join(',')).join('\n');
+      const orderDateLabel = (o: Order) => {
+        if (!o.date) return '';
+        return `${formatDateInTimeZone(o.date, tz)} at ${formatTimeInTimeZone(o.date, tz)}`;
+      };
+
+      const refundLabel = (o: Order) =>
+        o.status === 'CANCELLED' ? o.refundStatus || 'PENDING' : '—';
+
+      const rows = filteredOrders.map((o) => [
+        o.id,
+        orderDateLabel(o),
+        `${o.customerName}\n${o.customerEmail}`,
+        bookedByLabel(o),
+        ticketsLabel(o),
+        `$${((o.totalAmount || 0) - (o.serviceFee || 0)).toFixed(2)}`,
+        `$${(o.serviceFee || 0).toFixed(2)}`,
+        `$${(o.totalAmount || 0).toFixed(2)}`,
+        o.paymentMode || 'ONLINE',
+        o.status,
+        refundLabel(o),
+      ]);
+
+      const pad9 = ['', '', '', '', '', '', '', '', ''];
+      const summary: string[][] = [
+        ['', '', '', '', '', '', '', '', '', '', ''],
+        [
+          'Analytics summary (dashboard cards; all paid orders, excludes cancelled)',
+          '',
+          ...pad9,
+        ],
+        ['Online Sales (Gross)', fmtMoneySummary(totalOnlinePaid), ...pad9],
+        ['Fees Collected', fmtMoneySummary(onlineServiceFeesPaid), ...pad9],
+        ['Net Sales (Online)', fmtMoneySummary(onlineTotalEarning), ...pad9],
+        ['Offline Sales', fmtMoneySummary(totalCashCollected), ...pad9],
+        ['Outstanding Fees', `-${fmtMoneySummary(dueCashServiceFee)}`, ...pad9],
+        ['Net Sales (Offline)', fmtMoneySummary(estimatedCashEarning), ...pad9],
+        ['Total Payout', fmtMoneySummary(onlineEarningMinusDueCashService), ...pad9],
+      ];
+
+      const csv = [headers, ...rows, ...summary].map((r) => r.map(escapeCell).join(',')).join('\n');
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);

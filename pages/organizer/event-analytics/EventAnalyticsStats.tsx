@@ -99,7 +99,7 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
               <option value="ALL">All Modes</option>
               <option value="ONLINE">Online</option>
               <option value="CASH">Cash</option>
-              <option value="CHARITY">Charity</option>
+              <option value="COMPLIMENTARY">Complimentary</option>
             </select>
             <button onClick={handleExportOrders} className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg flex items-center hover:bg-slate-50 text-sm font-medium"><Download className="w-4 h-4 mr-2" /> Export</button>
           </div>
