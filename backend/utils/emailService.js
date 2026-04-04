@@ -272,16 +272,18 @@ This event is organized and produced by a third party. Jay-Ho! is acting solely 
 
 export const sendCancellationEmails = async ({ order, event, organizerEmail, adminEmail }) => {
     const formatCurrency = (amount) => `$${(amount || 0).toFixed(2)}`;
-    const subject = `Order Cancelled: ${event.title} — ${order.id}`;
+    const isRefundStatus = order.status === 'REFUND' || order.status === 'REFUNDED';
+    const headline = isRefundStatus ? 'Order Refunded' : 'Order Cancelled';
+    const subject = `${isRefundStatus ? 'Order Refunded' : 'Order Cancelled'}: ${event.title} — ${order.id}`;
     const body = `
         <div style="font-family: Arial, sans-serif; max-width:680px;margin:0 auto;color:#333;">
             <div style="background:#ef4444;color:#fff;padding:18px;border-radius:8px;">
-                <h2 style="margin:0">Order Cancelled</h2>
+                <h2 style="margin:0">${headline}</h2>
                 <p style="margin:6px 0 0 0">Order ID: ${order.id}</p>
             </div>
             <div style="background:#fff;padding:18px;border:1px solid #eee;border-radius:8px;margin-top:12px;">
                 <p><strong>Event:</strong> ${event.title}</p>
-                <p><strong>Cancellation Status:</strong> CANCELLED</p>
+                <p><strong>Order status:</strong> ${order.status}</p>
                 <p><strong>Refund Amount:</strong> ${formatCurrency(order.refundAmount)}</p>
                 <p><strong>Notes:</strong> ${order.cancellationNotes || 'N/A'}</p>
                 <h4 style="margin-top:12px">Tickets</h4>

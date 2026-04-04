@@ -1,9 +1,15 @@
 
 import React, { useMemo, useState, useRef } from 'react';
-import { Seat, SeatStatus, Stage } from '../types';
+import { Seat, Stage } from '../types';
 import clsx from 'clsx';
 
 export const CELL_SIZE = 36; // px
+
+/** API / JSON may not match enum casing; keeps hold/blocked checks reliable. */
+const normalizeSeatStatus = (status: Seat['status'] | string | undefined) =>
+  String(status ?? '')
+    .toUpperCase()
+    .trim();
 
 interface SeatGridProps {
   seats: Seat[];
@@ -19,6 +25,8 @@ interface SeatGridProps {
   scale?: number;
     canSelectUnavailable?: boolean; // New prop to allow clicking blocked seats
     canSelectHold?: boolean; // New prop to allow clicking seats with HOLD status
+    /** When true (public booking only), SOLD / HOLD / UNAVAILABLE use the same visuals as sold. Live/organizer maps keep distinct colors. */
+    publicBookingUnifiedTakenSeats?: boolean;
 }
 
 const SeatGrid: React.FC<SeatGridProps> = ({ 
@@ -34,7 +42,8 @@ const SeatGrid: React.FC<SeatGridProps> = ({
     totalCols,
     scale = 1,
         canSelectUnavailable = false,
-        canSelectHold = false
+        canSelectHold = false,
+        publicBookingUnifiedTakenSeats = false
 }) => {
   
   // Drag Selection State
@@ -85,34 +94,47 @@ const SeatGrid: React.FC<SeatGridProps> = ({
       };
   }, [seats, stage, totalRows, totalCols]);
 
+  const soldLikeUnavailableClass =
+    'bg-slate-200 text-slate-400 cursor-not-allowed border-black';
+
   const defaultGetSeatColor = (seat: Seat, isSelected: boolean) => {
+    const st = normalizeSeatStatus(seat.status);
     // 1. Selected state always wins (Green)
     if (isSelected) return 'bg-green-500 text-white ring-2 ring-green-300 z-10 shadow-lg scale-110';
-    
-    // 2. Sold state (Grey/Light) — slightly darker border for contrast
-    if (seat.status === SeatStatus.SOLD) return 'bg-slate-200 text-slate-400 cursor-not-allowed border-black';
-    
-    // 3. Hold state (Organizer placed hold, awaiting payment) - Yellow
-    if (seat.status === SeatStatus.HOLD) return 'bg-yellow-400 text-yellow-900 cursor-not-allowed border-yellow-500 font-semibold';
-    
-    // 4. Booking in progress (temporary lock from customer) - make it visually obvious
-    if (seat.status === SeatStatus.BOOKING_IN_PROGRESS) return 'bg-amber-200 text-amber-800 cursor-not-allowed border-amber-300 animate-pulse';
-    
-    // 5. Blocked/Unavailable state (Dark Grey/Black)
-    if (seat.status === SeatStatus.UNAVAILABLE) {
-        // Always use full dark background for unavailable seats to match header legend
+
+    if (publicBookingUnifiedTakenSeats) {
+      // Same gray as sold: sold, organizer hold, blocked (public map only). Booking-in-progress stays amber below.
+      if (st === 'SOLD' || st === 'HOLD' || st === 'UNAVAILABLE') {
+        return soldLikeUnavailableClass;
+      }
+    } else {
+      // 2. Sold state (Grey/Light) — slightly darker border for contrast
+      if (st === 'SOLD') return soldLikeUnavailableClass;
+
+      // 3. Hold state (Organizer placed hold, awaiting payment) - Yellow
+      if (st === 'HOLD')
+        return 'bg-yellow-400 text-yellow-900 cursor-not-allowed border-yellow-500 font-semibold';
+
+      // 5. Blocked/Unavailable state (Dark Grey/Black)
+      if (st === 'UNAVAILABLE') {
         const base = 'bg-slate-800 border-black text-slate-400';
-        const interactive = canSelectUnavailable ? 'cursor-pointer hover:bg-slate-700 hover:text-slate-300' : 'cursor-not-allowed';
+        const interactive = canSelectUnavailable
+          ? 'cursor-pointer hover:bg-slate-700 hover:text-slate-300'
+          : 'cursor-not-allowed';
         return `${base} ${interactive}`;
+      }
     }
-    
-        // 6. Available (White or Ticket Type Color)
-            if (seat.color) {
-                // Colored ticket types: keep text legible and use bold black border for contrast
-                return `text-white shadow-sm hover:brightness-90 border-black`;
-            }
-            // Default available seats: bold black border and hover accent
-            return 'bg-white border-black text-slate-700 hover:border-indigo-500 hover:shadow-md';
+
+    // 4. Booking in progress (temporary lock from customer) - make it visually obvious
+    if (st === 'BOOKING_IN_PROGRESS') {
+      return 'bg-amber-200 text-amber-800 cursor-not-allowed border-amber-300 animate-pulse';
+    }
+
+    // 6. Available (White or Ticket Type Color)
+    if (seat.color) {
+      return `text-white shadow-sm hover:brightness-90 border-black`;
+    }
+    return 'bg-white border-black text-slate-700 hover:border-indigo-500 hover:shadow-md';
   };
 
     // Utility: darken a hex color by a given factor (0-1)
@@ -182,11 +204,11 @@ const SeatGrid: React.FC<SeatGridProps> = ({
 
           // Check if seat rectangle intersects selection box
           if (sX < x2 && sX + sW > x1 && sY < y2 && sY + sH > y1) {
-              // Allow selection of UNAVAILABLE if prop is true
-                      const isBlockedButSelectable = canSelectUnavailable && seat.status === SeatStatus.UNAVAILABLE;
-                      const isHoldButSelectable = canSelectHold && seat.status === SeatStatus.HOLD;
+              const st = normalizeSeatStatus(seat.status);
+              const isBlockedButSelectable = canSelectUnavailable && st === 'UNAVAILABLE';
+              const isHoldButSelectable = canSelectHold && st === 'HOLD';
 
-                      if (seat.status !== SeatStatus.SOLD && (seat.status !== SeatStatus.UNAVAILABLE || isBlockedButSelectable) && (seat.status !== SeatStatus.HOLD || isHoldButSelectable)) {
+              if (st !== 'SOLD' && (st !== 'UNAVAILABLE' || isBlockedButSelectable) && (st !== 'HOLD' || isHoldButSelectable)) {
                   selectedIds.push(seat.id);
               }
           }
@@ -285,11 +307,16 @@ const SeatGrid: React.FC<SeatGridProps> = ({
             {seats.map(seat => {
                 const isSelected = selectedSeatIds.includes(seat.id);
                 const colorClass = seatColorizer ? seatColorizer(seat, isSelected) : defaultGetSeatColor(seat, isSelected);
-                
-                // Allow clicking UNAVAILABLE if prop is enabled
-                const isBlockedButSelectable = canSelectUnavailable && seat.status === SeatStatus.UNAVAILABLE;
-                const isHoldButSelectable = canSelectHold && seat.status === SeatStatus.HOLD;
-                const isDisabled = !onSeatClick || seat.status === SeatStatus.SOLD || seat.status === SeatStatus.BOOKING_IN_PROGRESS || (seat.status === SeatStatus.UNAVAILABLE && !canSelectUnavailable) || (seat.status === SeatStatus.HOLD && !canSelectHold);
+                const st = normalizeSeatStatus(seat.status);
+
+                const isBlockedButSelectable = canSelectUnavailable && st === 'UNAVAILABLE';
+                const isHoldButSelectable = canSelectHold && st === 'HOLD';
+                const isDisabled =
+                  !onSeatClick ||
+                  st === 'SOLD' ||
+                  st === 'BOOKING_IN_PROGRESS' ||
+                  (st === 'UNAVAILABLE' && !canSelectUnavailable) ||
+                  (st === 'HOLD' && !canSelectHold);
 
                 const styleObj: React.CSSProperties = {
                     left: seat.x !== undefined ? seat.x : seat.col * CELL_SIZE,
@@ -299,7 +326,7 @@ const SeatGrid: React.FC<SeatGridProps> = ({
                 };
                 
                 // Inject dynamic color if not selected and valid
-                if (!isSelected && seat.status === SeatStatus.AVAILABLE && seat.color) {
+                if (!isSelected && st === 'AVAILABLE' && seat.color) {
                     styleObj.backgroundColor = seat.color;
                     // Use a darker border variant for contrast (overrides very light colors)
                     styleObj.borderColor = darkenHex(seat.color, 0.45);
@@ -322,8 +349,8 @@ const SeatGrid: React.FC<SeatGridProps> = ({
                         title={`${seat.tier || 'Seat'} - Row ${seat.rowLabel} Seat ${seat.seatNumber} ${seat.price ? `($${seat.price})` : ''} - ${seat.status}`}
                     >
                         {seat.seatNumber}
-                        {/* Add clear 'X' for blocked seats */}
-                        {seat.status === SeatStatus.UNAVAILABLE && (
+                        {/* Add clear 'X' for blocked seats (hidden on public booking when unified with sold) */}
+                        {st === 'UNAVAILABLE' && !publicBookingUnifiedTakenSeats && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <div className="w-3/4 h-0.5 bg-slate-500 rotate-45 transform absolute"></div>
                                 <div className="w-3/4 h-0.5 bg-slate-500 -rotate-45 transform absolute"></div>

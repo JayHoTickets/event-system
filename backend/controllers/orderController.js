@@ -348,8 +348,8 @@ export const verifyTicket = async (req, res) => {
             return res.status(404).json({ message: 'Invalid Ticket QR Code' });
         }
 
-        // Block tickets belonging to cancelled orders
-        if (order.status === 'CANCELLED') {
+        // Block tickets belonging to cancelled or refunded orders
+        if (order.status === 'CANCELLED' || order.status === 'REFUND' || order.status === 'REFUNDED') {
             return res.status(400).json({ message: 'This ticket has been cancelled' });
         }
 
@@ -373,7 +373,7 @@ export const checkInTicket = async (req, res) => {
         if (!order) {
             return res.status(404).json({ message: 'Ticket not found' });
         }
-        if (order.status === 'CANCELLED') {
+        if (order.status === 'CANCELLED' || order.status === 'REFUND' || order.status === 'REFUNDED') {
             return res.status(400).json({ message: 'This ticket has been cancelled' });
         }
         const ticket = order.tickets.find(t => t.id === ticketId);
@@ -411,21 +411,37 @@ export const cancelOrder = async (req, res) => {
             return res.status(403).json({ message: 'Only the event organizer can cancel this order' });
         }
 
-        // If already cancelled, allow updating refund fields/notes/status.
+        // If already in a terminal state (cancel or refund), allow updating refund fields/notes/status.
         const allowed = ['PENDING', 'PROCESSED', 'FAILED'];
         const normalizedRefundStatus = allowed.includes(String(refundStatus).toUpperCase()) ? String(refundStatus).toUpperCase() : 'PENDING';
 
-        const wasAlreadyCancelled = order.status === 'CANCELLED';
+        const wasAlreadyTerminated =
+            order.status === 'CANCELLED' || order.status === 'REFUND' || order.status === 'REFUNDED';
+
+        const requestedRefund = Number(refundAmount) || 0;
+
+        // Net sales = amount paid for tickets (excludes platform service fee) — matches analytics "Net Revenue"
+        const netSales = Math.max(0, (Number(order.totalAmount) || 0) - (Number(order.serviceFee) || 0));
+        if (requestedRefund > 0) {
+            const reqCents = Math.round(requestedRefund * 100);
+            const netCents = Math.round(netSales * 100);
+            if (reqCents > netCents) {
+                return res.status(400).json({
+                    message: 'Refund amount is more than the net sales amount.',
+                    netSales: netCents / 100
+                });
+            }
+        }
 
         // Cap refund to the total ticket price only (do not refund service fees or extra charges)
         const ticketTotal = (order.tickets || []).reduce((acc, t) => acc + (Number(t.price) || 0), 0);
-        const requestedRefund = Number(refundAmount) || 0;
         const allowedRefund = Math.max(0, Math.min(requestedRefund, ticketTotal));
 
-        if (wasAlreadyCancelled) {
+        if (wasAlreadyTerminated) {
             // Update refund fields and notes (cap refund to ticket total)
             order.refundAmount = allowedRefund;
             order.refundStatus = normalizedRefundStatus;
+            order.status = allowedRefund > 0 ? 'REFUND' : 'CANCELLED';
             order.cancellationNotes = notes || order.cancellationNotes;
             // Record update in history
             const now = new Date();
@@ -434,8 +450,8 @@ export const cancelOrder = async (req, res) => {
             order.cancelledBy = organizerId; // maintain/overwrite who performed latest action
             order.cancelledAt = order.cancelledAt || now;
         } else {
-            // Mark order cancelled and record refund, notes and refund status
-            order.status = 'CANCELLED';
+            // Zero refund → CANCELLED; money refunded → REFUND (seats released either way)
+            order.status = allowedRefund > 0 ? 'REFUND' : 'CANCELLED';
             order.refundAmount = allowedRefund;
             order.refundStatus = normalizedRefundStatus;
             order.cancellationNotes = notes;
@@ -445,9 +461,9 @@ export const cancelOrder = async (req, res) => {
             order.cancellationHistory.push({ organizerId, timestamp: order.cancelledAt, refundAmount: order.refundAmount, notes });
         }
 
-        // If this is the first time we're cancelling the order, release seats
+        // If this is the first time we're ending the order, release seats
         // or decrement sold counts on the related Event so those tickets become available again.
-        if (!wasAlreadyCancelled) {
+        if (!wasAlreadyTerminated) {
             try {
                 if (event.seatingType === 'RESERVED') {
                     // Release individual seats back to AVAILABLE
@@ -1007,9 +1023,9 @@ export const updateRefundStatus = async (req, res) => {
         const normalized = allowed.includes(String(refundStatus).toUpperCase()) ? String(refundStatus).toUpperCase() : null;
         if (!normalized) return res.status(400).json({ message: 'Invalid refundStatus' });
 
-        // Only allow updating refund status if order is cancelled (business rule)
-        if (order.status !== 'CANCELLED') {
-            return res.status(400).json({ message: 'Order must be cancelled to update refund status' });
+        // Only allow updating refund status if order is in a terminal state (business rule)
+        if (order.status !== 'CANCELLED' && order.status !== 'REFUND' && order.status !== 'REFUNDED') {
+            return res.status(400).json({ message: 'Order must be cancelled or refunded to update refund status' });
         }
 
         order.refundStatus = normalized;

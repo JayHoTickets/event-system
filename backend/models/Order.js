@@ -26,7 +26,7 @@ const OrderSchema = new mongoose.Schema({
     appliedCharges: { type: Array, default: [] },
     discountApplied: Number,
     couponCode: String,
-    status: { type: String, default: 'PAID' }, // PAID, PAYMENT_PENDING, CANCELLED
+    status: { type: String, default: 'PAID' }, // PAID, PAYMENT_PENDING, CANCELLED, REFUND
     // Payment pending fields (for "Pay Later" feature)
     paymentPendingUntil: Date, // Timestamp when held seats expire if payment not completed
     paymentUrl: String, // URL for customer to complete payment

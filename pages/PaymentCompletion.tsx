@@ -151,8 +151,12 @@ const PaymentCompletion: React.FC = () => {
                         // Check if order is still valid (not expired, not already paid)
                         if (orderData.status === 'PAID') {
                             setError('This order has already been paid. Please check your confirmation email.');
-                        } else if (orderData.status === 'CANCELLED') {
-                            setError('This order has been cancelled. The seats have been released.');
+                        } else if (
+                            orderData.status === 'CANCELLED' ||
+                            orderData.status === 'REFUND' ||
+                            orderData.status === 'REFUNDED'
+                        ) {
+                            setError('This order is no longer valid. The seats have been released.');
                         } else if (orderData.status === 'PAYMENT_PENDING' && isExpired) {
                             setError('This hold has expired. Please contact support to rebook.');
                         } else if (orderData.status === 'PAYMENT_PENDING' && !isExpired) {

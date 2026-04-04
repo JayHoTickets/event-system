@@ -8,7 +8,11 @@ const fetchJson = async (url: string, options?: RequestInit) => {
         const token = localStorage.getItem('eventhorizon_token');
         const headers: any = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
+        // Avoid stale seat maps from browser/CDN (304 + cached JSON) after lock-seats updates
+        headers['Cache-Control'] = 'no-cache';
+        headers['Pragma'] = 'no-cache';
         const res = await fetch(`${API_URL}${url}`, {
+            cache: 'no-store',
             headers,
             ...options
         });
@@ -152,7 +156,8 @@ export const saveTheaterLayout = (id: string, seats: Seat[], stage: Stage, rows:
 export const fetchEvents = (): Promise<Event[]> => fetchJson('/events');
 export const fetchAllEventsForAdmin = (): Promise<Event[]> => fetchJson('/events?admin=true');
 export const fetchEventsByOrganizer = (organizerId: string, includeDeleted = false): Promise<Event[]> => fetchJson(`/events?organizerId=${organizerId}${includeDeleted ? '&includeDeleted=true' : ''}`);
-export const fetchEventById = (id: string): Promise<Event & { venueName: string } | undefined> => fetchJson(`/events/${id}`);
+export const fetchEventById = (id: string): Promise<Event & { venueName: string } | undefined> =>
+    fetchJson(`/events/${encodeURIComponent(id)}?ts=${Date.now()}`);
 
 export const createEvent = (eventData: any): Promise<Event> => {
     return fetchJson('/events', { 
@@ -192,17 +197,18 @@ export const holdSeat = (eventId: string, seatId: string): Promise<boolean> => {
     }).then(res => res.success);
 };
 
-export const lockSeats = (eventId: string, seatIds: string[]): Promise<void> => {
-    // Returns the parsed response from the API. Backend should return
-    // { success: boolean, conflicts?: string[] } when seats couldn't be locked.
-    return fetchJson(`/events/${eventId}/lock-seats`, {
+export const lockSeats = (
+    eventId: string,
+    seatIds: string[]
+): Promise<{ success: boolean; conflicts?: string[]; message?: string }> => {
+    return fetchJson(`/events/${encodeURIComponent(eventId)}/lock-seats`, {
         method: 'POST',
         body: JSON.stringify({ seatIds })
     });
 };
 
 export const releaseSeats = (eventId: string, seatIds: string[]): Promise<void> => {
-    return fetchJson(`/events/${eventId}/release-seats`, {
+    return fetchJson(`/events/${encodeURIComponent(eventId)}/release-seats`, {
         method: 'POST',
         body: JSON.stringify({ seatIds })
     });
@@ -212,7 +218,7 @@ export const releaseSeats = (eventId: string, seatIds: string[]): Promise<void> 
 // rely on the app being alive to await a JSON response. Uses `keepalive`.
 export const releaseSeatsKeepAlive = (eventId: string, seatIds: string[]) => {
     try {
-        const url = `${API_URL}/events/${eventId}/release-seats`;
+        const url = `${API_URL}/events/${encodeURIComponent(eventId)}/release-seats`;
         const payload = JSON.stringify({ seatIds });
 
         // Prefer navigator.sendBeacon when available (more reliable on unload)
@@ -234,12 +240,16 @@ export const releaseSeatsKeepAlive = (eventId: string, seatIds: string[]) => {
             }
         }
 
-        // Fallback to fetch with keepalive
         fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                Pragma: 'no-cache'
+            },
             body: payload,
-            keepalive: true
+            keepalive: true,
+            cache: 'no-store'
         }).catch(e => {
             // Best-effort - ignore errors
             console.error('Keepalive release failed', e);
@@ -250,9 +260,9 @@ export const releaseSeatsKeepAlive = (eventId: string, seatIds: string[]) => {
 };
 
 export const updateSeatStatus = (eventId: string, seatIds: string[], status: SeatStatus): Promise<void> => {
-    return fetchJson(`/events/${eventId}/seats`, { 
-        method: 'PUT', 
-        body: JSON.stringify({ seatIds, status }) 
+    return fetchJson(`/events/${encodeURIComponent(eventId)}/seats`, {
+        method: 'PUT',
+        body: JSON.stringify({ seatIds, status })
     });
 };
 

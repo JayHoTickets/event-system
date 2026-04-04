@@ -41,6 +41,25 @@ const formatVenueLocation = (v) => {
     return parts.join(', ');
 };
 
+const normSeatId = (v) => String(v ?? '').trim();
+
+const isMongoVersionError = (err) =>
+    err &&
+    (err.name === 'VersionError' ||
+        /No matching document found for id.*version/i.test(String(err.message || '')));
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Public booking uses /event/:slug while APIs may receive Mongo id or slug. */
+const findEventByIdOrSlugParam = async (lookup) => {
+    if (!lookup) return null;
+    if (mongoose.Types.ObjectId.isValid(lookup)) {
+        const byId = await Event.findById(lookup);
+        if (byId) return byId;
+    }
+    return Event.findOne({ slug: lookup });
+};
+
 // Cleanup job: find seats where holdUntil has expired and revert them to AVAILABLE
 // Also handles payment pending orders that have expired
 export const cleanupExpiredHolds = async () => {
@@ -192,6 +211,9 @@ export const getEventById = async (req, res) => {
                 console.warn('Failed to hydrate theater stage for event', evObj.id, thErr && thErr.message);
             }
         }
+        res.set('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
         res.json(evObj);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -562,9 +584,11 @@ export const updateSeats = async (req, res) => {
             return res.status(403).json({ message: 'Forbidden: insufficient role' });
         }
 
-        const seatIdSet = new Set(seatIds);
-        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s, status } : s);
-        
+        const seatIdSet = new Set((seatIds || []).map((x) => normSeatId(x)).filter(Boolean));
+        event.seats = event.seats.map((s) =>
+            seatIdSet.has(normSeatId(s.id)) ? { ...(s.toObject ? s.toObject() : s), status } : s
+        );
+        event.markModified('seats');
         await event.save();
         res.json({ success: true });
     } catch (err) {
@@ -575,12 +599,12 @@ export const updateSeats = async (req, res) => {
 export const holdSeat = async (req, res) => {
     const { eventId, seatId } = req.body;
     try {
-        const event = await Event.findById(eventId);
+        const event = await findEventByIdOrSlugParam(eventId);
         if (!event) return res.status(404).json({ success: false });
         
         if (event.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
 
-        const seat = event.seats.find(s => s.id === seatId);
+        const seat = event.seats.find(s => normSeatId(s.id) === normSeatId(seatId));
         if (seat && seat.status === 'AVAILABLE') {
             return res.json({ success: true });
         }
@@ -592,60 +616,104 @@ export const holdSeat = async (req, res) => {
 
 
 
-// Lock seats atomically for a short booking window. Only seats that are
-// currently AVAILABLE will be moved to BOOKING_IN_PROGRESS. Returns
-// { success: true } on full success or { success: false, conflicts: [seatIds] }
+// Lock seats for checkout: only AVAILABLE -> BOOKING_IN_PROGRESS (same rules as d723c6a).
+// findByIdOrSlug + normSeatId + markModified; optional retries for rare write races.
 export const lockSeats = async (req, res) => {
     const seatIds = req.body.seatIds || [];
+    const seatIdSet = new Set(seatIds.map((x) => normSeatId(x)).filter(Boolean));
+    const MAX_SAVE_ATTEMPTS = 8;
+
     try {
-        const event = await Event.findById(req.params.id);
-        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+        const eventProbe = await findEventByIdOrSlugParam(req.params.id);
+        if (!eventProbe) return res.status(404).json({ success: false, message: 'Event not found' });
+        if (eventProbe.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
 
-        if (event.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
+        for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
+            const event = await findEventByIdOrSlugParam(req.params.id);
+            if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
-        const conflicts = [];
-        const seatIdSet = new Set(seatIds);
+            const conflicts = [];
+            event.seats.forEach((s) => {
+                const sid = normSeatId(s.id);
+                if (!seatIdSet.has(sid)) return;
+                if (s.status !== 'AVAILABLE') conflicts.push(sid);
+            });
 
-        // Check availability
-        event.seats.forEach(s => {
-            if (seatIdSet.has(s.id)) {
-                if (s.status !== 'AVAILABLE') conflicts.push(s.id);
+            if (conflicts.length > 0) {
+                return res.json({ success: false, conflicts });
             }
-        });
 
-        if (conflicts.length > 0) {
-            return res.json({ success: false, conflicts });
+            const holdExpiry2 = new Date(Date.now() + 5 * 60 * 1000);
+            event.seats = event.seats.map((s) => {
+                const sid = normSeatId(s.id);
+                if (!seatIdSet.has(sid)) return s;
+                return { ...s.toObject ? s.toObject() : s, status: 'BOOKING_IN_PROGRESS', holdUntil: holdExpiry2 };
+            });
+            event.markModified('seats');
+            try {
+                await event.save();
+                return res.json({ success: true });
+            } catch (e) {
+                if (isMongoVersionError(e) && attempt < MAX_SAVE_ATTEMPTS - 1) {
+                    await sleep(20 + attempt * 15);
+                    continue;
+                }
+                throw e;
+            }
         }
-
-        // Mark as BOOKING_IN_PROGRESS and add expiry timestamp
-        const holdExpiry2 = new Date(Date.now() + 5 * 60 * 1000);
-        event.seats = event.seats.map(s => seatIdSet.has(s.id) ? { ...s.toObject ? s.toObject() : s, status: 'BOOKING_IN_PROGRESS', holdUntil: holdExpiry2 } : s);
-        await event.save();
-        return res.json({ success: true });
+        return res.status(503).json({ success: false, message: 'Seat lock busy; please try again.' });
     } catch (err) {
         console.error('lockSeats error', err);
         res.status(500).json({ message: err.message });
     }
 };
 
-// Release seats that are currently in BOOKING_IN_PROGRESS back to AVAILABLE.
+// Release BOOKING_IN_PROGRESS -> AVAILABLE. Body seatIds; query seatIds for beacon/keepalive (d723c6a).
 export const releaseSeats = async (req, res) => {
-    const seatIds = req.body.seatIds || [];
+    let seatIds = req.body && req.body.seatIds;
+    if ((!seatIds || seatIds.length === 0) && req.query && req.query.seatIds) {
+        try {
+            seatIds = JSON.parse(req.query.seatIds);
+        } catch {
+            seatIds = String(req.query.seatIds)
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+        }
+    }
+    if (!Array.isArray(seatIds)) seatIds = [];
+
+    const seatIdSet = new Set(seatIds.map((x) => normSeatId(x)).filter(Boolean));
+    const MAX_SAVE_ATTEMPTS = 8;
+
     try {
-        const event = await Event.findById(req.params.id);
-        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+        const eventProbe = await findEventByIdOrSlugParam(req.params.id);
+        if (!eventProbe) return res.status(404).json({ success: false, message: 'Event not found' });
+        if (eventProbe.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
 
-        if (event.seatingType === 'GENERAL_ADMISSION') return res.json({ success: true });
+        for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
+            const event = await findEventByIdOrSlugParam(req.params.id);
+            if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
-        const seatIdSet = new Set(seatIds);
-        event.seats = event.seats.map(s => {
-            if (seatIdSet.has(s.id) && s.status === 'BOOKING_IN_PROGRESS') {
-                return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
+            event.seats = event.seats.map((s) => {
+                if (seatIdSet.has(normSeatId(s.id)) && s.status === 'BOOKING_IN_PROGRESS') {
+                    return { ...s.toObject ? s.toObject() : s, status: 'AVAILABLE', holdUntil: null };
+                }
+                return s;
+            });
+            event.markModified('seats');
+            try {
+                await event.save();
+                return res.json({ success: true });
+            } catch (e) {
+                if (isMongoVersionError(e) && attempt < MAX_SAVE_ATTEMPTS - 1) {
+                    await sleep(20 + attempt * 15);
+                    continue;
+                }
+                throw e;
             }
-            return s;
-        });
-        await event.save();
-        return res.json({ success: true });
+        }
+        return res.status(503).json({ success: false, message: 'Seat release busy; please try again.' });
     } catch (err) {
         console.error('releaseSeats error', err);
         res.status(500).json({ message: err.message });
