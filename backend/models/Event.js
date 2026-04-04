@@ -68,6 +68,8 @@ const EventSchema = new mongoose.Schema({
     , allowFreeTickets: { type: Boolean, default: false }
 }, {
     timestamps: true,
+    // Avoid VersionError when many requests save seats concurrently (maps, checkout, orders).
+    versionKey: false,
     toJSON: {
         virtuals: true,
         transform: function (doc, ret) {

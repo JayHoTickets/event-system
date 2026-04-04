@@ -5,6 +5,7 @@ import { fetchEventById, holdSeat, lockSeats } from '../services/mockBackend';
 import SeatGrid, { CELL_SIZE } from '../components/SeatGrid';
 import { ArrowLeft, Clock, ShoppingCart, Tag, ZoomIn, ZoomOut, Maximize, Minus, Plus } from 'lucide-react';
 import { formatDateInTimeZone, formatTimeInTimeZone, formatInTimeZone } from '../utils/date';
+import { normSeatIdStr, sameSeatId } from '../utils/seatId';
 import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
 
@@ -51,39 +52,69 @@ const EventBooking: React.FC = () => {
   // GA State: ticketTypeId -> count
   const [gaSelection, setGaSelection] = useState<Record<string, number>>({});
 
+  // Load event, then poll reserved maps so other customers see BOOKING_IN_PROGRESS after checkout locks.
   useEffect(() => {
     if (!slug) return;
-    fetchEventById(slug).then(e => {
-        setEvent(e || null);
-        if (e && e.status && e.status !== EventStatus.PUBLISHED) {
-            setBlocked(true);
-        }
-        console.log('Loaded event', e);
+    let alive = true;
+    let pollId: ReturnType<typeof setInterval> | undefined;
+
+    const mergeSeatSelection = (e: Event) => {
+      setSelectedSeats(prev =>
+        prev.filter(s => {
+          const live = e.seats.find(x => sameSeatId(x.id, s.id));
+          return live?.status === SeatStatus.AVAILABLE;
+        })
+      );
+    };
+
+    const consumePayload = (e: Event | undefined | null, initial: boolean) => {
+      if (!alive) return;
+      if (initial) {
         setLoading(false);
-    });
-  }, [slug]);
-  
-  // Handle fetch errors gracefully
-  useEffect(() => {
-    if (!slug) return;
-    let mounted = true;
+        setEvent(e || null);
+        if (e && e.status !== EventStatus.PUBLISHED) setBlocked(true);
+        else setBlocked(false);
+        return;
+      }
+      if (!e) return;
+      setEvent(e);
+      if (e.status !== EventStatus.PUBLISHED) setBlocked(true);
+      else setBlocked(false);
+      if (e.seatingType === SeatingType.RESERVED) mergeSeatSelection(e);
+    };
+
     fetchEventById(slug)
       .then(e => {
-        if (!mounted) return;
-        setEvent(e || null);
-        if (e && e.status && e.status !== EventStatus.PUBLISHED) {
-            setBlocked(true);
+        consumePayload(e || null, true);
+        if (alive && e?.seatingType === SeatingType.RESERVED) {
+          pollId = setInterval(() => {
+            fetchEventById(slug)
+              .then(ref => consumePayload(ref || null, false))
+              .catch(() => {});
+          }, 8000);
         }
-        setLoading(false);
       })
       .catch(err => {
         console.error('Failed to load event', err);
-        if (!mounted) return;
+        if (!alive) return;
         setEvent(null);
         setLoading(false);
         setError('Failed to load event details. Please try again later.');
       });
-    return () => { mounted = false; };
+
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      fetchEventById(slug)
+        .then(ref => consumePayload(ref || null, false))
+        .catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      alive = false;
+      if (pollId) clearInterval(pollId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [slug]);
 
   // Auto-fit map logic
@@ -146,24 +177,21 @@ const EventBooking: React.FC = () => {
   );
 
   const handleSeatClick = async (seat: Seat) => {
-      // Ignore clicks for seats that are currently being processed
-      if (pendingSeatIdsRef.current.has(seat.id)) return;
-      // Toggle selection logic
-      const isSelected = selectedSeats.some(s => s.id === seat.id);
-      
+      const sid = normSeatIdStr(seat.id);
+      if (pendingSeatIdsRef.current.has(sid)) return;
+      const isSelected = selectedSeats.some(s => sameSeatId(s.id, seat.id));
+
       if (isSelected) {
-          setSelectedSeats(prev => prev.filter(s => s.id !== seat.id));
+          setSelectedSeats(prev => prev.filter(s => !sameSeatId(s.id, seat.id)));
       } else {
-          // Mark this seat as pending so rapid clicks don't cause duplicate adds
-          pendingSeatIdsRef.current.add(seat.id);
+          pendingSeatIdsRef.current.add(sid);
           beginFullOverlayLoading();
           // Check backend availability (mock)
           try {
               const isAvailable = await holdSeat(event.id, seat.id);
               if (isAvailable) {
                   setSelectedSeats(prev => {
-                      // protect against duplicates in case of odd timing
-                      if (prev.some(s => s.id === seat.id)) return prev;
+                      if (prev.some(s => sameSeatId(s.id, seat.id))) return prev;
                       return [...prev, seat];
                   });
                   setError(null);
@@ -174,7 +202,7 @@ const EventBooking: React.FC = () => {
               console.error('Hold seat error', err);
               setError(err?.message || 'Failed to hold seat. Please try again.');
           } finally {
-              pendingSeatIdsRef.current.delete(seat.id);
+              pendingSeatIdsRef.current.delete(sid);
               endFullOverlayLoading();
           }
       }
@@ -208,9 +236,11 @@ const EventBooking: React.FC = () => {
                 } else {
                     const conflicts = (res && res.conflicts) || [];
                     // Refresh event to get latest seat states
-                    const refreshed = await fetchEventById(event.id);
+                    const refreshed = await fetchEventById(slug ?? event.id);
                     setEvent(refreshed || event);
-                    setSelectedSeats(prev => prev.filter(s => !conflicts.includes(s.id)));
+                    setSelectedSeats(prev =>
+                      prev.filter(s => !conflicts.some(c => sameSeatId(c, s.id)))
+                    );
                     setError(conflicts.length > 0 ? `Some seats were taken: ${conflicts.join(', ')}.` : 'Failed to lock selected seats. Please try again.');
                 }
             } catch (err: any) {
@@ -408,6 +438,7 @@ return (
                     selectedSeatIds={selectedSeats.map(s => s.id)}
                     onSeatClick={handleSeatClick}
                     scale={zoom}
+                    publicBookingUnifiedTakenSeats
                   />
                 </div>
               </div>
@@ -619,6 +650,7 @@ return (
                   selectedSeatIds={selectedSeats.map(s => s.id)}
                   onSeatClick={handleSeatClick}
                   scale={zoom}
+                  publicBookingUnifiedTakenSeats
                 />
               </div>
             </div>

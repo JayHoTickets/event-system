@@ -226,7 +226,7 @@ export interface Order {
   }>;
   discountApplied: number;
   couponCode?: string;
-  status: 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
+  status: 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED' | 'REFUND' | 'PAYMENT_PENDING';
   refundAmount?: number;
   refundStatus?: 'PENDING' | 'PROCESSED' | 'FAILED';
   cancellationNotes?: string;

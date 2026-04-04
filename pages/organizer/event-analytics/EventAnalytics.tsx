@@ -28,7 +28,7 @@ const EventAnalytics: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [orderDateFrom, setOrderDateFrom] = useState('');
     const [orderDateTo, setOrderDateTo] = useState('');
-    const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL'|'PAID'|'FAILED'|'REFUNDED'|'CANCELLED'>('ALL');
+    const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL'|'PAID'|'FAILED'|'REFUND'|'CANCELLED'>('ALL');
     const [orderModeFilter, setOrderModeFilter] = useState<'ALL' | PaymentMode>('ALL');
     
     // View State
@@ -90,6 +90,51 @@ const EventAnalytics: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [id]);
+
+  // Refresh seat status often while Live Seating Map is open (checkout locks / releases).
+  useEffect(() => {
+    if (!id || activeView !== 'MAP') return;
+    const tick = () => {
+      fetchEventById(id)
+        .then((eData) => {
+          if (eData) setEvent(eData);
+        })
+        .catch(() => {});
+    };
+    tick();
+    const interval = setInterval(tick, 6000);
+    return () => clearInterval(interval);
+  }, [id, activeView]);
+
+  // Refresh event + orders every 30s while Order Report (stats) is open.
+  useEffect(() => {
+    if (!id || activeView !== 'STATS') return;
+    const tick = () => {
+      Promise.all([fetchEventById(id), fetchEventOrders(id)])
+        .then(([eData, oData]) => {
+          if (eData) setEvent(eData);
+          setOrders(oData);
+        })
+        .catch(() => {});
+    };
+    const interval = setInterval(tick, 30_000);
+    return () => clearInterval(interval);
+  }, [id, activeView]);
+
+  // Refresh event + orders every 30s while Check-in Report is open (attendee list & stats).
+  useEffect(() => {
+    if (!id || activeView !== 'CHECKIN') return;
+    const tick = () => {
+      Promise.all([fetchEventById(id), fetchEventOrders(id)])
+        .then(([eData, oData]) => {
+          if (eData) setEvent(eData);
+          setOrders(oData);
+        })
+        .catch(() => {});
+    };
+    const interval = setInterval(tick, 30_000);
+    return () => clearInterval(interval);
+  }, [id, activeView]);
 
     const loadData = () => {
         if (id) {
@@ -177,7 +222,9 @@ const EventAnalytics: React.FC = () => {
     return <div className="p-10 text-center text-red-500">Event not found</div>;
 
     // --- Stats Calculation ---
-    const activeOrders = orders.filter(o => o.status !== 'CANCELLED');
+    const activeOrders = orders.filter(
+      (o) => o.status !== 'CANCELLED' && o.status !== 'REFUND' && o.status !== 'REFUNDED',
+    );
     const orderActualEarning = (o: Order) => o.totalAmount - (o.serviceFee || 0);
     const paidOrders = activeOrders.filter(o => o.status === 'PAID');
     const onlinePaidOrders = paidOrders.filter(
@@ -211,7 +258,11 @@ const EventAnalytics: React.FC = () => {
 
       // Status filter
       const matchesStatus =
-        orderStatusFilter === "ALL" ? true : o.status === orderStatusFilter;
+        orderStatusFilter === "ALL"
+          ? true
+          : orderStatusFilter === "REFUND"
+            ? o.status === "REFUND" || o.status === "REFUNDED"
+            : o.status === orderStatusFilter;
 
       // Mode filter
       const matchesMode =
@@ -357,7 +408,9 @@ const EventAnalytics: React.FC = () => {
       };
 
       const refundLabel = (o: Order) =>
-        o.status === 'CANCELLED' ? o.refundStatus || 'PENDING' : '—';
+        o.status === 'CANCELLED' || o.status === 'REFUND' || o.status === 'REFUNDED'
+          ? o.refundStatus || 'PENDING'
+          : '—';
 
       const rows = filteredOrders.map((o) => [
         o.id,
@@ -835,7 +888,11 @@ const EventAnalytics: React.FC = () => {
                                     <div>
                                         <span className="text-slate-500 block mb-1">Status</span>
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                                            selectedOrder.status === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                            selectedOrder.status === 'PAID'
+                                              ? 'bg-green-100 text-green-800'
+                                              : selectedOrder.status === 'REFUND' || selectedOrder.status === 'REFUNDED'
+                                                ? 'bg-yellow-100 text-yellow-800'
+                                                : 'bg-red-100 text-red-800'
                                         }`}>
                                             {selectedOrder.status}
                                         </span>
@@ -844,9 +901,11 @@ const EventAnalytics: React.FC = () => {
                             </div>
 
                             {/* Cancellation Details (if cancelled) */}
-                            {selectedOrder.status === 'CANCELLED' && (
+                            {(selectedOrder.status === 'CANCELLED' ||
+                                selectedOrder.status === 'REFUND' ||
+                                selectedOrder.status === 'REFUNDED') && (
                                 <div className="bg-red-50 rounded-lg p-4 mb-6 border border-red-100">
-                                    <h4 className="text-sm font-bold text-red-700 mb-2">Cancellation Details</h4>
+                                    <h4 className="text-sm font-bold text-red-700 mb-2">Cancellation / refund details</h4>
                                     <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
                                         <div>
                                             <span className="text-slate-500 block mb-1">Refund Amount</span>
@@ -1021,7 +1080,7 @@ const EventAnalytics: React.FC = () => {
                             <button onClick={() => setShowCancelModal(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200 rounded-full transition"><X className="w-5 h-5"/></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <p className="text-sm text-slate-600">Refund order <span className="font-mono text-slate-700">{selectedOrder.id}</span>. Recording the refund will mark the order as <strong>CANCELLED</strong> and block tickets from being scanned.</p>
+                            <p className="text-sm text-slate-600">Refund order <span className="font-mono text-slate-700">{selectedOrder.id}</span>. Seats are released when you confirm. With refund amount <strong>0</strong> the order is marked <strong>CANCELLED</strong>; with a <strong>positive</strong> refund amount it is marked <strong>REFUND</strong>. Tickets cannot be scanned either way.</p>
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Refund Amount</label>

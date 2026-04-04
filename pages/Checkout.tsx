@@ -334,9 +334,7 @@ const Checkout: React.FC = () => {
     });
   }, []);
 
-
-
-  // Timer Lifecycle & Seat Release
+  // Timer Lifecycle & Seat Release (lock happens only on EventBooking checkout — same as d723c6a)
   useEffect(() => {
     if (!event || event.seatingType !== SeatingType.RESERVED) return;
 

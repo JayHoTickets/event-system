@@ -92,7 +92,7 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
               <option value="ALL">All Status</option>
               <option value="PAID">Paid</option>
               <option value="FAILED">Failed</option>
-              <option value="REFUNDED">Refunded</option>
+              <option value="REFUND">Refund</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
             <select className="border rounded-lg px-3 py-2 text-sm bg-white" value={orderModeFilter} onChange={e => setOrderModeFilter(e.target.value as any)}>
@@ -140,8 +140,8 @@ const EventAnalyticsStats: React.FC<any> = (props) => {
                     <td className="px-6 py-4 text-sm font-bold text-slate-900">${(order.serviceFee || 0).toFixed(2)}</td>
                     <td className="px-6 py-4 text-sm font-bold text-slate-900">${(order.totalAmount || 0).toFixed(2)}</td>
                     <td className="px-6 py-4"><span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">{order.paymentMode || 'ONLINE'}</span></td>
-                    <td className="px-6 py-4"><span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'PAID' ? 'bg-green-100 text-green-800' : order.status === 'REFUNDED' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{order.status}</span></td>
-                    <td className="px-6 py-4">{order.status === 'CANCELLED' ? (<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(order.refundStatus || 'PENDING') === 'PROCESSED' ? 'bg-green-100 text-green-800' : (order.refundStatus || 'PENDING') === 'FAILED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{(order.refundStatus || 'PENDING')}</span>) : (<span className="text-sm text-slate-400">—</span>)}</td>
+                    <td className="px-6 py-4"><span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'PAID' ? 'bg-green-100 text-green-800' : order.status === 'REFUND' || order.status === 'REFUNDED' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{order.status}</span></td>
+                    <td className="px-6 py-4">{order.status === 'CANCELLED' || order.status === 'REFUND' || order.status === 'REFUNDED' ? (<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(order.refundStatus || 'PENDING') === 'PROCESSED' ? 'bg-green-100 text-green-800' : (order.refundStatus || 'PENDING') === 'FAILED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{(order.refundStatus || 'PENDING')}</span>) : (<span className="text-sm text-slate-400">—</span>)}</td>
                     <td className="px-6 py-4 text-right"><button onClick={() => setSelectedOrder(order)} className="text-slate-500 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-lg transition" title="View Details"><Eye className="w-4 h-4" /></button></td>
                   </tr>
                 ))
